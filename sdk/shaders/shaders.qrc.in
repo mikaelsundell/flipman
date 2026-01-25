@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/shaders">
+@qrc_shader_entries@
+    </qresource>
+</RCC>
