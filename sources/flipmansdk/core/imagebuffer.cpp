@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <core/imagebuffer.h>
+#include <flipmansdk/core/imagebuffer.h>
 
 using namespace flipman::sdk;
 

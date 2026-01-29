@@ -4,30 +4,29 @@
 
 #include "window.h"
 #include "timelinewidget.h"
+
+#include <flipmansdk/av/timeline.h>
+#include <flipmansdk/av/timerange.h>
+
 #include <QBoxLayout>
 #include <QLabel>
 #include <QPointer>
 #include <QRandomGenerator>
 #include <QScrollArea>
 #include <QSlider>
-#include <av/timeline.h>
-#include <av/timerange.h>
 
+namespace flipman {
 class WindowPrivate : public QObject {
-    Q_OBJECT
 public:
     WindowPrivate();
     void init();
-    QColor randomcolor() const;
-    av::TimeRange randomtimerange(const av::Fps& fps) const;
-
-public Q_SLOTS:
-    void test();
-
+    QColor randomColor() const;
+    sdk::av::TimeRange randomTimeRange(const sdk::av::Fps& fps) const;
+    
 public:
     struct Data {
-        QPointer<av::Timeline> timeline;
-        QPointer<TimelineWidget> timelineWidget;
+        QPointer<sdk::av::Timeline> timeLine;
+        QPointer<TimeLineWidget> timeLineWidget;
         QPointer<Window> window;
     };
     Data d;
@@ -38,99 +37,90 @@ WindowPrivate::WindowPrivate() {}
 void
 WindowPrivate::init()
 {
-    av::Fps fps = av::Fps::fps_24();
-    av::Time start = av::Time(static_cast<qreal>(0), fps);
-    av::Time duration = av::Time(static_cast<qreal>(30), fps);
-    av::TimeRange timerange(start, duration);
-
-    d.timeline = new av::Timeline(d.window.data());
-    d.timeline->set_timerange(timerange);
-
+    sdk::av::Fps fps = sdk::av::Fps::fps24();
+    sdk::av::Time start = sdk::av::Time(static_cast<qreal>(0), fps);
+    sdk::av::Time duration = sdk::av::Time(static_cast<qreal>(30), fps);
+    sdk::av::TimeRange timeRange(start, duration);
+    
+    d.timeLine = new sdk::av::Timeline(d.window.data());
+    d.timeLine->setTimeRange(timeRange);
+    
     for (int t = 0; t < 10; t++) {
-        av::Track* track = new av::Track(d.timeline.data());
-        track->set_name(QString("Video %1").arg(t));
-        track->set_color(randomcolor());
-
+        sdk::av::Track* track = new sdk::av::Track(d.timeLine.data());
+        track->setName(QString("Video %1").arg(t));
+        track->setColor(randomColor());
+        
         for (int c = 0; c < 10; c++) {
-            av::Clip* clip = new av::Clip(d.timeline.data());
-            clip->set_name(QString("Clip %1").arg(c));
-            clip->set_color(randomcolor());
-            track->insert_clip(clip, randomtimerange(fps));
+            sdk::av::Clip* clip = new sdk::av::Clip(d.timeLine.data());
+            clip->setName(QString("Clip %1").arg(c));
+            clip->setColor(randomColor());
+            track->insertClip(clip, randomTimeRange(fps));
         }
-        d.timeline->insert_track(track);
+        d.timeLine->insertTrack(track);
     }
-
-    // Create TimelineWidget
-    d.timelineWidget = new TimelineWidget(d.window.data());
-    d.timelineWidget->set_timeline(d.timeline);
-
-    // Create QLabel for Time Display
+    
+    d.timeLineWidget = new TimeLineWidget(d.window.data());
+    d.timeLineWidget->setTimeLine(d.timeLine);
+    
     QLabel* timeLabel = new QLabel("00:00:00", d.window.data());
     timeLabel->setFixedWidth(100);  // Fixed width for consistent layout
     timeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-
-    // Create QSlider for Zoom Control
+    
     QSlider* zoomSlider = new QSlider(Qt::Horizontal, d.window.data());
     zoomSlider->setRange(0, 100);  // Increase the range for finer control
     zoomSlider->setValue(50);      // Start at the middle position
     zoomSlider->setTickInterval(10);
     zoomSlider->setTickPosition(QSlider::TicksBelow);
-
-
-    // Connect TimelineWidget time_changed Signal to QLabel
-    connect(d.timelineWidget, &TimelineWidget::time_changed, [timeLabel](const av::Time& time) {
+    
+    connect(d.timeLineWidget, &TimeLineWidget::timeChanged, [timeLabel](const sdk::av::Time& time) {
         int totalSeconds = static_cast<int>(time.seconds());
         int hours = totalSeconds / 3600;
         int minutes = (totalSeconds % 3600) / 60;
         int seconds = totalSeconds % 60;
         timeLabel->setText(QString("%1:%2:%3")
-                               .arg(hours, 2, 10, QChar('0'))
-                               .arg(minutes, 2, 10, QChar('0'))
-                               .arg(seconds, 2, 10, QChar('0')));
+                           .arg(hours, 2, 10, QChar('0'))
+                           .arg(minutes, 2, 10, QChar('0'))
+                           .arg(seconds, 2, 10, QChar('0')));
     });
-
-    // Connect QSlider to TimelineWidget Zoom
     connect(zoomSlider, &QSlider::valueChanged, [this](int value) {
-        // Map slider to a non-linear zoom scale
-        // Exponential mapping: value 0-100 to zoom 0.25 to 8.0
+        // map slider to a non-linear zoom scale
+        // exponential mapping: value 0-100 to zoom 0.25 to 8.0
         double zoom = std::pow(2.0,
                                (value - 50) / 25.0);  // More aggressive zooming
-        d.timelineWidget->set_zoom(zoom);
+        d.timeLineWidget->setZoom(zoom);
     });
-
-
-    // Add TimelineWidget to QScrollArea for Horizontal Scrolling
+    
     QScrollArea* scrollArea = new QScrollArea(d.window.data());
-    scrollArea->setWidget(d.timelineWidget);
+    scrollArea->setWidget(d.timeLineWidget);
     scrollArea->setWidgetResizable(false);
     scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
+    
     QWidget* controlsWidget = new QWidget(d.window.data());
     QHBoxLayout* controlsLayout = new QHBoxLayout();
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(10);
-
+    
     controlsLayout->addWidget(timeLabel);
-    controlsLayout->addStretch();  // Horizontal Spacer
+    controlsLayout->addStretch();
     controlsLayout->addWidget(zoomSlider);
-
+    
     controlsWidget->setLayout(controlsLayout);
-
+    
     QVBoxLayout* mainLayout = new QVBoxLayout();
-    mainLayout->addWidget(controlsWidget);  // Add Controls at the Top
-    mainLayout->addWidget(scrollArea);      // Timeline Scroll Area Below
-
+    mainLayout->addWidget(controlsWidget);
+    mainLayout->addWidget(scrollArea);
+    
     QWidget* centralWidget = new QWidget(d.window.data());
     centralWidget->setLayout(mainLayout);
-
+    
     d.window->setCentralWidget(centralWidget);
     d.window->resize(800, 600);
 }
 
 
 QColor
-WindowPrivate::randomcolor() const
+WindowPrivate::randomColor() const
 {
     int red = QRandomGenerator::global()->bounded(256);
     int green = QRandomGenerator::global()->bounded(256);
@@ -138,28 +128,23 @@ WindowPrivate::randomcolor() const
     return QColor(red, green, blue, 255);
 }
 
-av::TimeRange
-WindowPrivate::randomtimerange(const av::Fps& fps) const
+sdk::av::TimeRange
+WindowPrivate::randomTimeRange(const sdk::av::Fps& fps) const
 {
     qreal start = QRandomGenerator::global()->bounded(30.0);
     qreal duration = QRandomGenerator::global()->bounded(30);
-    av::Time startTime = av::Time(start, fps);
-    av::Time durationTime = av::Time(duration, fps);
-    return av::TimeRange(startTime, durationTime);
+    sdk::av::Time startTime = sdk::av::Time(start, fps);
+    sdk::av::Time durationTime = sdk::av::Time(duration, fps);
+    return sdk::av::TimeRange(startTime, durationTime);
 }
 
-void
-WindowPrivate::test()
-{}
-
-#include "window.moc"
-
 Window::Window(QWidget* parent)
-    : QMainWindow(parent)
-    , p(new WindowPrivate())
+: QMainWindow(parent)
+, p(new WindowPrivate())
 {
     p->d.window = this;
     p->init();
 }
 
 Window::~Window() {}
+}

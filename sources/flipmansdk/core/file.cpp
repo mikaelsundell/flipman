@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/core/filerange.h>
+
 #include <QDir>
 #include <QRegularExpression>
-#include <core/file.h>
-#include <core/filerange.h>
 
 namespace flipman::sdk::core {
 class FilePrivate : public QSharedData {

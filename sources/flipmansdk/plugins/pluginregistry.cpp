@@ -2,15 +2,13 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/plugins/mediareader.h>
+#include <flipmansdk/plugins/mediawriter.h>
+#include <flipmansdk/plugins/pluginregistry.h>
+#include <flipmansdk/plugins/qt/qt.h>
+#include <flipmansdk/plugins/quicktime/quicktime.h>
+
 #include <QMap>
-#include <plugins/mediareader.h>
-#include <plugins/mediawriter.h>
-#include <plugins/pluginregistry.h>
-
-#include <plugins/qt/qt.h>
-#include <plugins/quicktime/quicktime.h>
-
-#include <QDebug>
 
 namespace flipman::sdk::plugins {
 class PluginRegistryPrivate {

@@ -3,7 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <QDebug>
-#include <core/error.h>
+#include <flipmansdk/core/error.h>
 
 namespace flipman::sdk::core {
 class ErrorPrivate : public QSharedData {

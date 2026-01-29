@@ -2,11 +2,12 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/av/smptetime.h>
+#include <flipmansdk/widgets/timeeditwidget.h>
+
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
-#include <av/smptetime.h>
-#include <widgets/timeeditwidget.h>
 
 namespace flipman::sdk::widgets {
 class TimeEditWidgetPrivate : public QObject {

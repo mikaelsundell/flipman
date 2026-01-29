@@ -3,7 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <QtGlobal>
-#include <av/timerange.h>
+#include <flipmansdk/av/timerange.h>
 
 namespace flipman::sdk::av {
 class TimeRangePrivate : public QSharedData {

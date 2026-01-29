@@ -2,7 +2,7 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <core/environment.h>
+#include <flipmansdk/core/environment.h>
 
 #include <QCoreApplication>
 #include <QDir>

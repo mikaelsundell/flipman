@@ -3,27 +3,31 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "testsuite.h"
+
+#include <flipmansdk/av/clip.h>
+#include <flipmansdk/av/fps.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/av/mediaprocessor.h>
+#include <flipmansdk/av/smptetime.h>
+#include <flipmansdk/av/time.h>
+#include <flipmansdk/av/timeline.h>
+#include <flipmansdk/av/timer.h>
+#include <flipmansdk/av/timerange.h>
+#include <flipmansdk/av/track.h>
+
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/core/filerange.h>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/core/environment.h>
+
+#include <flipmansdk/plugins/pluginregistry.h>
+#include <flipmansdk/plugins/qtwriter.h>
+#include <flipmansdk/plugins/quicktimereader.h>
+
 #include <QApplication>
 #include <QDebug>
 #include <QThread>
 #include <QtConcurrent>
-#include <av/clip.h>
-#include <av/fps.h>
-#include <av/media.h>
-#include <av/mediaprocessor.h>
-#include <av/smptetime.h>
-#include <av/time.h>
-#include <av/timeline.h>
-#include <av/timer.h>
-#include <av/timerange.h>
-#include <av/track.h>
-#include <core/file.h>
-#include <core/filerange.h>
-#include <core/imagebuffer.h>
-#include <core/os.h>
-#include <plugins/pluginregistry.h>
-#include <plugins/qtwriter.h>
-#include <plugins/quicktimereader.h>
 
 namespace {
 QString resourcepath = "../../data";

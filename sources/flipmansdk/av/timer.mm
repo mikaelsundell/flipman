@@ -2,10 +2,12 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <av/timer.h>
-#include <av/fps.h>
+#include <flipmansdk/av/timer.h>
+#include <flipmansdk/av/fps.h>
+
 #include <mach/mach.h>
 #include <mach/mach_time.h>
+
 #include <QPointer>
 #include <QDebug>
 #include <QThread>

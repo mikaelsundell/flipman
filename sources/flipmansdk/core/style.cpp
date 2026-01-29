@@ -2,7 +2,7 @@
 // Copyright (c) 2025 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <core/style.h>
+#include <flipmansdk/core/style.h>
 
 #include <QApplication>
 #include <QFile>
@@ -12,8 +12,6 @@
 #include <QPointer>
 #include <QRegularExpression>
 #include <QSurfaceFormat>
-
-#include <QDebug>
 
 namespace flipman::sdk::core {
 class StylePrivate {

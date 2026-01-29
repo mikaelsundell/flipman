@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2022 - present Mikael Sundell.
 
-#include <av/smptetime.h>
+#include <flipmansdk/av/smptetime.h>
 
 #include <QDebug>
 

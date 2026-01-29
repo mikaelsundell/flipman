@@ -4,11 +4,11 @@
 
 #include "flipman.h"
 
-#include <av/media.h>
-#include <av/timeline.h>
-#include <core/platform.h>
-#include <widgets/renderwidget.h>
-#include <widgets/timeline.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/av/timeline.h>
+#include <flipmansdk/core/platform.h>
+#include <flipmansdk/widgets/renderwidget.h>
+#include <flipmansdk/widgets/timeline.h>
 
 #include <QActionGroup>
 #include <QApplication>

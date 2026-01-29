@@ -3,22 +3,24 @@
 
 #pragma once
 
+#include <flipmansdk/av/timeline.h>
+
 #include <QScopedPointer>
 #include <QWidget>
-#include <av/timeline.h>
 
-class TimelineWidgetPrivate;
-class TimelineWidget : public QWidget {
+namespace flipman {
+class TimeLineWidgetPrivate;
+class TimeLineWidget : public QWidget {
     Q_OBJECT
 public:
-    TimelineWidget(QWidget* parent = nullptr);
-    virtual ~TimelineWidget();
+    TimeLineWidget(QWidget* parent = nullptr);
+    virtual ~TimeLineWidget();
 
-    void set_timeline(av::Timeline* timeline);
-    void set_zoom(double zoom);
+    void setTimeLine(sdk::av::Timeline* timeLine);
+    void setZoom(double zoom);
 
 Q_SIGNALS:
-    void time_changed(const av::Time& time);
+    void timeChanged(const sdk::av::Time& time);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
@@ -28,5 +30,6 @@ protected:
     QSize sizeHint() const override;
 
 private:
-    QScopedPointer<TimelineWidgetPrivate> p;
+    QScopedPointer<TimeLineWidgetPrivate> p;
 };
+}  // namespace flipman

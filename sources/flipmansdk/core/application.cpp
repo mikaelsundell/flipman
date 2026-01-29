@@ -2,10 +2,10 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <core/application.h>
-#include <core/environment.h>
-#include <core/style.h>
-#include <core/system.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/style.h>
+#include <flipmansdk/core/system.h>
 
 #include <QPointer>
 

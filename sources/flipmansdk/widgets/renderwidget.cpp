@@ -2,10 +2,10 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <widgets/renderwidget.h>
+#include <flipmansdk/widgets/renderwidget.h>
 
-#include <core/application.h>
-#include <core/style.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/style.h>
 
 #include <QFile>
 #include <QMouseEvent>

@@ -4,9 +4,9 @@
 
 #include <QFileInfo>
 #include <QPointer>
-#include <av/media.h>
-#include <plugins/mediareader.h>
-#include <plugins/pluginregistry.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/plugins/mediareader.h>
+#include <flipmansdk/plugins/pluginregistry.h>
 
 namespace flipman::sdk::av {
 class MediaPrivate : public QSharedData {

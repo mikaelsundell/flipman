@@ -2,10 +2,12 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+
+#include <flipmansdk/av/mediaprocessor.h>
+#include <flipmansdk/plugins/mediawriter.h>
+#include <flipmansdk/plugins/pluginregistry.h>
+
 #include <QtConcurrent>
-#include <av/mediaprocessor.h>
-#include <plugins/mediawriter.h>
-#include <plugins/pluginregistry.h>
 
 namespace flipman::sdk::av {
 class MediaProcessorPrivate {

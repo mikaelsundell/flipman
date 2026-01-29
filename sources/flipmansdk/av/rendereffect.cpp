@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <av/rendereffect.h>
+#include <flipmansdk/av/rendereffect.h>
 
 namespace flipman::sdk::av {
 class RenderEffectPrivate : public QSharedData {

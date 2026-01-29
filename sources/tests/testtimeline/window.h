@@ -6,13 +6,14 @@
 #include <QMainWindow>
 #include <QScopedPointer>
 
+namespace flipman {
 class WindowPrivate;
 class Window : public QMainWindow {
-    Q_OBJECT
 public:
     Window(QWidget* parent = nullptr);
     virtual ~Window();
-
+    
 private:
     QScopedPointer<WindowPrivate> p;
 };
+}

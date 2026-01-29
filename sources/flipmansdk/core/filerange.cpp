@@ -2,8 +2,9 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/filerange.h>
+
 #include <QMap>
-#include <core/filerange.h>
 
 namespace flipman::sdk::core {
 class FileRangePrivate : public QSharedData {

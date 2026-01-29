@@ -2,6 +2,7 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/system.h>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -15,8 +16,6 @@
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>
-
-#include <core/system.h>
 
 namespace flipman::sdk::core {
 class SystemPrivate

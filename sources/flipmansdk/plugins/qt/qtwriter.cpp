@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <plugins/qt/qt.h>
+#include <flipmansdk/plugins/qt/qt.h>
 
 #include <QDir>
 #include <QImage>

@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2022 - present Mikael Sundell.
 
+
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/av/timeline.h>
+#include <flipmansdk/av/timer.h>
+#include <flipmansdk/av/track.h>
+
 #include <QPointer>
 #include <QThreadPool>
 #include <QtGlobal>
-#include <av/media.h>
-#include <av/timeline.h>
-#include <av/timer.h>
-#include <av/track.h>
 
 #include <QDebug>
 

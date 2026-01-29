@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # https://github.com/mikaelsundell/flipman
 
-set(sdk_name "${project_name}sdk")
+set(sdk_name "${project_name}Sdk")
 
 include(exportheader)
 include(shadercompile)
 
 # --- av module ---
-file(GLOB sdk_av_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/av/*.h")
+file(GLOB sdk_av_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/av/*.h")
 file(GLOB sdk_av_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/av/*.cpp" 
     "${CMAKE_CURRENT_SOURCE_DIR}/av/*.mm"
@@ -17,7 +17,7 @@ source_group("Header Files\\av" FILES ${sdk_av_headers})
 source_group("Source Files\\av" FILES ${sdk_av_sources})
 
 # --- core module ---
-file(GLOB sdk_core_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/core/*.h")
+file(GLOB sdk_core_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/core/*.h")
 file(GLOB sdk_core_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp" 
     "${CMAKE_CURRENT_SOURCE_DIR}/core/*.mm"
@@ -26,7 +26,7 @@ source_group("Header Files\\core" FILES ${sdk_core_headers})
 source_group("Source Files\\core" FILES ${sdk_core_sources})
 
 # --- plugins Module ---
-file(GLOB sdk_plugins_base_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/plugins/*.h")
+file(GLOB sdk_plugins_base_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/plugins/*.h")
 file(GLOB sdk_plugins_base_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.cpp" 
     "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.mm"
@@ -39,7 +39,7 @@ set(sdk_plugins_all_headers ${sdk_plugins_base_headers})
 set(sdk_plugins_all_sources ${sdk_plugins_base_sources})
 
 foreach(subdir ${plugin_subdirs})
-    file(GLOB subdir_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/plugins/${subdir}/*.h")
+    file(GLOB subdir_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/plugins/${subdir}/*.h")
     file(GLOB subdir_sources 
         "${CMAKE_CURRENT_SOURCE_DIR}/plugins/${subdir}/*.cpp" 
         "${CMAKE_CURRENT_SOURCE_DIR}/plugins/${subdir}/*.mm"
@@ -53,7 +53,7 @@ foreach(subdir ${plugin_subdirs})
 endforeach()
 
 # --- widgets module ---
-file(GLOB sdk_widgets_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/widgets/*.h")
+file(GLOB sdk_widgets_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/widgets/*.h")
 file(GLOB sdk_widgets_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/widgets/*.cpp" 
     "${CMAKE_CURRENT_SOURCE_DIR}/widgets/*.mm"
@@ -79,7 +79,7 @@ generate_qt_shaders(
 )
 
 # --- resources & Root Headers ---
-file(GLOB sdk_root_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+file(GLOB sdk_root_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/*.h")
 file(GLOB sdk_resources "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.qss")
 set(sdk_qrc_file "${CMAKE_CURRENT_SOURCE_DIR}/resources/flipmansdk.qrc")
 qt_add_resources(sdk_resource_sources ${sdk_qrc_file})
@@ -112,16 +112,31 @@ target_compile_definitions(${sdk_name} PRIVATE
     -DGITHUB_URL="${project_url}"
 )
 
-target_include_directories(${sdk_name} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
-target_link_libraries(${sdk_name}
-    Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::GuiPrivate Qt6::Widgets
-    "-framework CoreFoundation"
-    "-framework AVFoundation"
-    "-framework CoreMedia"
-    "-framework CoreVideo"
-    "-framework AppKit"
+# usage requirements: PUBLIC ensures that targets linking to the SDK
+# automatically get the include/ directory in their search path.
+target_include_directories(${sdk_name} 
+    PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    PRIVATE 
+        ${CMAKE_CURRENT_SOURCE_DIR} # For private headers or .cpp files finding their own headers
 )
 
-generate_export_header(${sdk_name} "flipmanexport.h")
+generate_export_header(${sdk_name} 
+    BASE_NAME FLIPMANSDK
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/flipmanexport.h"
+)
+
+target_link_libraries(${sdk_name}
+    PUBLIC
+        Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::Widgets
+    PRIVATE
+        Qt6::GuiPrivate
+        "-framework CoreFoundation"
+        "-framework AVFoundation"
+        "-framework CoreMedia"
+        "-framework CoreVideo"
+        "-framework AppKit"
+)
+
 add_dependencies(${sdk_name} ${sdk_name}_shaders)

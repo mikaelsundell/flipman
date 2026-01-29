@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <core/plugin.h>
+#include <flipmansdk/core/plugin.h>
 
 namespace flipman::sdk::core {
 Plugin::Plugin(QObject* parent)

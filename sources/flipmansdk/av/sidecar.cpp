@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <av/sidecar.h>
+#include <flipmansdk/av/sidecar.h>
 
 #include <QSharedData>
 

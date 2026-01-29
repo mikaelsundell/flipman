@@ -3,7 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <QDebug>
-#include <av/time.h>
+#include <flipmansdk/av/time.h>
 
 namespace flipman::sdk::av {
 class TimePrivate : public QSharedData {

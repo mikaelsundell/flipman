@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <core/audioformat.h>
+#include <flipmansdk/core/audioformat.h>
 
 namespace flipman::sdk::core {
 class AudioFormatPrivate : public QSharedData {

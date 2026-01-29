@@ -2,9 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/parameters.h>
+
 #include <QHash>
 #include <QVariant>
-#include <core/parameters.h>
 
 namespace flipman::sdk::core {
 class ParametersPrivate : public QSharedData {

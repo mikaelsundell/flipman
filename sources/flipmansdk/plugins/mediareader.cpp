@@ -3,7 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <QPointer>
-#include <plugins/mediareader.h>
+#include <flipmansdk/plugins/mediareader.h>
 
 namespace flipman::sdk::plugins {
 MediaReader::MediaReader(QObject* parent)
