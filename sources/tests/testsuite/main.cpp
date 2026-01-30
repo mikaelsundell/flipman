@@ -4,10 +4,13 @@
 
 #include "testsuite.h"
 
+#include <flipmansdk/core/application.h>
+
+#include <QTimer>
 #include <QDebug>
 
-int
-main(int argc, char* argv[])
+void
+run()
 {
     bool test_containers = true;
     bool test_types = true;
@@ -15,20 +18,21 @@ main(int argc, char* argv[])
     bool test_timer = true;
     bool test_plugins = true;
     bool test_processors = true;
+    bool test_timeline = true;
 
     if (test_containers) {
         qDebug() << "testsuite: containers";
-        test_clip();
+        flipman::test_clip();
     }
 
     if (test_types) {
         qDebug() << "testsuite: types";
-        test_file();
-        test_image();
-        test_time();
-        test_timerange();
-        test_fps();
-        test_smpte();
+        flipman::test_file();
+        flipman::test_image();
+        flipman::test_time();
+        flipman::test_timerange();
+        flipman::test_fps();
+        flipman::test_smpte();
     }
     if (test_media) {
         qDebug() << "testsuite: media";
@@ -41,9 +45,20 @@ main(int argc, char* argv[])
     if (test_plugins) {
         qDebug() << "testsuite: timer";
         //test_plugins();
-        test_pluginregistry();
+        flipman::test_pluginregistry();
     }
     if (test_timeline) {
-        test_timeline();
+        flipman::test_timeline();
     }
+}
+
+int
+main(int argc, char* argv[])
+{
+    flipman::sdk::core::Application app(argc, argv);
+    QTimer::singleShot(0, [&]() {
+        run();
+        app.quit();
+    });
+    return app.exec();
 }

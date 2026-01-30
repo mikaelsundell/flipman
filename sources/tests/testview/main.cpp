@@ -2,15 +2,17 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include "testgamut.h"
+#include "window.h"
+
+#include <flipmansdk/core/application.h>
 
 #include <QApplication>
 
 int
 main(int argc, char* argv[])
 {
-    QApplication app(argc, argv);
-    Testgamut testgamut;
-    testgamut.show();
+    flipman::sdk::core::Application app(argc, argv);
+    flipman::Window window;
+    window.show();
     return app.exec();
 }

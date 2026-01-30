@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2024 - present Mikael Sundell.
+// Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
 #pragma once
 
 #include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QScopedPointer>
 #include <QWidget>
@@ -16,7 +17,8 @@ class TimeEditWidgetPrivate;
 /**
  * @class TimeEditWidget
  * @brief A specialized input widget for manipulating and displaying temporal data.
- * * TimeEditWidget provides a user interface for editing av::Time values using
+ *
+ * TimeEditWidget provides a user interface for editing av::Time values using
  * multiple professional formats including raw frames, absolute time, and
  * SMPTE timecode (HH:MM:SS:FF). It is designed to integrate seamlessly into
  * playbacks and timeline controls within the Flipman SDK.
@@ -41,13 +43,16 @@ public:
      * @brief Constructs a TimeEditWidget.
      * @param parent The parent widget.
      */
-    TimeEditWidget(QWidget* parent = nullptr);
+    explicit TimeEditWidget(QWidget* parent = nullptr);
 
     /**
      * @brief Destroys the widget.
+     * @note Required for the PIMPL pattern to safely delete TimeEditWidgetPrivate.
      */
-    virtual ~TimeEditWidget();
+    ~TimeEditWidget() override;
 
+    /** @name Attributes */
+    ///@{
     /**
      * @brief Returns the current time value.
      * @return The underlying av::Time object containing frame rate and position.
@@ -58,8 +63,13 @@ public:
      * @brief Returns the current display format.
      */
     TimeCode timeCode() const;
+    ///@}
+
+
 
 public Q_SLOTS:
+    /** @name Setters */
+    ///@{
     /**
      * @brief Sets the current time value to be displayed and edited.
      * @param time The new time value.
@@ -71,6 +81,7 @@ public Q_SLOTS:
      * @param timeCode The format to use (Frames, Time, or SMPTE).
      */
     void setTimeCode(TimeEditWidget::TimeCode timeCode);
+    ///@}
 
 protected:
     /**
@@ -80,12 +91,12 @@ protected:
 
 private:
     Q_DISABLE_COPY_MOVE(TimeEditWidget)
-    QScopedPointer<TimeEditWidgetPrivate> p;
+    QScopedPointer<TimeEditWidgetPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::widgets
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::widgets::TimeEditWidget*)

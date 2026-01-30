@@ -4,13 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/core/audioformat.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
-#include <QObject>
 
 namespace flipman::sdk::core {
 
@@ -23,42 +21,59 @@ class AudioBufferPrivate;
  * and assignment. Memory is only duplicated when explicitly detached or modified.
  */
 class FLIPMANSDK_EXPORT AudioBuffer {
-    Q_GADGET
 public:
-    /// Constructs an empty, invalid audio buffer.
+    /**
+     * @brief Constructs an empty, invalid audio buffer.
+     */
     AudioBuffer();
 
-    /// Copy constructor (shallow copy via shared data pointer).
+    /**
+     * @brief Copy constructor. Performs a shallow copy via shared data pointer.
+     */
     AudioBuffer(const AudioBuffer& other);
 
-    virtual ~AudioBuffer();
+    /**
+     * @brief Destroys the audio buffer.
+     * @note Required for the PIMPL pattern to safely delete AudioBufferPrivate.
+     */
+    ~AudioBuffer();
 
-    /// Returns the format (channels, sample rate, bit depth) of the audio data.
+    /**
+     * @brief Returns the format (channels, sample rate, bit depth) of the audio data.
+     */
     AudioFormat audioFormat() const;
 
     /**
      * @brief Creates a deep copy of the underlying data if it is shared.
-     * Use this before performing write operations on the buffer.
+     * @note Use this before performing write operations on the buffer to ensure
+     * thread-safe mutation.
      */
     void detach();
 
-    /// Returns true if the buffer contains valid data and a valid format.
+    /**
+     * @brief Returns true if the buffer contains valid data and a valid format.
+     */
     bool isValid() const;
 
-    /// Clears the buffer data and resets the format.
+    /**
+     * @brief Clears the buffer data and resets the format.
+     */
     void reset();
 
+    /** @name Operators */
+    ///@{
     AudioBuffer& operator=(const AudioBuffer& other);
     bool operator==(const AudioBuffer& other) const;
     bool operator!=(const AudioBuffer& other) const;
+    ///@}
 
 private:
-    QExplicitlySharedDataPointer<AudioBufferPrivate> p;
+    QExplicitlySharedDataPointer<AudioBufferPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::AudioBuffer)

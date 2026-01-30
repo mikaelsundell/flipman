@@ -20,7 +20,8 @@ class FpsPrivate;
  * The Fps class manages frame rates as fractions (numerator / denominator) to avoid
  * floating-point accumulation errors in long-form media. It supports industry-standard
  * rates, NTSC drop-frame logic, and provides utilities for frame-rate conversion.
- * * Because it uses QExplicitlySharedDataPointer, it is cheap to copy and can be
+ *
+ * Because it uses QExplicitlySharedDataPointer, it is cheap to copy and can be
  * passed by value.
  */
 class FLIPMANSDK_EXPORT Fps {
@@ -36,20 +37,45 @@ public:
      * @param denominator The bottom of the fraction (e.g., 1001).
      * @param drop_frame Whether to use NTSC drop-frame timecode math.
      */
-    Fps(qint32 numerator, qint32 denominator, bool drop_frame = false);
+    explicit Fps(qint32 numerator, qint32 denominator, bool drop_frame = false);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy due to implicit sharing.
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
      */
     Fps(const Fps& other);
 
-    virtual ~Fps();
+    /**
+     * @brief Destroys the Fps object.
+     * @note Required for the PIMPL pattern to safely delete FpsPrivate.
+     */
+    ~Fps();
 
     /** @name Status and Properties */
     ///@{
+    /**
+     * @brief Returns true if NTSC drop-frame logic is enabled.
+     */
     bool dropFrame() const;
+
+    /**
+     * @brief Returns the numerator of the frame rate fraction.
+     */
     qint64 numerator() const;
+
+    /**
+     * @brief Returns the denominator of the frame rate fraction.
+     */
     qint32 denominator() const;
+
+    /**
+     * @brief Returns true if the object contains a valid numerator and denominator.
+     */
+    bool isValid() const;
+
+    /**
+     * @brief Resets the Fps to an uninitialized state.
+     */
+    void reset();
     ///@}
 
     /** @name Conversion and Math */
@@ -58,6 +84,10 @@ public:
      * @brief Returns the integer part of the frame rate (e.g., 24 for 23.976).
      */
     qint16 frameQuanta() const;
+
+    /**
+     * @brief Returns the scaled integer representation.
+     */
     qint32 frameScale() const;
 
     /**
@@ -81,8 +111,7 @@ public:
     QString toString() const;
     ///@}
 
-    bool isValid() const;
-    void reset();
+
 
     /** @name Setters */
     ///@{
@@ -100,6 +129,10 @@ public:
     bool operator>(const Fps& other) const;
     bool operator<=(const Fps& other) const;
     bool operator>=(const Fps& other) const;
+
+    /**
+     * @brief Convenience operator to return the frame rate as a double.
+     */
     operator double() const;
     ///@}
 
@@ -128,12 +161,12 @@ public:
     static qint64 convert(quint64 value, const Fps& from, const Fps& to);
 
 private:
-    QExplicitlySharedDataPointer<FpsPrivate> p;
+    QExplicitlySharedDataPointer<FpsPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
-Q_DECLARE_METATYPE(flipman::sdk::av::Fps);
+Q_DECLARE_METATYPE(flipman::sdk::av::Fps)

@@ -29,7 +29,7 @@ class MediaWriterPrivate;
  * * Subclasses should implement format-specific logic (e.g., QuickTime, OpenImageIO, FFmpeg)
  * while adhering to the temporal and buffer-based contracts defined here.
  */
-class MediaWriter : public core::Plugin {
+class FLIPMANSDK_EXPORT MediaWriter : public core::Plugin {
 public:
     /**
      * @brief Constructs a new MediaWriter.
@@ -37,9 +37,7 @@ public:
      */
     MediaWriter(QObject* parent = nullptr);
 
-    /**
-     * @brief Virtual destructor.
-     */
+    /// Destroys the media writer.
     virtual ~MediaWriter();
 
     /** @name Initialization and State */
@@ -156,3 +154,8 @@ public:
 };
 
 }  // namespace flipman::sdk::plugins
+
+/**
+ * @note Registering the widget type for use in signals/slots and QVariant.
+ */
+Q_DECLARE_METATYPE(flipman::sdk::plugins::MediaWriter)

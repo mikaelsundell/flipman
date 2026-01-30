@@ -29,7 +29,7 @@ class MediaReaderPrivate;
  * * The interface is designed for high-performance playback, supporting
  * non-linear seeking, frame skipping, and asynchronous buffer access.
  */
-class MediaReader : public core::Plugin {
+class FLIPMANSDK_EXPORT MediaReader : public core::Plugin {
 public:
     /**
      * @brief Constructs a new MediaReader.
@@ -37,9 +37,7 @@ public:
      */
     MediaReader(QObject* parent = nullptr);
 
-    /**
-     * @brief Virtual destructor.
-     */
+    /// Destroys the media reader.
     virtual ~MediaReader();
 
     /** @name Initialization and State */
@@ -162,3 +160,8 @@ public:
 };
 
 }  // namespace flipman::sdk::plugins
+
+/**
+ * @note Registering the widget type for use in signals/slots and QVariant.
+ */
+Q_DECLARE_METATYPE(flipman::sdk::plugins::MediaReader)

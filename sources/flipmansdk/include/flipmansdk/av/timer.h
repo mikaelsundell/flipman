@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/fps.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QList>
 #include <QScopedPointer>

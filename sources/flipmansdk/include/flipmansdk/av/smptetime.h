@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
+#include <QMetaType>
 
 namespace flipman::sdk::av {
 
@@ -22,7 +22,8 @@ class SmpteTimePrivate;
  * SmpteTime provides tools to convert raw temporal data into professional
  * timecode. It supports various frame rates, drop-frame math, and high-precision
  * subframe addressing.
- * * @note This class uses implicit sharing via QExplicitlySharedDataPointer,
+ *
+ * @note This class uses implicit sharing via QExplicitlySharedDataPointer,
  * making it efficient to pass through the UI and rendering pipelines.
  */
 class FLIPMANSDK_EXPORT SmpteTime {
@@ -33,28 +34,51 @@ public:
     SmpteTime();
 
     /**
-     * @brief Constructs SmpteTime from a generic Time object and its associated FPS.
+     * @brief Constructs SmpteTime from a generic Time object.
      * @param time The source time to convert.
      */
-    SmpteTime(const Time& time);
+    explicit SmpteTime(const Time& time);
 
     /**
      * @brief Copy constructor. Performs a shallow copy of the shared data.
      */
     SmpteTime(const SmpteTime& other);
 
-    virtual ~SmpteTime();
-
-    /** @name Timecode Components
-     * Direct access to the individual fields of the SMPTE string.
+    /**
+     * @brief Destroys the SmpteTime object.
+     * @note Required for the PIMPL pattern to safely delete SmpteTimePrivate.
      */
+    ~SmpteTime();
+
+    /** @name Timecode Components */
     ///@{
-    quint32 counter() const;  ///< Total running count of units.
-    qint16 hours() const;     ///< Hour component (0-23 or 0-99).
-    qint16 minutes() const;   ///< Minute component (0-59).
-    qint16 seconds() const;   ///< Second component (0-59).
-    qint16 frames() const;    ///< Frame component based on FPS.
+    /**
+     * @brief Returns the total running count of temporal units.
+     */
+    quint32 counter() const;
+
+    /**
+     * @brief Returns the hour component.
+     */
+    qint16 hours() const;
+
+    /**
+     * @brief Returns the minute component.
+     */
+    qint16 minutes() const;
+
+    /**
+     * @brief Returns the second component.
+     */
+    qint16 seconds() const;
+
+    /**
+     * @brief Returns the frame component based on the associated FPS.
+     */
+    qint16 frames() const;
     ///@}
+
+
 
     /** @name Precision and Frames */
     ///@{
@@ -81,8 +105,15 @@ public:
 
     /** @name Formatting Options */
     ///@{
-    bool negatives() const;  ///< Whether the timecode supports negative values.
-    bool fullhours() const;  ///< Whether hours are clamped at 24 or allow larger counts.
+    /**
+     * @brief Returns true if the timecode supports negative values.
+     */
+    bool negatives() const;
+
+    /**
+     * @brief Returns true if hours are allowed to exceed the standard 24-hour clamp.
+     */
+    bool fullhours() const;
 
     /**
      * @brief Returns a standard timecode string (e.g., "01:00:04:05").
@@ -91,17 +122,24 @@ public:
     QString toString() const;
     ///@}
 
+    /** @name Status and Validation */
+    ///@{
+    /**
+     * @brief Returns true if the timecode is initialized and valid.
+     */
+    bool isValid() const;
+
+    /**
+     * @brief Resets the timecode to an uninitialized state.
+     */
+    void reset();
+    ///@}
+
     /** @name Setters */
     ///@{
     void setTime(const Time& time);
     void setNegatives(bool negatives);
     void setFullHours(bool fullhours);
-    ///@}
-
-    /** @name Status and Validation */
-    ///@{
-    bool isValid() const;
-    void reset();
     ///@}
 
     /** @name Math Operators */
@@ -131,12 +169,12 @@ public:
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<SmpteTimePrivate> p;
+    QExplicitlySharedDataPointer<SmpteTimePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::SmpteTime)

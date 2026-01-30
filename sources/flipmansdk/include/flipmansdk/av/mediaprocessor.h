@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QObject>
 #include <QScopedPointer>
@@ -21,7 +20,8 @@ class MediaProcessorPrivate;
 /**
  * @class MediaProcessor
  * @brief Handles the transcoding, exporting, and rendering of Media resources to disk.
- * * MediaProcessor provides a high-level interface for processing media. It allows
+ *
+ * MediaProcessor provides a high-level interface for processing media. It allows
  * for extracting specific time ranges from a Media source and writing them to
  * a new destination file. The processing happens asynchronously, reporting
  * progress via signals.
@@ -37,20 +37,35 @@ public:
 
     /**
      * @brief Destroys the MediaProcessor.
+     * @note Required for the PIMPL pattern to safely delete MediaProcessorPrivate.
      */
-    virtual ~MediaProcessor();
+    ~MediaProcessor() override;
 
+    /** @name Processing */
+    ///@{
     /**
      * @brief Writes a specified range of media to a destination file.
-     * * This method initiates the render/export process. Depending on the implementation,
+     *
+     * This method initiates the render/export process. Depending on the implementation,
      * this may trigger an internal thread or utilize background task scheduling.
-     * * @param media The source media to process.
+     *
+     * @param media The source media to process.
      * @param timerange The specific segment to export.
      * @param file The destination file path and format.
      * @return true if the process started successfully.
      */
     bool write(Media& media, const TimeRange& timerange, const core::File& file);
 
+    /**
+     * @brief Cancels any active processing and resets the processor state.
+     */
+    void reset();
+    ///@}
+
+
+
+    /** @name Status */
+    ///@{
     /**
      * @brief Returns the last error encountered during processing.
      */
@@ -60,11 +75,7 @@ public:
      * @brief Validates if the processor is in a state ready for execution.
      */
     bool isValid() const;
-
-    /**
-     * @brief Cancels any active processing and resets the processor state.
-     */
-    void reset();
+    ///@}
 
 Q_SIGNALS:
     /**
@@ -81,12 +92,12 @@ Q_SIGNALS:
 
 private:
     Q_DISABLE_COPY_MOVE(MediaProcessor)
-    QScopedPointer<MediaProcessorPrivate> p;
+    QScopedPointer<MediaProcessorPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
-Q_DECLARE_METATYPE(flipman::sdk::av::MediaProcessor)
+Q_DECLARE_METATYPE(flipman::sdk::av::MediaProcessor*)

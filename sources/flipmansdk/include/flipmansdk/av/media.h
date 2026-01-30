@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
@@ -15,8 +13,10 @@
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/parameters.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
+#include <QMetaType>
 
 namespace flipman::sdk::av {
 
@@ -25,10 +25,12 @@ class MediaPrivate;
 /**
  * @class Media
  * @brief Represents a shared handle to a media resource (video, audio, or image sequence).
- * * The Media class provides a high-level interface for accessing media data on disk.
+ *
+ * The Media class provides a high-level interface for accessing media data on disk.
  * It manages the lifecycle of file I/O and decoding. By using implicit sharing,
  * multiple objects can reference the same media resource efficiently.
- * * @note This class facilitates frame-accurate seeking and sequential reading of
+ *
+ * @note This class facilitates frame-accurate seeking and sequential reading of
  * both image and audio buffers.
  */
 class FLIPMANSDK_EXPORT Media {
@@ -43,11 +45,13 @@ public:
      */
     Media(const Media& other);
 
-    virtual ~Media();
-
-    /** @name Lifecycle Management
-     * Methods for managing the connection to the physical file.
+    /**
+     * @brief Destroys the media handle.
+     * @note Required for the PIMPL pattern to safely delete MediaPrivate.
      */
+    ~Media();
+
+    /** @name Lifecycle Management */
     ///@{
     /**
      * @brief Opens a media file for reading.
@@ -58,6 +62,7 @@ public:
 
     /**
      * @brief Closes the media file and releases decoder resources.
+     * @return true if the resource was closed successfully.
      */
     bool close();
 
@@ -70,10 +75,9 @@ public:
      * @brief Checks if the given file extension is supported by the SDK's backends.
      */
     bool isSupported(const QString& extension) const;
+    ///@}
 
-    /** @name Navigation and Playback
-     * Logic for traversing the media timeline.
-     */
+    /** @name Navigation and Playback */
     ///@{
     /**
      * @brief Reads the next available frame/sample from the stream.
@@ -83,41 +87,67 @@ public:
 
     /**
      * @brief Increments the internal pointer to the next frame without decoding data.
+     * @return The timestamp of the new position.
      */
     Time skip();
 
     /**
      * @brief Seeks to a specific range or timestamp within the media.
+     * @param range The target time range or position.
      * @return The actual timestamp reached after seeking.
      */
     Time seek(const TimeRange& range) const;
     ///@}
 
-    /** @name Properties
-     * Technical details about the opened media resource.
-     */
+
+
+    /** @name Properties */
     ///@{
+    /**
+     * @brief Returns the start timestamp of the media.
+     */
     Time start() const;
+
+    /**
+     * @brief Returns the current playback/read position.
+     */
     Time time() const;
+
+    /**
+     * @brief Returns the frame rate of the media.
+     */
     Fps fps() const;
+
+    /**
+     * @brief Returns the total time range of the media.
+     */
     TimeRange timeRange() const;
+
+    /**
+     * @brief Returns the file reference associated with this media.
+     */
     core::File file() const;
     ///@}
 
-    /** @name Data Access
-     * Methods to retrieve the actual decoded payloads.
-     */
+    /** @name Data Access */
     ///@{
+    /**
+     * @brief Returns the current decoded audio buffer.
+     */
     core::AudioBuffer audio() const;
+
+    /**
+     * @brief Returns the current decoded image buffer.
+     */
     core::ImageBuffer image() const;
 
     /**
-     * @brief Technical parameters of the stream (e.g., codec, bitrate, pixel format).
+     * @brief Returns technical parameters of the stream (e.g., codec, bitrate).
      */
     core::Parameters parameters() const;
 
     /**
-     * @brief Descriptive metadata (e.g., EXIF, XMP, author, creation date).
+     * @brief Returns descriptive metadata (e.g., EXIF, author, creation date).
      */
     core::Parameters metaData() const;
     ///@}
@@ -133,7 +163,7 @@ public:
     bool isValid() const;
 
     /**
-     * @brief Resets all transformations and processing filters to default values.
+     * @brief Resets the media handle to a null state.
      */
     void reset();
 
@@ -145,12 +175,12 @@ public:
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<MediaPrivate> p;
+    QExplicitlySharedDataPointer<MediaPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::Media)

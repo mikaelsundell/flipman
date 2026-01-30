@@ -17,12 +17,15 @@ class ErrorPrivate;
 /**
  * @class Error
  * @brief Represents a system or application error with domain-specific context.
- * * Uses explicit data sharing for efficient passing. An Error consists of a
+ *
+ * Uses explicit data sharing for efficient passing. An Error consists of a
  * domain (category), a human-readable message, and a numeric status code.
  */
 class FLIPMANSDK_EXPORT Error {
 public:
-    /// Constructs a null error with no message or domain.
+    /**
+     * @brief Constructs a null error with no message or domain.
+     */
     Error();
 
     /**
@@ -31,46 +34,71 @@ public:
      * @param message A human-readable description of the error.
      * @param code A specific error code for programmatic handling.
      */
-    Error(const QString& domain, const QString& message, int code = 0);
+    explicit Error(const QString& domain, const QString& message, int code = 0);
 
-    /// Copy constructor (shallow copy).
+    /**
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     */
     Error(const Error& other);
 
-    virtual ~Error();
+    /**
+     * @brief Destroys the error.
+     * @note Required for the PIMPL pattern to safely delete ErrorPrivate.
+     */
+    ~Error();
 
-    /// Returns the error domain/category.
+    /**
+     * @brief Returns the error domain/category.
+     */
     QString domain() const;
 
-    /// Returns the human-readable error message.
+    /**
+     * @brief Returns the human-readable error message.
+     */
     QString message() const;
 
-    /// Returns the numeric error code.
+    /**
+     * @brief Returns the numeric error code.
+     */
     int code() const;
 
-    /// Returns true if an error is present (alias for isValid).
+    /**
+     * @brief Returns true if an error is present (alias for isValid).
+     */
     bool hasError() const;
 
-    /// Returns true if the error object contains valid error information.
+    /**
+     * @brief Returns true if the error object contains valid error information.
+     */
     bool isValid() const;
 
-    /// Resets the error object to a null state.
+    /**
+     * @brief Resets the error object to a null state.
+     */
     void reset();
 
-    /// Sets new error details, detaching from shared data if necessary.
+    /**
+     * @brief Sets new error details, detaching from shared data if necessary.
+     */
     void setError(const QString& domain, const QString& message, int code);
 
+    /** @name Operators */
+    ///@{
     Error& operator=(const Error& other);
 
-    /// Convenience operator to return the error message as a QString.
+    /**
+     * @brief Convenience operator to return the error message as a QString.
+     */
     operator QString() const;
+    ///@}
 
 private:
-    QExplicitlySharedDataPointer<ErrorPrivate> p;
+    QExplicitlySharedDataPointer<ErrorPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::Error)

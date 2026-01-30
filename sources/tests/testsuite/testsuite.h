@@ -3,10 +3,9 @@
 
 #pragma once
 
-// containers
+namespace flipman {
 void
 test_clip();
-
 void
 test_file();
 void
@@ -29,3 +28,4 @@ void
 test_pluginregistry();
 void
 test_timeline();
+}  // namespace flipman

@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/core/imageformat.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -20,13 +19,16 @@ class ImageBufferPrivate;
 /**
  * @class ImageBuffer
  * @brief Represents a multi-channel 2D image container with explicit data sharing.
- * * ImageBuffer manages raw pixel data using a "Data Window" (actual pixels in memory)
+ *
+ * ImageBuffer manages raw pixel data using a "Data Window" (actual pixels in memory)
  * and a "Display Window" (the viewable area), supporting high-performance
  * imaging workflows and zero-copy passing.
  */
 class FLIPMANSDK_EXPORT ImageBuffer {
 public:
-    /// Constructs an empty, invalid image buffer.
+    /**
+     * @brief Constructs an empty, invalid image buffer.
+     */
     ImageBuffer();
 
     /**
@@ -36,41 +38,82 @@ public:
      * @param format The pixel data type (e.g., FLOAT, UINT8).
      * @param channels The number of color/alpha channels.
      */
-    ImageBuffer(const QRect& datawindow, const QRect& displaywindow, const ImageFormat& format, int channels);
+    explicit ImageBuffer(const QRect& datawindow, const QRect& displaywindow, const ImageFormat& format, int channels);
 
-    /// Copy constructor (shallow copy via shared data pointer).
+    /**
+     * @brief Copy constructor. Performs a shallow copy via shared data pointer.
+     */
     ImageBuffer(const ImageBuffer& other);
 
-    virtual ~ImageBuffer();
+    /**
+     * @brief Destroys the image buffer.
+     * @note Required for the PIMPL pattern to safely delete ImageBufferPrivate.
+     */
+    ~ImageBuffer();
 
-    /// Returns the pixel data format.
-    ImageFormat imageFormat() const;
-
-    /// Returns the pixel bounds of the actual data stored in memory.
+    /** @name Dimensions and Windows */
+    ///@{
+    /**
+     * @brief Returns the pixel bounds of the actual data stored in memory.
+     */
     QRect dataWindow() const;
 
-    /// Returns the bounds of the image as it should be displayed.
+    /**
+     * @brief Returns the bounds of the image as it should be displayed.
+     */
     QRect displayWindow() const;
 
-    /// Returns the number of channels per pixel.
+    /**
+     * @brief Updates the display window without modifying the underlying pixel data.
+     */
+    void setDisplayWindow(const QRect& displaywindow);
+    ///@}
+
+
+
+    /** @name Memory and Format */
+    ///@{
+    /**
+     * @brief Returns the pixel data format.
+     */
+    ImageFormat imageFormat() const;
+
+    /**
+     * @brief Returns the number of channels per pixel.
+     */
     int channels() const;
 
-    /// Returns the total size of the buffer in bytes.
+    /**
+     * @brief Returns the total size of the buffer in bytes.
+     */
     size_t byteSize() const;
 
-    /// Returns the byte size of a single pixel (channels * format size).
+    /**
+     * @brief Returns the byte size of a single pixel (channels * format size).
+     */
     size_t pixelSize() const;
 
-    /// Returns the byte size of a single scanline (width * pixelSize).
+    /**
+     * @brief Returns the byte size of a single scanline (width * pixelSize).
+     */
     size_t strideSize() const;
 
-    /// Returns the total number of pixels in the data window.
+    /**
+     * @brief Returns the total number of pixels in the data window.
+     */
     size_t size() const;
+    ///@}
 
-    /// Returns a pointer to the start of the raw pixel data.
+    /** @name Data Access */
+    ///@{
+    /**
+     * @brief Returns a pointer to the start of the raw pixel data.
+     */
     quint8* data() const;
 
-    /// Returns a pointer to the pixel data at a specific coordinate.
+    /**
+     * @brief Returns a pointer to the pixel data at a specific coordinate.
+     */
     quint8* data(const QPoint& pos) const;
 
     /**
@@ -79,18 +122,23 @@ public:
      */
     ImageBuffer detach();
 
-    /// Returns true if the buffer contains valid data.
+    /**
+     * @brief Returns true if the buffer contains valid data.
+     */
     bool isValid() const;
 
-    /// Resets the buffer to an uninitialized state.
+    /**
+     * @brief Resets the buffer to an uninitialized state.
+     */
     void reset();
+    ///@}
 
-    /// Updates the display window without modifying the underlying pixel data.
-    void setDisplayWindow(const QRect& displaywindow);
-
+    /** @name Operators */
+    ///@{
     ImageBuffer& operator=(const ImageBuffer& other);
     bool operator==(const ImageBuffer& other) const;
     bool operator!=(const ImageBuffer& other) const;
+    ///@}
 
     /**
      * @brief Returns a copy of the buffer converted to a different format or channel count.
@@ -101,12 +149,12 @@ public:
     static ImageBuffer convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels);
 
 private:
-    QExplicitlySharedDataPointer<ImageBufferPrivate> p;
+    QExplicitlySharedDataPointer<ImageBufferPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer)

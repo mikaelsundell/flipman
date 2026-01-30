@@ -16,8 +16,10 @@ class SystemPrivate;
 /**
  * @class System
  * @brief Manages host system interactions and power management.
- * * Provides an interface for controlling system behavior, such as preventing
- * display or system sleep during media playback or long-running tasks.
+ *
+ * Provides an interface for controlling system behavior, such as preventing
+ * display or system sleep during media playback or long-running tasks. This
+ * class abstracts platform-specific OS calls into a unified SDK interface.
  */
 class FLIPMANSDK_EXPORT System : public QObject {
     Q_OBJECT
@@ -29,30 +31,53 @@ public:
     enum PowerState { PowerOff, Restart, Sleep };
     Q_ENUM(PowerState)
 
-    /// Constructs the system manager.
-    System();
+    /**
+     * @brief Constructs the system manager.
+     * @param parent The parent QObject for lifecycle management.
+     */
+    System(QObject* parent = nullptr);
 
-    virtual ~System();
+    /**
+     * @brief Destroys the system manager.
+     * @note Required for the PIMPL pattern to safely delete SystemPrivate.
+     */
+    ~System() override;
 
+    /** @name Power Inhibition */
+    ///@{
     /**
      * @brief Sets whether the system should be prevented from entering sleep mode.
      * @param stayAwake If true, inhibits system/display sleep.
      */
     void setStayAwake(bool stayAwake);
 
-    /// Returns true if the system is currently inhibited from sleeping.
+    /**
+     * @brief Returns true if the system is currently inhibited from sleeping.
+     */
     bool isStayAwake() const;
+    ///@}
+
+
 
 Q_SIGNALS:
-    /// Emitted when the system power state is about to change or has changed.
+    /**
+     * @brief Emitted when the system power state is about to change or has changed.
+     */
     void powerStateChanged(PowerState powerState);
 
-    /// Emitted when the stay-awake inhibition state changes.
+    /**
+     * @brief Emitted when the stay-awake inhibition state changes.
+     */
     void stayAwakeChanged(bool stayAwake);
 
 private:
     Q_DISABLE_COPY_MOVE(System)
-    QScopedPointer<SystemPrivate> p;
+    QScopedPointer<SystemPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
+
+/**
+ * @note Registering the type for use in signals/slots and QVariant.
+ */
+Q_DECLARE_METATYPE(flipman::sdk::core::System*)

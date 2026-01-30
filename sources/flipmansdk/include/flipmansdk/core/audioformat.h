@@ -23,13 +23,21 @@ class AudioFormatPrivate;
  */
 class FLIPMANSDK_EXPORT AudioFormat {
 public:
-    /// Constructs an invalid audio format.
+    /**
+     * @brief Constructs an invalid audio format.
+     */
     AudioFormat();
 
-    /// Copy constructor (shallow copy).
-    AudioFormat(const AudioFormat& format);
+    /**
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     */
+    AudioFormat(const AudioFormat& other);
 
-    virtual ~AudioFormat();
+    /**
+     * @brief Destroys the audio format.
+     * @note Required for the PIMPL pattern to safely delete AudioFormatPrivate.
+     */
+    ~AudioFormat();
 
     /**
      * @brief Checks if the format is initialized with valid audio parameters.
@@ -37,20 +45,26 @@ public:
      */
     bool isValid() const;
 
-    /// Resets the format to an uninitialized state.
+    /**
+     * @brief Resets the format to an uninitialized state.
+     */
     void reset();
 
+    /** @name Operators */
+    ///@{
     AudioFormat& operator=(const AudioFormat& other);
     bool operator==(const AudioFormat& other) const;
     bool operator!=(const AudioFormat& other) const;
+    bool operator<(const AudioFormat& other) const;
+    ///@}
 
 private:
-    QExplicitlySharedDataPointer<AudioFormatPrivate> p;
+    QExplicitlySharedDataPointer<AudioFormatPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::AudioFormat)

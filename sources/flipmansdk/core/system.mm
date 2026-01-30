@@ -84,8 +84,9 @@ SystemPrivate::powerCallback(void* refcon, io_service_t service, natural_t messa
     }
 }
 
-System::System()
-: p(new SystemPrivate())
+System::System(QObject* parent)
+: QObject(parent)
+, p(new SystemPrivate())
 {
     p->d.object = this;
     p->init();

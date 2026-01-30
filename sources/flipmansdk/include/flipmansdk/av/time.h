@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/fps.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -23,7 +22,8 @@ class TimePrivate;
  * units (ticks) over a resolution (timescale). This prevents the rounding errors
  * common with floating-point seconds, making it suitable for professional video
  * editing and playback.
- * * @note This class utilizes implicit sharing (Copy-on-Write) via
+ *
+ * @note This class utilizes implicit sharing (Copy-on-Write) via
  * QExplicitlySharedDataPointer for efficient passing and memory management.
  */
 class FLIPMANSDK_EXPORT Time {
@@ -38,18 +38,18 @@ public:
     /**
      * @brief Constructs Time using raw tick values.
      * @param ticks Total number of units.
-     * @param timescale The resolution of the ticks (e.g., 24000 for 24fps base).
+     * @param timeScale The resolution of the ticks (e.g., 24000 for 24fps base).
      * @param fps The associated frame rate for frame-based conversions.
      */
-    Time(qint64 ticks, qint32 timesScale, const Fps& fps);
+    Time(qint64 ticks, qint32 timeScale, const Fps& fps);
 
     /**
-     * @brief Constructs Time from a specific frame number.
+     * @brief Constructs Time from a specific frame number and frame rate.
      */
     Time(qint64 frame, const Fps& fps);
 
     /**
-     * @brief Constructs Time from floating-point seconds.
+     * @brief Constructs Time from floating-point seconds and a frame rate.
      */
     Time(qreal seconds, const Fps& fps);
 
@@ -64,23 +64,47 @@ public:
     Time(const Time& other, const Fps& fps);
 
     /**
-     * @brief Copy constructor. Shallow copy due to implicit sharing.
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
      */
     Time(const Time& other);
     ///@}
 
-    virtual ~Time();
+    /**
+     * @brief Destroys the Time object.
+     * @note Required for the PIMPL pattern to safely delete TimePrivate.
+     */
+    ~Time();
 
     /** @name Status and Validation */
     ///@{
+    /**
+     * @brief Returns true if the temporal data is initialized and valid.
+     */
     bool isValid() const;
+
+    /**
+     * @brief Resets the Time object to an uninitialized state.
+     */
     void reset();
     ///@}
 
-    /** @name Properties */
+
+
+    /** @name Attributes */
     ///@{
+    /**
+     * @brief Returns the associated frame rate.
+     */
     Fps fps() const;
+
+    /**
+     * @brief Returns the current total count of units (ticks).
+     */
     qint64 ticks() const;
+
+    /**
+     * @brief Returns the resolution/timescale of the ticks.
+     */
     qint32 timeScale() const;
 
     /**
@@ -138,7 +162,7 @@ public:
     /** @name Setters */
     ///@{
     void setTicks(qint64 ticks);
-    void setTimeScale(qint32 timescale);
+    void setTimeScale(qint32 timeScale);
     void setFps(const Fps& fps);
     ///@}
 
@@ -155,12 +179,12 @@ public:
     Time operator-(const Time& other) const;
 
     /**
-     * @brief Casts the time to a double (seconds) for convenience in math expressions.
+     * @brief Convenience operator to return time as seconds.
      */
     operator double() const;
     ///@}
 
-    /** @name Static Conversion Utilities */
+    /** @name Static Utilities */
     ///@{
     /**
      * @brief Converts a Time object to a new frame rate.
@@ -169,18 +193,18 @@ public:
 
     /**
      * @brief Changes the underlying timescale of a Time object.
-     * @param timescale The new resolution (default 24000).
+     * @param timeScale The new resolution (default 24000).
      */
     static Time convert(const Time& time, qint32 timeScale = 24000);
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<TimePrivate> p;
+    QExplicitlySharedDataPointer<TimePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::Time)

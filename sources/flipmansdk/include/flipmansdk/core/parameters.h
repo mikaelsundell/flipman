@@ -7,6 +7,7 @@
 #include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
+#include <QList>
 #include <QMetaType>
 #include <QVariant>
 
@@ -17,10 +18,11 @@ class ParametersPrivate;
 /**
  * @class Parameters
  * @brief Container for key-value metadata using explicit sharing.
- * * Provides a flexible way to store and retrieve named properties using QVariant,
- * commonly used for media metadata or configuration sets.
+ *
+ * Provides a flexible way to store and retrieve named properties using QVariant,
+ * commonly used for media metadata, filter settings, or configuration sets.
  */
-class Parameters {
+class FLIPMANSDK_EXPORT Parameters {
 public:
     /**
      * @enum Key
@@ -28,36 +30,70 @@ public:
      */
     enum Key { Title, Author, Command, Description };
 
-    /// Constructs an empty parameters container.
+    /**
+     * @brief Constructs an empty parameters container.
+     */
     Parameters();
 
-    /// Copy constructor (shallow copy).
+    /**
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     */
     Parameters(const Parameters& other);
 
-    virtual ~Parameters();
+    /**
+     * @brief Destroys the parameters.
+     * @note Required for the PIMPL pattern to safely delete ParametersPrivate.
+     */
+    ~Parameters();
 
-    /// Returns true if the container has been initialized and is not null.
+    /**
+     * @brief Returns true if the container has been initialized and is not null.
+     */
     bool isValid() const;
 
-    /// Returns a list of all keys currently stored.
+    /**
+     * @brief Returns a list of all keys currently stored.
+     */
     QList<QString> keys() const;
 
-    /// Returns the value associated with the key, or an invalid QVariant if not found.
+    /**
+     * @brief Returns the value associated with the key.
+     * @param key The string identifier for the parameter.
+     * @return The value as a QVariant, or an invalid QVariant if not found.
+     */
     QVariant value(const QString& key) const;
 
-    /// Clears all keys and values.
+    /**
+     * @brief Clears all keys and values.
+     */
     void reset();
 
-    /// Inserts or updates a key-value pair.
+    /**
+     * @brief Inserts or updates a key-value pair.
+     * @param key The string identifier.
+     * @param value The value to store.
+     */
     void insert(const QString& key, const QVariant& value);
 
-    /// Removes the specified key from the container.
+    /**
+     * @brief Removes the specified key from the container.
+     * @param key The string identifier to remove.
+     */
     void remove(const QString& key);
 
-    /// Provides access to values via the subscript operator.
+    /** @name Operators */
+    ///@{
+    /**
+     * @brief Provides access to values via the subscript operator.
+     * @note This operation will trigger a detach if the data is shared.
+     */
     QVariant& operator[](const QString& key);
 
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     Parameters& operator=(const Parameters& other);
+    ///@}
 
     /**
      * @brief Utility to convert a Key enum to its string representation.
@@ -67,12 +103,12 @@ public:
     static QString convert(Parameters::Key key);
 
 private:
-    QExplicitlySharedDataPointer<ParametersPrivate> p;
+    QExplicitlySharedDataPointer<ParametersPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::Parameters)

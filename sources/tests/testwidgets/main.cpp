@@ -24,7 +24,6 @@
 using namespace sdk;
 
 class TestWidgets : public QWidget {
-    Q_OBJECT
 public:
     TestWidgets(QWidget* parent = nullptr)
         : QWidget(parent)

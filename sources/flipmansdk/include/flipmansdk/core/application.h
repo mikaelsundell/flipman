@@ -32,15 +32,25 @@ public:
      */
     Application(int& argc, char** argv);
 
+    /**
+     * @brief Destroys the application.
+     * @note Overrides the virtual destructor to ensure safe SDK teardown.
+     */
     ~Application() override;
 
-    /// Returns the environment manager for path and resource resolution.
+    /**
+     * @brief Returns the environment manager for path and resource resolution.
+     */
     Environment* environment() const;
 
-    /// Returns the global style manager for themes and UI branding.
+    /**
+     * @brief Returns the global style manager for themes and UI branding.
+     */
     Style* style() const;
 
-    /// Returns the system manager for power and hardware interaction.
+    /**
+     * @brief Returns the system manager for power and hardware interaction.
+     */
     System* system() const;
 
     /**

@@ -27,13 +27,13 @@ Environment::Environment()
 Environment::~Environment() {}
 
 QString
-Environment::programPath() const
+Environment::programPath()
 {
     return QCoreApplication::applicationDirPath();
 }
 
 QString
-Environment::applicationPath() const
+Environment::applicationPath()
 {
     QString path = programPath();
     QDir bundle(path);
@@ -43,7 +43,7 @@ Environment::applicationPath() const
 }
 
 QString
-Environment::resourcePath(const QString& resource) const
+Environment::resourcePath(const QString& resource)
 {
     return QDir(applicationPath()).filePath(resource);
 }

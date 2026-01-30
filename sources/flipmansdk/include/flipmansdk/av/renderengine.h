@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/renderlayer.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QColor>
 #include <QFile>
@@ -37,18 +36,21 @@ class FLIPMANSDK_EXPORT RenderEngine : public QObject {
 public:
     /**
      * @brief Constructs a RenderEngine.
-     * @param parent The ownership parent.
+     * @param parent The ownership parent for the QObject tree.
      */
     explicit RenderEngine(QObject* parent = nullptr);
 
     /**
      * @brief Destroys the RenderEngine and releases GPU resources.
+     * @note Required for the PIMPL pattern to safely delete RenderEnginePrivate.
      */
-    virtual ~RenderEngine();
+    ~RenderEngine() override;
 
+    /** @name Rendering Lifecycle */
+    ///@{
     /**
      * @brief Initializes graphics pipelines and buffers.
-     * @param cb The command buffer used for resource upload/initialization.
+     * @param cb The command buffer used for resource upload and pipeline initialization.
      */
     void init(QRhiCommandBuffer* cb);
 
@@ -57,14 +59,22 @@ public:
      * @param cb The command buffer to record into.
      */
     void render(QRhiCommandBuffer* cb);
+    ///@}
 
+
+
+    /** @name Configuration */
+    ///@{
     /**
      * @brief Returns the current internal rendering resolution.
      */
     QSize resolution() const;
 
-    /** @name Configuration */
-    ///@{
+    /**
+     * @brief Sets the target rendering resolution.
+     */
+    void setResolution(const QSize& resolution);
+
     /**
      * @brief Sets the clear color for the viewport.
      */
@@ -74,13 +84,10 @@ public:
      * @brief Sets the stack of layers to be processed and drawn.
      */
     void setRenderLayers(const QList<RenderLayer>& renderlayers);
-
-    /**
-     * @brief Sets the target rendering resolution.
-     */
-    void setResolution(const QSize& resolution);
     ///@}
 
+    /** @name Utilities and Status */
+    ///@{
     /**
      * @brief Helper utility to compile a shader file into a QShader package.
      * @param file The source shader file (e.g., .vert or .frag).
@@ -97,16 +104,17 @@ public:
      * @brief Resets the engine state and clears all render layers.
      */
     void reset();
+    ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(RenderEngine)
     friend class RenderEnginePrivate;
-    QScopedPointer<RenderEnginePrivate> p;
+    QScopedPointer<RenderEnginePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::RenderEngine*)

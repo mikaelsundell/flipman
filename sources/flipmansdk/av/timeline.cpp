@@ -120,7 +120,7 @@ Timeline::loop() const
 }
 
 bool
-Timeline::hasTrack(Track* track)
+Timeline::hasTrack(Track* track) const
 {
     return p->d.tracks.contains(track);
 }

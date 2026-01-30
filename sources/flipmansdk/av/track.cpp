@@ -23,8 +23,6 @@ TrackPrivate::TrackPrivate() {}
 
 TrackPrivate::~TrackPrivate() {}
 
-#include "track.moc"
-
 Track::Track(QObject* parent)
     : QObject(parent)
     , p(new TrackPrivate())

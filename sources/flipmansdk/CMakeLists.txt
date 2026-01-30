@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # https://github.com/mikaelsundell/flipman
 
-set(sdk_name "${project_name}Sdk")
+set(sdk_name "${project_name}sdk")
 
 include(exportheader)
 include(shadercompile)

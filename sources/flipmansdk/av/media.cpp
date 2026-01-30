@@ -26,7 +26,7 @@ MediaPrivate::open(const core::File& file)
 {
     d.file = file;
     plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-    d.reader.reset(registry->get_plugin<plugins::MediaReader>(file.extension()));
+    d.reader.reset(registry->getPlugin<plugins::MediaReader>(file.extension()));
     if (d.reader) {
         if (d.reader->open(file)) {
             return true;
@@ -69,7 +69,7 @@ bool
 Media::isSupported(const QString& extension) const
 {
     plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-    return registry->has_extension<plugins::MediaReader>(extension);
+    return registry->hasExtension<plugins::MediaReader>(extension);
 }
 
 bool

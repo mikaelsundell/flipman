@@ -10,6 +10,7 @@
 #include <QFile>
 #include <QMouseEvent>
 #include <QPointer>
+#include <rhi/qrhi.h>
 
 namespace flipman::sdk::widgets {
 
@@ -41,7 +42,7 @@ public:
         QPointF pan;
         QColor background = core::style()->color(core::Style::Viewer);
         QSize resolution = QSize(1920, 1080);
-        QList<av::RenderLayer> renderlayers;
+        QList<av::RenderLayer> renderLayers;
         QVector<float> vertexdata;
         QMatrix4x4 mvpdata;
     };
@@ -153,8 +154,8 @@ RenderWidgetPrivate::render(QRhiCommandBuffer* cb)
 
     std::vector<LayerRenderItem> layers;
 
-    if (!d.renderlayers.isEmpty()) {
-        for (const av::RenderLayer& layer : std::as_const(d.renderlayers)) {
+    if (!d.renderLayers.isEmpty()) {
+        for (const av::RenderLayer& layer : std::as_const(d.renderLayers)) {
             const core::ImageBuffer& original = layer.image();
             if (!original.isValid())
                 continue;
@@ -322,9 +323,9 @@ RenderWidget::setBackground(const QColor& background)
 }
 
 void
-RenderWidget::setRenderLayers(const QList<av::RenderLayer> renderlayers)
+RenderWidget::setRenderLayers(const QList<av::RenderLayer>& renderLayers)
 {
-    p->d.renderlayers = renderlayers;
+    p->d.renderLayers = renderLayers;
     update();
 }
 

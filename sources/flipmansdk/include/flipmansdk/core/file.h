@@ -7,8 +7,9 @@
 #include <flipmansdk/flipmansdk.h>
 
 #include <QtCore/QDateTime>
+#include <QtCore/QExplicitlySharedDataPointer>
 #include <QtCore/QFileInfo>
-#include <QtCore/QObject>
+#include <QtCore/QMetaType>
 
 namespace flipman::sdk::core {
 
@@ -18,36 +19,59 @@ class FileRange;
 /**
  * @class File
  * @brief High-level file and sequence abstraction with explicit data sharing.
- * * Extends basic file information with features specific to media workflows,
+ *
+ * Extends basic file information with features specific to media workflows,
  * such as frame-pattern resolution, sequence range awareness, and formatted
  * display attributes for UI components.
  */
 class FLIPMANSDK_EXPORT File {
 public:
-    /// Constructs an empty file object.
+    /**
+     * @brief Constructs an empty file object.
+     */
     File();
 
-    /// Copy constructor (shallow copy).
-    File(const File& file);
+    /**
+     * @brief Copy constructor. Performs a shallow copy via shared data pointer.
+     */
+    File(const File& other);
 
-    /// Constructs a file object from a string path.
+    /**
+     * @brief Constructs a file object from a string path.
+     */
     File(const QString& file);
 
-    /// Constructs a file object from existing QFileInfo.
+    /**
+     * @brief Constructs a file object from existing QFileInfo.
+     */
     File(const QFileInfo& info);
 
-    virtual ~File();
+    /**
+     * @brief Destroys the file.
+     * @note Required for the PIMPL pattern to safely delete FilePrivate.
+     */
+    ~File();
 
-    /// Returns the absolute path including the filename.
+    /** @name Path Information */
+    ///@{
+    /**
+     * @brief Returns the absolute path including the filename.
+     */
     QString absolutePath() const;
 
-    /// Returns the directory path (excluding the filename).
+    /**
+     * @brief Returns the directory path (excluding the filename).
+     */
     QString dirName() const;
 
-    /// Returns the base name of the file without the path or extension.
+    /**
+     * @brief Returns the base name of the file without the path or extension.
+     */
     QString baseName() const;
 
-    /// Returns the filename including the extension.
+    /**
+     * @brief Returns the filename including the extension.
+     */
     QString fileName() const;
 
     /**
@@ -56,63 +80,112 @@ public:
      */
     QString fileName(qint64 frame) const;
 
-    /// Returns the full path as provided during construction.
+    /**
+     * @brief Returns the full path as provided during construction.
+     */
     QString filePath() const;
 
-    /// Returns the file extension (e.g., "exr", "jpg").
+    /**
+     * @brief Returns the file extension (e.g., "exr", "jpg").
+     */
     QString extension() const;
+    ///@}
 
-    /// Returns a localized or "friendly" name for UI display.
+    /** @name Metadata and Display */
+    ///@{
+    /**
+     * @brief Returns a localized or "friendly" name for UI display.
+     */
     QString displayName() const;
 
-    /// Returns a human-readable string of the file size (e.g., "1.2 GB").
+    /**
+     * @brief Returns a human-readable string of the file size (e.g., "1.2 GB").
+     */
     QString displaySize() const;
 
-    /// Returns the raw file size in bytes.
+    /**
+     * @brief Returns the raw file size in bytes.
+     */
     qint64 size() const;
 
-    /// Returns the name of the file owner.
+    /**
+     * @brief Returns the name of the file owner.
+     */
     QString owner() const;
 
-    /// Returns the name of the file group.
+    /**
+     * @brief Returns the name of the file group.
+     */
     QString group() const;
 
-    /// Returns the file creation date and time.
+    /**
+     * @brief Returns the file creation date and time.
+     */
     QDateTime created() const;
 
-    /// Returns the last modification date and time.
+    /**
+     * @brief Returns the last modification date and time.
+     */
     QDateTime modified() const;
+    ///@}
 
-    /// Returns true if the file exists on the physical file system.
+    /** @name Permissions and State */
+    ///@{
+    /**
+     * @brief Returns true if the file exists on the physical file system.
+     */
     bool exists() const;
 
-    /// Returns true if the current user has read permissions.
+    /**
+     * @brief Returns true if the current user has read permissions.
+     */
     bool isReadable() const;
 
-    /// Returns true if the current user has write permissions.
+    /**
+     * @brief Returns true if the current user has write permissions.
+     */
     bool isWritable() const;
 
-    /// Returns true if the file is an executable.
+    /**
+     * @brief Returns true if the file is an executable.
+     */
     bool isExecutable() const;
 
-    /// Returns the associated FileRange if this file is part of a sequence.
-    FileRange fileRange() const;
-
-    /// Returns true if the object points to a valid file path.
+    /**
+     * @brief Returns true if the object points to a valid file path.
+     */
     bool isValid() const;
 
-    /// Resets the object to a null state.
+    /**
+     * @brief Resets the object to a null state.
+     */
     void reset();
+    ///@}
 
-    /// Associates a specific frame range with this file entry.
+    /** @name Sequence Management */
+    ///@{
+    /**
+     * @brief Returns the associated FileRange if this file is part of a sequence.
+     */
+    FileRange fileRange() const;
+
+    /**
+     * @brief Associates a specific frame range with this file entry.
+     */
     void setFileRange(const FileRange& range);
+    ///@}
 
+    /** @name Operators */
+    ///@{
     File& operator=(const File& other);
     bool operator==(const File& other) const;
     bool operator!=(const File& other) const;
 
-    /// Convenience operator to return the file path as a QString.
+    /**
+     * @brief Convenience operator to return the file path as a QString.
+     */
     operator QString() const;
+    ///@}
 
     /**
      * @brief Lists files in a directory with optional sequence detection.
@@ -125,12 +198,12 @@ public:
                                bool ranges = true);
 
 private:
-    QExplicitlySharedDataPointer<FilePrivate> p;
+    QExplicitlySharedDataPointer<FilePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::File)

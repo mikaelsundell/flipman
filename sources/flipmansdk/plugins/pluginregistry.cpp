@@ -23,20 +23,20 @@ public:
 PluginRegistry::PluginRegistry()
     : p(new PluginRegistryPrivate())
 {
-    register_plugin(QuicktimeReader::handler());
-    register_plugin(QtWriter::handler());
+    registerPlugin(QuicktimeReader::handler());
+    registerPlugin(QtWriter::handler());
 }
 
 PluginRegistry::~PluginRegistry() { reset(); }
 
 bool
-PluginRegistry::register_plugin(const PluginHandler& handler)
+PluginRegistry::registerPlugin(const PluginHandler& handler)
 {
     p->d.plugins.append(handler);
 }
 
 core::Plugin*
-PluginRegistry::get_plugin(std::type_index type, const QString& extension) const
+PluginRegistry::getPlugin(std::type_index type, const QString& extension) const
 {
     for (PluginHandler& handler : p->d.plugins) {
         if (handler.pluginfactory.type == type && handler.pluginfactory.extensions().contains(extension)) {
@@ -47,7 +47,7 @@ PluginRegistry::get_plugin(std::type_index type, const QString& extension) const
 }
 
 bool
-PluginRegistry::has_extension(std::type_index type, const QString& extension) const
+PluginRegistry::hasExtension(std::type_index type, const QString& extension) const
 {
     for (const PluginHandler& handler : p->d.plugins) {
         if (handler.pluginfactory.type == type) {
@@ -61,7 +61,7 @@ PluginRegistry::has_extension(std::type_index type, const QString& extension) co
 }
 
 QList<core::Plugin*>
-PluginRegistry::get_plugins() const
+PluginRegistry::getPlugins() const
 {
     QList<core::Plugin*> result;
     for (const PluginHandler& handler : p->d.plugins) {

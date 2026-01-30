@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2024 - present Mikael Sundell.
+// Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QScopedPointer>
 #include <QWidget>
@@ -45,28 +44,23 @@ public:
      * @brief Constructs a TimelineWidget.
      * @param parent The parent widget.
      */
-    TimelineWidget(QWidget* parent = nullptr);
+    explicit TimelineWidget(QWidget* parent = nullptr);
 
     /**
      * @brief Destroys the widget.
+     * @note Required for the PIMPL pattern to safely delete TimelineWidgetPrivate.
      */
-    virtual ~TimelineWidget();
+    ~TimelineWidget() override;
 
-    /**
-     * @brief Returns the recommended size for the timeline widget.
-     * @return The QSize hint for layout management.
-     */
-    QSize sizeHint() const override;
-
+    /** @name Attributes */
+    ///@{
     /**
      * @brief Returns the current active time range (In/Out points).
-     * @return The underlying av::TimeRange.
      */
     av::TimeRange range() const;
 
     /**
      * @brief Returns the current playhead position.
-     * @return The underlying av::Time position.
      */
     av::Time time() const;
 
@@ -81,7 +75,17 @@ public:
      */
     TimeCode timeCode() const;
 
+    /**
+     * @brief Returns the recommended size for the timeline widget.
+     */
+    QSize sizeHint() const override;
+    ///@}
+
+
+
 public Q_SLOTS:
+    /** @name Setters */
+    ///@{
     /**
      * @brief Sets the active time range for the timeline.
      * @param range The new time range.
@@ -102,11 +106,14 @@ public Q_SLOTS:
 
     /**
      * @brief Changes the display format of the timeline.
-     * @param timecode The format to use (Frames, Time, or SMPTE).
+     * @param timeCode The format to use (Frames, Time, or SMPTE).
      */
     void setTimeCode(TimelineWidget::TimeCode timeCode);
+    ///@}
 
 Q_SIGNALS:
+    /** @name Notifications */
+    ///@{
     /**
      * @brief Emitted when the playhead position changes.
      */
@@ -126,8 +133,11 @@ Q_SIGNALS:
      * @brief Emitted when the user finishes interacting with the timeline.
      */
     void sliderReleased();
+    ///@}
 
 protected:
+    /** @name Interaction & Rendering */
+    ///@{
     /**
      * @brief Handles the rendering of the timeline tracks and playhead.
      */
@@ -147,15 +157,16 @@ protected:
      * @brief Handles mouse release events to end interaction.
      */
     void mouseReleaseEvent(QMouseEvent* event) override;
+    ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(TimelineWidget)
-    QScopedPointer<TimelineWidgetPrivate> p;
+    QScopedPointer<TimelineWidgetPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::widgets
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::widgets::TimelineWidget*)

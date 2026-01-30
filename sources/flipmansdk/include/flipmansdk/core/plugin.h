@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QObject>
 
@@ -20,7 +19,8 @@ namespace flipman::sdk::core {
  * functionality, such as custom readers, writers, or filters. It integrates
  * with the Qt Meta-Object system to allow for dynamic loading and parent-child
  * memory management.
- * * @ingroup core
+ *
+ * @ingroup core
  */
 class FLIPMANSDK_EXPORT Plugin : public QObject {
     Q_OBJECT
@@ -29,21 +29,29 @@ public:
      * @brief Constructs a new Plugin object.
      * @param parent The parent QObject for ownership and lifecycle management.
      */
-    Plugin(QObject* parent = nullptr);
+    explicit Plugin(QObject* parent = nullptr);
 
     /**
-     * @brief Destroys the Plugin object.
+     * @brief Destroys the plugin.
+     * @note Marked override to ensure correct cleanup of derived plugin resources.
      */
-    virtual ~Plugin();
+    ~Plugin() override;
 
     /**
      * @brief Returns the last recorded error state of the plugin.
-     * * This method allows users to query if a plugin operation (like initialization
+     *
+     * This method allows users to query if a plugin operation (like initialization
      * or execution) failed. The Error object contains specific details regarding
      * the failure type and message.
-     * * @return Error The current error state.
+     *
+     * @return Error The current error state.
      */
     Error error() const;
 };
 
 }  // namespace flipman::sdk::core
+
+/**
+ * @note Registering the type for use in signals/slots and QVariant.
+ */
+Q_DECLARE_METATYPE(flipman::sdk::core::Plugin*)

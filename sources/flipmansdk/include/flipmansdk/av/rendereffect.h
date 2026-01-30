@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/parameters.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
+#include <QMetaType>
 
 namespace flipman::sdk::av {
 
@@ -40,10 +40,11 @@ public:
 
     /**
      * @brief Destroys the RenderEffect.
+     * @note Marked virtual to allow for specialized effect implementations.
      */
     virtual ~RenderEffect();
 
-    /** @name Properties */
+    /** @name Attributes */
     ///@{
     /**
      * @brief Returns the key-value parameters used by this effect.
@@ -51,12 +52,25 @@ public:
     core::Parameters parameters() const;
 
     /**
+     * @brief Updates the effect parameters.
+     */
+    void setParameters(const core::Parameters& parameters);
+
+    /**
      * @brief Returns the unique algorithm code or shader identifier for this effect.
      */
     QString code() const;
+
+    /**
+     * @brief Sets the algorithm or effect identifier.
+     * @param code A string identifying the effect (e.g., "com.flipman.blur").
+     */
+    void setCode(const QString& code);
     ///@}
 
-    /** @name Status */
+
+
+    /** @name Management */
     ///@{
     /**
      * @brief Returns any error associated with the effect configuration.
@@ -69,34 +83,31 @@ public:
     void reset();
     ///@}
 
-    /** @name Setters */
-    ///@{
-    /**
-     * @brief Updates the effect parameters.
-     */
-    void setParameters(const core::Parameters& parameters);
-
-    /**
-     * @brief Sets the algorithm or effect identifier.
-     * @param code A string identifying the effect (e.g., "com.flipman.color_grade").
-     */
-    void setCode(const QString& code);
-    ///@}
-
     /** @name Operators */
     ///@{
+    /**
+     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     */
     RenderEffect& operator=(const RenderEffect& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const RenderEffect& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const RenderEffect& other) const;
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<RenderEffectPrivate> p;
+    QExplicitlySharedDataPointer<RenderEffectPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::RenderEffect)

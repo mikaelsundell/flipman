@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/clip.h>
 #include <flipmansdk/av/timerange.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QColor>
 #include <QList>
@@ -39,8 +38,9 @@ public:
 
     /**
      * @brief Destroys the Track and its managed clips.
+     * @note Required for the PIMPL pattern to safely delete TrackPrivate.
      */
-    virtual ~Track();
+    ~Track() override;
 
     /** @name Attributes */
     ///@{
@@ -55,10 +55,13 @@ public:
     QColor color() const;
     ///@}
 
+
+
     /** @name Clip Management */
     ///@{
     /**
      * @brief Returns the TimeRange that a specific clip occupies on this track.
+     * @param clip The clip to query.
      */
     TimeRange clipRange(Clip* clip) const;
 
@@ -69,20 +72,35 @@ public:
 
     /**
      * @brief Checks if a specific clip is a member of this track.
+     * @param clip The clip to look for.
      */
     bool containsClip(Clip* clip) const;
     ///@}
 
     /** @name Status */
     ///@{
+    /**
+     * @brief Returns the current error state of the track.
+     */
     core::Error error() const;
+
+    /**
+     * @brief Resets the track, removing all clips and clearing internal state.
+     */
     void reset();
     ///@}
 
 public Q_SLOTS:
     /** @name Setters */
     ///@{
+    /**
+     * @brief Sets the display name of the track.
+     */
     void setName(const QString& name);
+
+    /**
+     * @brief Sets the display color of the track.
+     */
     void setColor(const QColor& color);
 
     /**
@@ -99,6 +117,8 @@ public Q_SLOTS:
     ///@}
 
 Q_SIGNALS:
+    /** @name Notifications */
+    ///@{
     /**
      * @brief Emitted when the track's name is modified.
      */
@@ -108,15 +128,16 @@ Q_SIGNALS:
      * @brief Emitted when the track's display color is modified.
      */
     void colorChanged(const QColor& color);
+    ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(Track)
-    QScopedPointer<TrackPrivate> p;
+    QScopedPointer<TrackPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::Track*)

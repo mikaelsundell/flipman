@@ -4,7 +4,7 @@
 
 cmake_minimum_required (VERSION 3.27)
 
-# --- project configuration ---
+# project configuration
 set (project_name "flipman")
 project (${project_name})
 
@@ -14,27 +14,27 @@ set (project_long_version "1.0.0")
 set (project_short_version "1.0")
 set (project_url "https://github.com/mikaelsundell/flipman")
 
-# --- cmake modules ---
+# cmake modules
 list (APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
-# --- dependencies ---
+# dependencies
 set (QT_NO_PRIVATE_MODULE_WARNING ON)
 set (qt6_modules Core Concurrent Gui GuiPrivate Widgets ShaderTools)
 find_package (Qt6 COMPONENTS ${qt6_modules} CONFIG REQUIRED)
 
-# --- build settings ---
+# build settings
 set (CMAKE_AUTOMOC ON)
 set (CMAKE_AUTORCC ON)
 set (CMAKE_AUTOUIC ON)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# --- subdirectories ---
+# subdirectories
 add_subdirectory (sources/flipman)
 add_subdirectory (sources/flipmansdk)
 
-# --- tests ---
-add_subdirectory (sources/tests/testgamut)
+# tests
 add_subdirectory (sources/tests/testplay)
 add_subdirectory (sources/tests/testsuite)
 add_subdirectory (sources/tests/testtimeline)
+add_subdirectory (sources/tests/testview)
 add_subdirectory (sources/tests/testwidgets)

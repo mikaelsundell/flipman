@@ -29,7 +29,7 @@ bool
 MediaProcessor::write(Media& media, const TimeRange& timeRange, const core::File& file)
 {
     plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-    QScopedPointer<plugins::MediaWriter> writer(registry->get_plugin<plugins::MediaWriter>(file.extension()));
+    QScopedPointer<plugins::MediaWriter> writer(registry->getPlugin<plugins::MediaWriter>(file.extension()));
     if (writer) {
         writer->open(file);
         writer->setTimeRange(timeRange);

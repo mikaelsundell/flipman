@@ -17,8 +17,10 @@ class ImageFormatPrivate;
 /**
  * @class ImageFormat
  * @brief Represents pixel data types and provides memory size information.
- * * This class uses explicit sharing to ensure lightweight copying and is
- * registered with the Qt Meta-Object system via Q_GADGET.
+ *
+ * This class uses explicit sharing to ensure lightweight copying and is
+ * registered with the Qt Meta-Object system via Q_GADGET to support
+ * enum-to-string conversion and metadata inspection.
  */
 class FLIPMANSDK_EXPORT ImageFormat {
     Q_GADGET
@@ -30,42 +32,65 @@ public:
     enum Type { NONE, UINT8, INT8, UINT16, INT16, UINT32, INT32, UINT64, INT64, HALF, FLOAT, DOUBLE };
     Q_ENUM(Type)
 
-    /// Constructs an invalid image format.
+    /**
+     * @brief Constructs an invalid image format (NONE).
+     */
     ImageFormat();
 
-    /// Constructs a format with the specified pixel type.
+    /**
+     * @brief Constructs a format with the specified pixel type.
+     * @param type The pixel bit-depth or floating-point format.
+     */
     ImageFormat(ImageFormat::Type type);
 
-    /// Copy constructor (shallow copy via shared data).
+    /**
+     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     */
     ImageFormat(const ImageFormat& other);
 
-    virtual ~ImageFormat();
+    /**
+     * @brief Destroys the image format.
+     * @note Required for the PIMPL pattern to safely delete ImageFormatPrivate.
+     */
+    ~ImageFormat();
 
-    /// Returns the byte size of a single pixel for the current type.
+    /**
+     * @brief Returns the byte size of a single pixel component for the current type.
+     * @return Size in bytes (e.g., 4 for FLOAT, 1 for UINT8).
+     */
     size_t size() const;
 
-    /// Returns the current pixel type.
+    /**
+     * @brief Returns the current pixel type.
+     */
     ImageFormat::Type type() const;
 
-    /// Returns true if the type is not NONE.
+    /**
+     * @brief Returns true if the type is not NONE.
+     */
     bool isValid() const;
 
-    /// Resets the format to NONE.
+    /**
+     * @brief Resets the format to NONE.
+     */
     void reset();
 
+    /** @name Operators */
+    ///@{
     ImageFormat& operator=(const ImageFormat& other);
     bool operator==(const ImageFormat& other) const;
     bool operator!=(const ImageFormat& other) const;
     bool operator<(const ImageFormat& other) const;
     bool operator>(const ImageFormat& other) const;
+    ///@}
 
 private:
-    QExplicitlySharedDataPointer<ImageFormatPrivate> p;
+    QExplicitlySharedDataPointer<ImageFormatPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::ImageFormat)

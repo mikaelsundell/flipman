@@ -4,9 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -22,7 +21,8 @@ class TimeRangePrivate;
  * The TimeRange class is a fundamental building block for timeline organization.
  * It provides geometric-like operations for time, such as intersection testing and
  * value clamping (bounding).
- * * @note This class utilizes implicit sharing via QExplicitlySharedDataPointer
+ *
+ * @note This class utilizes implicit sharing via QExplicitlySharedDataPointer
  * for high-performance copying and thread-safe data access.
  */
 class FLIPMANSDK_EXPORT TimeRange {
@@ -44,9 +44,13 @@ public:
      */
     TimeRange(const TimeRange& other);
 
-    virtual ~TimeRange();
+    /**
+     * @brief Destroys the TimeRange object.
+     * @note Required for the PIMPL pattern to safely delete TimeRangePrivate.
+     */
+    ~TimeRange();
 
-    /** @name Temporal Properties */
+    /** @name Attributes */
     ///@{
     /**
      * @brief Returns the start point of the range.
@@ -54,15 +58,27 @@ public:
     Time start() const;
 
     /**
+     * @brief Sets the start point of the range.
+     */
+    void setStart(Time start);
+
+    /**
      * @brief Returns the length of the range.
      */
     Time duration() const;
+
+    /**
+     * @brief Sets the length of the range.
+     */
+    void setDuration(Time duration);
 
     /**
      * @brief Returns the calculated end point (start + duration).
      */
     Time end() const;
     ///@}
+
+
 
     /** @name Logic and Clamping */
     ///@{
@@ -89,26 +105,38 @@ public:
     QString toString() const;
     ///@}
 
-    /** @name Setters */
-    ///@{
-    void setStart(Time start);
-    void setDuration(Time duration);
-    ///@}
-
     /** @name Status and Validation */
     ///@{
+    /**
+     * @brief Returns true if the range is initialized and has a valid duration.
+     */
     bool isValid() const;
+
+    /**
+     * @brief Resets the range to an uninitialized state.
+     */
     void reset();
     ///@}
 
     /** @name Operators */
     ///@{
+    /**
+     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     */
     TimeRange& operator=(const TimeRange& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const TimeRange& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const TimeRange& other) const;
     ///@}
 
-    /** @name Static Conversion Utilities */
+    /** @name Static Utilities */
     ///@{
     /**
      * @brief Converts the entire range to a new frame rate.
@@ -117,17 +145,19 @@ public:
 
     /**
      * @brief Changes the underlying timescale of the range.
+     * @param timerange The range to convert.
+     * @param timescale The new resolution (default 24000).
      */
     static TimeRange convert(const TimeRange& timerange, qint32 timescale = 24000);
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<TimeRangePrivate> p;
+    QExplicitlySharedDataPointer<TimeRangePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::TimeRange)

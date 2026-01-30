@@ -191,8 +191,6 @@ StylePrivate::roleName(Style::FontRole role) const
     return QString::fromLatin1(me.valueToKey(role)).toLower();
 }
 
-#include "style.moc"
-
 Style::Style()
     : p(new StylePrivate())
 {

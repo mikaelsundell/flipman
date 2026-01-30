@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/renderlayer.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/av/track.h>
+#include <flipmansdk/flipmansdk.h>
 
 #include <QImage>
 #include <QObject>
@@ -39,20 +38,36 @@ class FLIPMANSDK_EXPORT Timeline : public QObject {
 public:
     /**
      * @brief Constructs a new Timeline.
-     * @param parent The ownership parent.
+     * @param parent The ownership parent for the QObject tree.
      */
     explicit Timeline(QObject* parent = nullptr);
 
     /**
      * @brief Destroys the Timeline and all managed tracks.
+     * @note Required for the PIMPL pattern to safely delete TimelinePrivate.
      */
-    virtual ~Timeline();
+    ~Timeline() override;
 
     /** @name State Query */
     ///@{
+    /**
+     * @brief Returns true if the playback is currently active.
+     */
     bool isPlaying() const;
+
+    /**
+     * @brief Returns true if loop playback is enabled.
+     */
     bool loop() const;
+
+    /**
+     * @brief Returns the canvas width.
+     */
     int width() const;
+
+    /**
+     * @brief Returns the canvas height.
+     */
     int height() const;
     ///@}
 
@@ -89,20 +104,36 @@ public:
     Fps fps() const;
     ///@}
 
+
+
     /** @name Track Management */
     ///@{
-    bool hasTrack(Track* track);
+    /**
+     * @brief Checks if a specific track is managed by this timeline.
+     */
+    bool hasTrack(Track* track) const;
+
+    /**
+     * @brief Returns a list of all tracks in the timeline.
+     */
     QList<Track*> tracks() const;
     ///@}
 
     /** @name Engine Configuration */
     ///@{
     /**
-     * @brief Returns the number of threads allocated for background decoding/rendering.
+     * @brief Returns the number of threads allocated for background decoding.
      */
     int threadCount() const;
 
+    /**
+     * @brief Returns the current error state of the timeline.
+     */
     core::Error error() const;
+
+    /**
+     * @brief Resets the timeline, removing all tracks and clearing state.
+     */
     void reset();
     ///@}
 
@@ -154,12 +185,10 @@ Q_SIGNALS:
     void playChanged(bool playing);
     ///@}
 
-    /** @name Data Production Signals
-     * These signals deliver the results of the timeline composition.
-     */
+    /** @name Data Production */
     ///@{
     /**
-     * @brief Emitted when a new frame is ready for display.
+     * @brief Emitted when a new composite frame is ready for display.
      */
     void renderLayerChanged(const RenderLayer& renderLayer);
 
@@ -171,12 +200,12 @@ Q_SIGNALS:
 
 private:
     Q_DISABLE_COPY_MOVE(Timeline)
-    QScopedPointer<TimelinePrivate> p;
+    QScopedPointer<TimelinePrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::Timeline*)
