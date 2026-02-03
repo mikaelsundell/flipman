@@ -66,9 +66,11 @@ Application*
 Application::instance()
 {
     auto* app = qobject_cast<Application*>(QCoreApplication::instance());
-    Q_ASSERT_X(app, "core::Application::instance()",
-               "The global application instance is not a core::Application. "
-               "Ensure you instantiated core::Application in main().");
+    if (!app) {
+        qFatal("Fatal Error in [core::Application::instance()]:\n"
+               "The global application instance is missing or is not a core::Application. "
+               "Ensure you have instantiated flipman::sdk::core::Application in your main() function.");
+    }
     return app;
 }
 }  // namespace flipman::sdk::core

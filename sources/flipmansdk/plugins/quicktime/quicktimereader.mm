@@ -33,9 +33,10 @@ public:
     QuicktimeReaderPrivate();
     ~QuicktimeReaderPrivate();
     void init();
+    void loadAsset();
     bool open(const core::File& file, core::Parameters parameters);
     bool close();
-    bool is_open();
+    bool isOpen();
     av::Time read();
     av::Time skip();
     av::Time seek(const av::TimeRange& timeRange);
@@ -51,6 +52,8 @@ public:
         AVAsset* asset = nil;
         AVAssetReader* reader = nil;
         AVAssetReaderTrackOutput* videoOutput = nil;
+        AVAssetTrack* videoTrack = nil;
+        AVAssetTrack* timeCodeTrack = nil;
         core::File file;
         av::TimeRange timeRange;
         av::Time startStamp;
@@ -63,6 +66,7 @@ public:
         core::AudioBuffer audio;
         core::Parameters metaData;
         core::Error error;
+        QPointer<QuicktimeReader> object;
     };
     Data d;
 };
@@ -75,177 +79,221 @@ QuicktimeReaderPrivate::~QuicktimeReaderPrivate()
 {
 }
 
-bool
-QuicktimeReaderPrivate::open(const core::File& file, core::Parameters parameters)
+void
+QuicktimeReaderPrivate::init()
 {
-    close();
-    NSURL* url = [NSURL fileURLWithPath:file.filePath().toNSString()];
-    d.asset = [AVAsset assetWithURL:url];
-    if (!d.asset) {
-        d.error = core::Error(info().name, QString("unable to load asset from file: %1").arg(file.filePath()));
-        qWarning() << "warning: " << d.error.message();
-        return false;
-    }
-    d.file = file;
-    NSError* averror = nil;
-    d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&averror];
-    if (!d.reader) {
-        d.error = core::Error(info().name, QString("unable to create AVAssetReader for video: %1").arg(QString::fromNSString(averror.localizedDescription)));
-        qWarning() << "warning: " << d.error.message();
-        return false;
-    }
-    NSArray<NSString *>* metadataformats = @[
-        AVMetadataKeySpaceCommon,
-        AVMetadataFormatQuickTimeUserData,
-        AVMetadataQuickTimeUserDataKeyAlbum,
-        AVMetadataFormatISOUserData,
-        AVMetadataISOUserDataKeyCopyright,
-        AVMetadataISOUserDataKeyDate,
-        AVMetadataFormatQuickTimeMetadata,
-        AVMetadataQuickTimeMetadataKeyAuthor,
-        AVMetadataFormatiTunesMetadata,
-        AVMetadataiTunesMetadataKeyAlbum,
-        AVMetadataFormatID3Metadata,
-        AVMetadataID3MetadataKeyAudioEncryption,
-        AVMetadataKeySpaceIcy,
-        AVMetadataIcyMetadataKeyStreamTitle,
-        AVMetadataFormatHLSMetadata,
-        AVMetadataKeySpaceHLSDateRange,
-        AVMetadataKeySpaceAudioFile,
-        AVMetadataFormatUnknown
-    ];
-    for (NSString *format in metadataformats) {
-        NSArray<AVMetadataItem *> *metaDataForFormat = [d.asset metadataForFormat:format];
-        if (metaDataForFormat) {
-            for (AVMetadataItem* item in metaDataForFormat) {
-                QString key = QString::fromNSString(item.commonKey);
-                QString value = QString::fromNSString(item.value.description);
-                if (!key.isEmpty() || !value.isEmpty()) {
-                    if (key == "title") { // todo: probably to simple but lets keep it for now
-                        d.title = value;
-                    }
-                    d.metaData.insert(key, value);
+}
+
+void QuicktimeReaderPrivate::loadAsset()
+{
+    dispatch_group_t group = dispatch_group_create();
+    
+    __block AVAssetTrack* videoTrack = nil;
+    __block AVAssetTrack* timeCodeTrack = nil;
+    
+    dispatch_group_enter(group);
+    [d.asset loadTracksWithMediaType:AVMediaTypeVideo
+                   completionHandler:^(NSArray<AVAssetTrack*>* tracks, NSError*) {
+        if (tracks.count)
+            videoTrack = tracks.firstObject;
+        dispatch_group_leave(group);
+    }];
+    
+    dispatch_group_enter(group);
+    [d.asset loadTracksWithMediaType:AVMediaTypeTimecode
+                   completionHandler:^(NSArray<AVAssetTrack*>* tracks, NSError*) {
+        if (tracks.count)
+            timeCodeTrack = tracks.firstObject;
+        dispatch_group_leave(group);
+    }];
+    
+    for (NSString* format in d.asset.availableMetadataFormats) {
+        dispatch_group_enter(group);
+        [d.asset loadMetadataForFormat:format
+                     completionHandler:^(NSArray<AVMetadataItem*>* items,
+                                         NSError* error) {
+            
+            if (!error) {
+                for (AVMetadataItem* item in items) {
+                    if (!item.commonKey || !item.value)
+                        continue;
+                    d.metaData.insert(
+                                      QString::fromNSString(item.commonKey),
+                                      QString::fromNSString(item.value.description));
                 }
             }
-        }
+            dispatch_group_leave(group);
+        }];
     }
-    AVAssetTrack* videoTrack = [[d.asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
-    if (!videoTrack) {
-        d.error = core::Error(info().name, QString("no video track found in file: %1").arg(d.fileName));
-        qWarning() << "warning: " << d.error.message();
-        return false;
-    }
-    NSArray* formats = [videoTrack formatDescriptions];
-    for (id formatDesc in formats) {
-        CMFormatDescriptionRef desc = (__bridge CMFormatDescriptionRef)formatDesc;
-        CMMediaType mediaType = CMFormatDescriptionGetMediaType(desc);
-        FourCharCode codecType = CMFormatDescriptionGetMediaSubType(desc);
-        NSString* media = [NSString stringWithFormat:@"%c%c%c%c",
-                           (mediaType >> 24) & 0xFF,
-                           (mediaType >> 16) & 0xFF,
-                           (mediaType >> 8) & 0xFF,
-                           mediaType & 0xFF];
-        
-        NSString* codec = [NSString stringWithFormat:@"%c%c%c%c",
-                           (codecType >> 24) & 0xFF,
-                           (codecType >> 16) & 0xFF,
-                           (codecType >> 8) & 0xFF,
-                           codecType & 0xFF];
-        
-        d.metaData.insert("media type", QString::fromNSString(media));
-        d.metaData.insert("codec type", QString::fromNSString(codec));
-    }
-    d.fps = av::Fps::guess(videoTrack.nominalFrameRate);
-    d.timeRange = av::TimeRange::convert(toTimeRange(videoTrack.timeRange), d.fps);
-    d.timeStamp = d.timeRange.start();
-    d.startStamp = d.timeStamp;
-    AVAssetTrack* timeCodeTrack = [[d.asset tracksWithMediaType:AVMediaTypeTimecode] firstObject];
-    if (timeCodeTrack) {
-        AVAssetReader* timeCodeReader = [[AVAssetReader alloc] initWithAsset:d.asset error:&averror];
+    dispatch_group_notify(
+        group,
+        dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0),
+        ^{
+
+        NSError* error = nil;
+        d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
         if (!d.reader) {
-            d.error = core::Error(info().name, QString("unable to create AVAssetReader for timecode: %1").arg(QString::fromNSString(averror.localizedDescription)));
-            qWarning() << "warning: " << d.error.message();
-            return false;
+            d.error = core::Error(info().name,
+                                  QString::fromNSString(error.localizedDescription));
+            return;
         }
-        AVAssetReaderTrackOutput* timeCodeOutput = [AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:timeCodeTrack outputSettings:nil];
-        [timeCodeReader addOutput:timeCodeOutput];
-        bool success = [timeCodeReader startReading];
-        if (success) {
-            CMSampleBufferRef sampleBuffer = NULL;
-            while ((sampleBuffer = [timeCodeOutput copyNextSampleBuffer])) {
-                CMBlockBufferRef blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
-                CMFormatDescriptionRef formatDescription =  CMSampleBufferGetFormatDescription(sampleBuffer);
-                if (blockBuffer && formatDescription) {
-                    size_t length = 0;
-                    size_t totalLength = 0;
-                    char* data = NULL;
-                    OSStatus status = CMBlockBufferGetDataPointer(blockBuffer, 0, &length, &totalLength, &data);
-                    if (status == kCMBlockBufferNoErr) {
-                        CMMediaType type = CMFormatDescriptionGetMediaSubType(formatDescription);
-                        uint32_t frameQuanta = CMTimeCodeFormatDescriptionGetFrameQuanta(formatDescription);
-                        uint32_t flags = CMTimeCodeFormatDescriptionGetTimeCodeFlags(formatDescription);
-                        bool dropFrames = flags & kCMTimeCodeFlag_DropFrame;
-                        av::Fps startFps = av::Fps::guess(frameQuanta);
-                        Q_ASSERT("frame quanta does not match" && frameQuanta == startFps.frameQuanta());
-                        if (dropFrames) {
-                            if (startFps == av::Fps::fps24()) {
-                                startFps = av::Fps::fps23_976();
+        NSArray* formats = [videoTrack formatDescriptions];
+        for (id formatDesc in formats) {
+            CMFormatDescriptionRef desc = (__bridge CMFormatDescriptionRef)formatDesc;
+            CMMediaType mediaType = CMFormatDescriptionGetMediaType(desc);
+            FourCharCode codecType = CMFormatDescriptionGetMediaSubType(desc);
+            NSString* media = [NSString stringWithFormat:@"%c%c%c%c",
+                               (mediaType >> 24) & 0xFF,
+                               (mediaType >> 16) & 0xFF,
+                               (mediaType >> 8) & 0xFF,
+                               mediaType & 0xFF];
+            
+            NSString* codec = [NSString stringWithFormat:@"%c%c%c%c",
+                               (codecType >> 24) & 0xFF,
+                               (codecType >> 16) & 0xFF,
+                               (codecType >> 8) & 0xFF,
+                               codecType & 0xFF];
+            
+            d.metaData.insert("media type", QString::fromNSString(media));
+            d.metaData.insert("codec type", QString::fromNSString(codec));
+        }
+        if (!videoTrack) {
+            d.error = core::Error(info().name, "no video track");
+            return;
+        }
+        d.videoTrack = videoTrack;
+        d.fps = av::Fps::guess(videoTrack.nominalFrameRate);
+        d.timeRange = av::TimeRange::convert(
+                                             toTimeRange(videoTrack.timeRange), d.fps);
+        d.startStamp = d.timeRange.start();
+        d.timeStamp  = d.startStamp;
+        if (timeCodeTrack) {
+            AVAssetReader* timeCodeReader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
+            if (!d.reader) {
+                d.error = core::Error(info().name, QString("unable to create AVAssetReader for timecode: %1").arg(QString::fromNSString(error.localizedDescription)));
+                return;
+            }
+            AVAssetReaderTrackOutput* timeCodeOutput = [AVAssetReaderTrackOutput assetReaderTrackOutputWithTrack:timeCodeTrack outputSettings:nil];
+            [timeCodeReader addOutput:timeCodeOutput];
+            bool success = [timeCodeReader startReading];
+            if (success) {
+                CMSampleBufferRef sampleBuffer = NULL;
+                while ((sampleBuffer = [timeCodeOutput copyNextSampleBuffer])) {
+                    CMBlockBufferRef blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer);
+                    CMFormatDescriptionRef formatDescription =  CMSampleBufferGetFormatDescription(sampleBuffer);
+                    if (blockBuffer && formatDescription) {
+                        size_t length = 0;
+                        size_t totalLength = 0;
+                        char* data = NULL;
+                        OSStatus status = CMBlockBufferGetDataPointer(blockBuffer, 0, &length, &totalLength, &data);
+                        if (status == kCMBlockBufferNoErr) {
+                            CMMediaType type = CMFormatDescriptionGetMediaSubType(formatDescription);
+                            uint32_t frameQuanta = CMTimeCodeFormatDescriptionGetFrameQuanta(formatDescription);
+                            uint32_t flags = CMTimeCodeFormatDescriptionGetTimeCodeFlags(formatDescription);
+                            bool dropFrames = flags & kCMTimeCodeFlag_DropFrame;
+                            av::Fps startFps = av::Fps::guess(frameQuanta);
+                            Q_ASSERT("frame quanta does not match" && frameQuanta == startFps.frameQuanta());
+                            if (dropFrames) {
+                                if (startFps == av::Fps::fps24()) {
+                                    startFps = av::Fps::fps23_976();
+                                }
+                                else if (startFps == av::Fps::fps30()) {
+                                    startFps = av::Fps::fps29_97();
+                                }
+                                else if (startFps == av::Fps::fps48()) {
+                                    startFps = av::Fps::fps47_952();
+                                }
+                                else if (startFps == av::Fps::fps60()) {
+                                    startFps = av::Fps::fps59_94();
+                                }
                             }
-                            else if (startFps == av::Fps::fps30()) {
-                                startFps = av::Fps::fps29_97();
+                            qint64 frame = 0;
+                            Q_ASSERT("drop frames does not match" && dropFrames == startFps.dropFrame());
+                            if (type == kCMTimeCodeFormatType_TimeCode32) { // 32-bit little-endian to native
+                                frame = static_cast<qint64>(EndianS32_BtoN(*reinterpret_cast<int32_t*>(data)));
                             }
-                            else if (startFps == av::Fps::fps48()) {
-                                startFps = av::Fps::fps47_952();
+                            else if (type == kCMTimeCodeFormatType_TimeCode64) { // 64-bit big-endian to native
+                                frame = static_cast<qint64>(EndianS64_BtoN(*reinterpret_cast<int64_t*>(data)));
                             }
-                            else if (startFps == av::Fps::fps60()) {
-                                startFps = av::Fps::fps59_94();
+                            else {
+                                Q_ASSERT("no valid type found for format description" && false);
                             }
-                        }
-                        qint64 frame = 0;
-                        Q_ASSERT("drop frames does not match" && dropFrames == startFps.dropFrame());
-                        if (type == kCMTimeCodeFormatType_TimeCode32) { // 32-bit little-endian to native
-                            frame = static_cast<qint64>(EndianS32_BtoN(*reinterpret_cast<int32_t*>(data)));
-                        }
-                        else if (type == kCMTimeCodeFormatType_TimeCode64) { // 64-bit big-endian to native
-                            frame = static_cast<qint64>(EndianS64_BtoN(*reinterpret_cast<int64_t*>(data)));
+                            if (frame) {
+                                frame = av::SmpteTime::convert(frame, startFps, d.fps);
+                                d.startStamp = av::Time::convert(av::Time(frame, d.fps), d.fps);
+                            }
                         }
                         else {
-                            Q_ASSERT("no valid type found for format description" && false);
+                            d.error = core::Error("quicktimeformat", QString("unable to get data from block buffer for timecode"));
+                            return;
                         }
-                        if (frame) {
-                            frame = av::SmpteTime::convert(frame, startFps, d.fps);
-                            d.startStamp = av::Time::convert(av::Time(frame, d.fps), d.fps);
-                        }
-                    }
-                    else {
-                        d.error = core::Error("quicktimeformat", QString("unable to get data from block buffer for timecode"));
-                        qWarning() << "warning: " << d.error.message();
-                        return false;
                     }
                 }
+                if (sampleBuffer) {
+                    CFRelease(sampleBuffer);
+                }
             }
-            if (sampleBuffer) {
-                CFRelease(sampleBuffer);
+            else {
+                d.error = core::Error(info().name, QString("unable to read sample buffer at for timecode"));
+                return;
             }
+            d.timeCodeTrack = timeCodeTrack;
         }
-        else {
-            d.error = core::Error(info().name, QString("unable to read sample buffer at for timecode"));
-            qWarning() << "warning: " << d.error.message();
-            return false;
+        d.videoOutput =
+        [[AVAssetReaderTrackOutput alloc]
+         initWithTrack:videoTrack
+         outputSettings:@{
+            (NSString*)kCVPixelBufferPixelFormatTypeKey :
+                @(kCVPixelFormatType_32BGRA)
+        }];
+        
+        [d.reader addOutput:d.videoOutput];
+        if (![d.reader startReading]) {
+            d.error = core::Error(info().name, "reader failed to start");
+            return;
         }
-    }
-    d.videoOutput = [[AVAssetReaderTrackOutput alloc]
-                     initWithTrack:videoTrack
-                     outputSettings:@{
-        (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
-    }];
-    if (!d.videoOutput) {
-        d.error = core::Error(info().name, "unable to create AVAssetReaderTrackOutput");
-        qWarning() << "warning: " << d.error.message();
+        QMetaObject::invokeMethod(
+            d.object,
+            &QuicktimeReader::opened,
+            Qt::QueuedConnection
+        );
+    });
+}
+
+bool
+QuicktimeReaderPrivate::open(const core::File& file, core::Parameters)
+{
+    close();
+    d.file = file;
+    d.error.reset();
+    
+    NSURL* url = [NSURL fileURLWithPath:file.filePath().toNSString()];
+    d.asset = [AVURLAsset URLAssetWithURL:url options:nil];
+    
+    if (!d.asset) {
+        d.error = core::Error(info().name, "failed to create AVAsset");
         return false;
     }
-    [d.reader addOutput:d.videoOutput];
-    [d.reader startReading];
+    NSArray* keys = @[
+        @"tracks",
+        @"duration",
+        @"commonMetadata",
+        @"availableMetadataFormats"
+    ];
+    [d.asset loadValuesAsynchronouslyForKeys:keys completionHandler:^{
+        NSError* error = nil;
+        for (NSString* key in keys) {
+            if ([d.asset statusOfValueForKey:key error:&error]
+                != AVKeyValueStatusLoaded) {
+
+                d.error = core::Error(
+                    info().name,
+                    QString::fromNSString(error.localizedDescription));
+                return;
+            }
+        }
+        this->loadAsset();
+    }];
     return true;
 }
 
@@ -272,16 +320,16 @@ QuicktimeReaderPrivate::close()
 }
 
 bool
-QuicktimeReaderPrivate::is_open()
+QuicktimeReaderPrivate::isOpen()
 {
-    return d.reader != nullptr;
+    return d.reader != nullptr && d.videoOutput != nil;
 }
 
 av::Time
 QuicktimeReaderPrivate::read()
 {
-    if (!is_open()) {
-        d.error = core::Error(info().name, "fauled when trying to read, file must be open");
+    if (!isOpen()) {
+        d.error = core::Error(info().name, "failed when trying to read, file must be open");
         qWarning() << "warning: " << d.error.message();
         return av::Time();
     }
@@ -318,7 +366,7 @@ QuicktimeReaderPrivate::read()
         CFRelease(sampleBuffer);
         d.error = core::Error(info().name, "CMSampleBuffer has no image buffer");
         qWarning() << "warning: " << d.error.message();
-        return;
+        return av::Time();
     }
     CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     
@@ -345,7 +393,7 @@ QuicktimeReaderPrivate::read()
 av::Time
 QuicktimeReaderPrivate::skip()
 {
-    Q_ASSERT(is_open() || d.reader.status != AVAssetReaderStatusReading);
+    Q_ASSERT(isOpen() || d.reader.status != AVAssetReaderStatusReading);
     
     CMSampleBufferRef sampleBuffer = [d.videoOutput copyNextSampleBuffer];
     d.timeStamp = av::Time::convert(toTime(CMSampleBufferGetPresentationTimeStamp(sampleBuffer)), d.fps);
@@ -356,7 +404,7 @@ QuicktimeReaderPrivate::skip()
 av::Time
 QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
 {
-    Q_ASSERT(is_open() || d.reader.status != AVAssetReaderStatusReading);
+    Q_ASSERT(isOpen() || d.reader.status != AVAssetReaderStatusReading);
     
     av::Time time = timerange.start();
     Q_ASSERT("ticks are not aligned" && time.ticks() == time.align(time.ticks()));
@@ -365,21 +413,20 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
         d.reader = nil;
     }
     
-    NSError* averror = nil;
-    d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&averror];
+    NSError* error = nil;
+    d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
     if (!d.reader) {
-        d.error = core::Error(info().name, QString("failed to recreate AVAssetReader: %1").arg(QString::fromNSString(averror.localizedDescription)));
+        d.error = core::Error(info().name, QString("failed to recreate AVAssetReader: %1").arg(QString::fromNSString(error.localizedDescription)));
         qWarning() << "warning: " << d.error.message();
         return;
     }
-    AVAssetTrack* track = [[d.asset tracksWithMediaType:AVMediaTypeVideo] firstObject];
-    if (!track) {
+    if (!d.videoTrack) {
         d.error = core::Error(info().name, "no video track found in asset");
         qWarning() << "warning: " << d.error.message();
         return;
     }
     d.videoOutput = [[AVAssetReaderTrackOutput alloc]
-                     initWithTrack:track
+                     initWithTrack:d.videoTrack
                      outputSettings:@{
         (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
     }];
@@ -457,6 +504,8 @@ QuicktimeReader::QuicktimeReader(QObject* parent)
 : plugins::MediaReader(parent)
 , p(new QuicktimeReaderPrivate())
 {
+    p->d.object = this;
+    p->init();
 }
 
 QuicktimeReader::~QuicktimeReader()
@@ -478,7 +527,7 @@ QuicktimeReader::close()
 bool
 QuicktimeReader::isOpen() const
 {
-    return p->is_open();
+    return p->isOpen();
 }
 
 bool
@@ -562,13 +611,13 @@ QuicktimeReader::parameters() const
 core::Parameters
 QuicktimeReader::metaData() const
 {
-    return core::Parameters();
+    return p->d.metaData;
 }
 
 core::Error
 QuicktimeReader::error() const
 {
-    return core::Error();
+    return p->d.error;
 }
 
 plugins::PluginHandler

@@ -2,6 +2,6 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-// todo:
+#pragma once
 
 #include <flipmanexport.h>

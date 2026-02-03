@@ -68,6 +68,7 @@ QtWriter::open(const core::File& file, core::Parameters parameters)
 {
     p->d.file = file;
     p->d.parameters = parameters;
+    return true;
 }
 
 bool

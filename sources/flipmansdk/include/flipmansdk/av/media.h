@@ -33,7 +33,8 @@ class MediaPrivate;
  * @note This class facilitates frame-accurate seeking and sequential reading of
  * both image and audio buffers.
  */
-class FLIPMANSDK_EXPORT Media {
+class FLIPMANSDK_EXPORT Media : public QObject {
+    Q_OBJECT
 public:
     /**
      * @brief Constructs an empty, invalid Media object.
@@ -173,6 +174,37 @@ public:
     bool operator==(const Media& other) const;
     bool operator!=(const Media& other) const;
     ///@}
+
+    /** @name Wait Helpers */
+    ///@{
+
+    /**
+     * @brief Blocks until the reader becomes open or a timeout occurs.
+     *
+     * This function enters a local event loop and waits for the opened()
+     * or openFailed() signal.
+     *
+     * @warning This function MUST NOT be called from a realtime playback
+     *          loop or performance-critical thread.
+     *
+     * @warning Calling this function from the GUI thread may cause the
+     *          user interface to freeze.
+     *
+     * @param msecs Maximum time to wait in milliseconds.
+     *              Use -1 to wait indefinitely.
+     *
+     * @return true if the reader became open, false on timeout or failure.
+     */
+    bool waitForOpened(int msecs = -1);
+
+Q_SIGNALS:
+    /**
+     * @brief Emitted when the reader becomes ready for read/seek.
+     *
+     * For synchronous readers this MAY be emitted during open().
+     * For asynchronous readers this MUST be emitted later.
+     */
+    void opened();
 
 private:
     QExplicitlySharedDataPointer<MediaPrivate> p;  ///< Private implementation.

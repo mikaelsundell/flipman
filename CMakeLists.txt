@@ -33,8 +33,8 @@ add_subdirectory (sources/flipman)
 add_subdirectory (sources/flipmansdk)
 
 # tests
+add_subdirectory (sources/tests/testsdk)
 add_subdirectory (sources/tests/testplay)
-add_subdirectory (sources/tests/testsuite)
 add_subdirectory (sources/tests/testtimeline)
 add_subdirectory (sources/tests/testview)
 add_subdirectory (sources/tests/testwidgets)

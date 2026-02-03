@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/core/audioformat.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/core/audioformat.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>

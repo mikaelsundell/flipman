@@ -35,13 +35,9 @@ MediaProcessor::write(Media& media, const TimeRange& timeRange, const core::File
         writer->setTimeRange(timeRange);
         av::Time time = media.seek(timeRange);
         for (qint64 frame = timeRange.start().frames(); frame < timeRange.duration().frames(); frame++) {
-            qDebug() << "write frame: " << frame;
-
             av::Time next = av::Time(frame, media.fps());
             if (time < next || frame == timeRange.start().frames()) {
                 time = media.read();
-
-                qDebug() << "read frame";
             }
             if (!writer->write(media.image())) {
                 p->d.error = core::Error("mediaprocessor",

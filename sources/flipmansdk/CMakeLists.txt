@@ -7,7 +7,7 @@ set(sdk_name "${project_name}sdk")
 include(exportheader)
 include(shadercompile)
 
-# --- av module ---
+# av
 file(GLOB sdk_av_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/av/*.h")
 file(GLOB sdk_av_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/av/*.cpp" 
@@ -16,7 +16,7 @@ file(GLOB sdk_av_sources
 source_group("Header Files\\av" FILES ${sdk_av_headers})
 source_group("Source Files\\av" FILES ${sdk_av_sources})
 
-# --- core module ---
+# core
 file(GLOB sdk_core_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/core/*.h")
 file(GLOB sdk_core_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp" 
@@ -25,7 +25,16 @@ file(GLOB sdk_core_sources
 source_group("Header Files\\core" FILES ${sdk_core_headers})
 source_group("Source Files\\core" FILES ${sdk_core_sources})
 
-# --- plugins Module ---
+# log
+file(GLOB sdk_log_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/log/*.h")
+file(GLOB sdk_log_sources 
+    "${CMAKE_CURRENT_SOURCE_DIR}/log/*.cpp" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/log/*.mm"
+)
+source_group("Header Files\\log" FILES ${sdk_log_headers})
+source_group("Source Files\\log" FILES ${sdk_log_sources})
+
+# plugins
 file(GLOB sdk_plugins_base_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/plugins/*.h")
 file(GLOB sdk_plugins_base_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*.cpp" 
@@ -52,7 +61,7 @@ foreach(subdir ${plugin_subdirs})
     list(APPEND sdk_plugins_all_sources ${subdir_sources})
 endforeach()
 
-# --- widgets module ---
+# widgets
 file(GLOB sdk_widgets_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/widgets/*.h")
 file(GLOB sdk_widgets_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/widgets/*.cpp" 
@@ -61,7 +70,7 @@ file(GLOB sdk_widgets_sources
 source_group("Header Files\\widgets" FILES ${sdk_widgets_headers})
 source_group("Source Files\\widgets" FILES ${sdk_widgets_sources})
 
-# --- shaders ---
+# shaders
 file(GLOB sdk_shaders_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag"
     "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert"
@@ -78,7 +87,7 @@ generate_qt_shaders(
     sdk_shaders_qsb_sources
 )
 
-# --- resources & Root Headers ---
+# resources & root headers
 file(GLOB sdk_root_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/*.h")
 file(GLOB sdk_resources "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.qss")
 set(sdk_qrc_file "${CMAKE_CURRENT_SOURCE_DIR}/resources/flipmansdk.qrc")
@@ -87,13 +96,15 @@ qt_add_resources(sdk_resource_sources ${sdk_qrc_file})
 source_group("Header Files" FILES ${sdk_root_headers})
 source_group("Resources" FILES ${sdk_resources} ${sdk_resource_sources})
 
-# --- target definition ---
+# target definition
 add_library(${sdk_name} SHARED
     ${sdk_root_headers}
     ${sdk_av_headers}
     ${sdk_av_sources}
     ${sdk_core_headers}
     ${sdk_core_sources}
+    ${sdk_log_headers}
+    ${sdk_log_sources}
     ${sdk_plugins_all_headers}
     ${sdk_plugins_all_sources}
     ${sdk_widgets_headers}

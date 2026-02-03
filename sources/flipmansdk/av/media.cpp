@@ -2,17 +2,22 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QFileInfo>
-#include <QPointer>
 #include <flipmansdk/av/media.h>
+
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/pluginregistry.h>
+
+#include <QEventLoop>
+#include <QFileInfo>
+#include <QPointer>
+#include <QTimer>
 
 namespace flipman::sdk::av {
 class MediaPrivate : public QSharedData {
 public:
-    bool open(const core::File& file);
+    plugins::MediaReader* reader(const QString& extension);
     struct Data {
+        bool open;
         core::File file;
         core::Error error;
         QScopedPointer<plugins::MediaReader> reader;
@@ -20,20 +25,17 @@ public:
     Data d;
 };
 
-
-bool
-MediaPrivate::open(const core::File& file)
+plugins::MediaReader*
+MediaPrivate::reader(const QString& extension)
 {
-    d.file = file;
-    plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-    d.reader.reset(registry->getPlugin<plugins::MediaReader>(file.extension()));
-    if (d.reader) {
-        if (d.reader->open(file)) {
-            return true;
-        }
+    auto* registry = plugins::PluginRegistry::instance();
+    plugins::MediaReader* reader = registry->getPlugin<plugins::MediaReader>(extension);
+    if (!reader) {
+        d.error = core::Error("Media", QStringLiteral("No MediaReader registered for extension: %1").arg(extension));
+        return nullptr;
     }
-    d.error = d.reader->error();
-    return false;
+    d.reader.reset(reader);  // MediaPrivate now OWNS the reader
+    return d.reader.get();
 }
 
 Media::Media()
@@ -49,7 +51,28 @@ Media::~Media() {}
 bool
 Media::open(const core::File& file)
 {
-    return p->open(file);
+    p->d.file = file;
+    p->d.open = false;
+    p->d.error.reset();
+
+    plugins::MediaReader* reader = p->reader(file.extension());
+
+    if (!reader) {
+        return false;
+    }
+    connect(reader, &plugins::MediaReader::opened, this, [this]() {
+        p->d.open = true;
+        Q_EMIT opened();
+    });
+    const bool started = reader->open(file);
+    if (started && reader->isOpen()) {
+        p->d.open = true;
+        Q_EMIT opened();
+    }
+    if (!started) {
+        p->d.error = reader->error();
+    }
+    return started;
 }
 
 bool
@@ -186,4 +209,24 @@ Media::operator!=(const Media& other) const
 {
     return !(this->p == other.p);
 }
+
+bool
+Media::waitForOpened(int msecs)
+{
+    if (p->d.open)
+        return true;
+    QEventLoop loop;
+    QTimer timer;
+    QObject::connect(this, &Media::opened, &loop, &QEventLoop::quit);
+    if (msecs >= 0) {
+        timer.setSingleShot(true);
+        QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+        timer.start(msecs);
+    }
+    if (p->d.open)
+        return true;
+    loop.exec();
+    return p->d.open;
+}
+
 }  // namespace flipman::sdk::av

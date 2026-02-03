@@ -66,7 +66,9 @@ TimePrivate::toString(qreal seconds)
 
 Time::Time()
     : p(new TimePrivate())
-{}
+{
+    p->d.timeScale = 0;
+}
 
 Time::Time(qint64 ticks, qint32 timeScale, const Fps& fps)
     : p(new TimePrivate())

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # https://github.com/mikaelsundell/flipman
 
-set(test_name "testsuite")
+set(test_name "testsdk")
 
 file (GLOB test_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" 

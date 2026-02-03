@@ -30,6 +30,7 @@ class MediaReaderPrivate;
  * non-linear seeking, frame skipping, and asynchronous buffer access.
  */
 class FLIPMANSDK_EXPORT MediaReader : public core::Plugin {
+    Q_OBJECT
 public:
     /**
      * @brief Constructs a new MediaReader.
@@ -44,10 +45,13 @@ public:
     ///@{
 
     /**
-     * @brief Opens a media file and initializes the decoder.
-     * @param file The source file path.
-     * @param parameters Configuration for the decoder (e.g., resolution limits, proxy settings).
-     * @return True if the file was successfully opened and tracks were validated.
+     * @brief Starts opening a media file.
+     *
+     * This function initiates reader initialization. Completion may occur
+     * synchronously or asynchronously.
+     *
+     * @return true if initialization was successfully started.
+     *         false if the operation failed immediately.
      */
     virtual bool open(const core::File& file, core::Parameters parameters = core::Parameters()) = 0;
 
@@ -157,6 +161,15 @@ public:
      */
     virtual core::Error error() const;
     ///@}
+
+Q_SIGNALS:
+    /**
+     * @brief Emitted when the reader becomes ready for read/seek.
+     *
+     * For synchronous readers this MAY be emitted during open().
+     * For asynchronous readers this MUST be emitted later.
+     */
+    void opened();
 };
 
 }  // namespace flipman::sdk::plugins
