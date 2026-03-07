@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/av/fps.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/av/fps.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -16,190 +17,237 @@ class TimePrivate;
 
 /**
  * @class Time
- * @brief High-precision temporal representation using rational ticks and timescales.
- *
- * The Time class handles frame-accurate timing by representing time as a count of
- * units (ticks) over a resolution (timescale). This prevents the rounding errors
- * common with floating-point seconds, making it suitable for professional video
- * editing and playback.
- *
- * @note This class utilizes implicit sharing (Copy-on-Write) via
- * QExplicitlySharedDataPointer for efficient passing and memory management.
+ * @brief Rational time descriptor.
  */
 class FLIPMANSDK_EXPORT Time {
 public:
     /** @name Constructors */
     ///@{
+
     /**
-     * @brief Constructs an invalid Time object.
+     * @brief Constructs an invalid Time.
      */
     Time();
 
     /**
-     * @brief Constructs Time using raw tick values.
-     * @param ticks Total number of units.
-     * @param timeScale The resolution of the ticks (e.g., 24000 for 24fps base).
-     * @param fps The associated frame rate for frame-based conversions.
+     * @brief Constructs Time from ticks and timescale.
      */
     Time(qint64 ticks, qint32 timeScale, const Fps& fps);
 
     /**
-     * @brief Constructs Time from a specific frame number and frame rate.
+     * @brief Constructs Time from frame and Fps.
      */
     Time(qint64 frame, const Fps& fps);
 
     /**
-     * @brief Constructs Time from floating-point seconds and a frame rate.
+     * @brief Constructs Time from seconds and Fps.
      */
     Time(qreal seconds, const Fps& fps);
 
     /**
-     * @brief Constructs a copy of Time but with a new tick value.
+     * @brief Constructs Time from other with new ticks.
      */
     Time(const Time& other, qint64 ticks);
 
     /**
-     * @brief Constructs a copy of Time but converted to a new frame rate.
+     * @brief Constructs Time from other with new Fps.
      */
     Time(const Time& other, const Fps& fps);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     Time(const Time& other);
+
     ///@}
 
     /**
-     * @brief Destroys the Time object.
-     * @note Required for the PIMPL pattern to safely delete TimePrivate.
+     * @brief Destroys the Time.
      */
     ~Time();
 
-    /** @name Status and Validation */
+    /** @name Status */
     ///@{
+
     /**
-     * @brief Returns true if the temporal data is initialized and valid.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the Time object to an uninitialized state.
+     * @brief Resets to invalid state.
      */
     void reset();
+
     ///@}
-
-
 
     /** @name Attributes */
     ///@{
+
     /**
-     * @brief Returns the associated frame rate.
+     * @brief Returns the associated Fps.
      */
     Fps fps() const;
 
     /**
-     * @brief Returns the current total count of units (ticks).
+     * @brief Returns the tick count.
      */
     qint64 ticks() const;
 
     /**
-     * @brief Returns the resolution/timescale of the ticks.
+     * @brief Returns the timescale.
      */
     qint32 timeScale() const;
 
     /**
-     * @brief Returns Ticks Per Frame (TPF) based on current timescale and FPS.
+     * @brief Returns ticks per frame.
      */
     qint64 tpf() const;
+
     ///@}
 
-    /** @name Conversions and Calculations */
+    /** @name Conversion */
     ///@{
+
     /**
-     * @brief Maps a specific frame to a tick value in the current timescale.
+     * @brief Returns ticks for a frame.
      */
     qint64 ticks(qint64 frame) const;
 
     /**
-     * @brief Calculates the frame number corresponding to a tick value.
+     * @brief Returns frame for ticks.
      */
     qint64 frame(qint64 ticks) const;
 
     /**
-     * @brief Returns the total count of frames represented by the current ticks.
+     * @brief Returns total frames.
      */
     qint64 frames() const;
 
     /**
-     * @brief Returns the index of the last full frame.
+     * @brief Returns last full frame.
      */
     qint64 lastFrame() const;
 
     /**
-     * @brief Aligns a tick value to the nearest frame boundary.
+     * @brief Aligns ticks to frame boundary.
      */
     qint64 align(qint64 ticks) const;
 
     /**
-     * @brief Returns the duration in seconds as a real number.
+     * @brief Returns seconds.
      */
     qreal seconds() const;
+
     ///@}
 
-    /** @name String Formatting */
+    /** @name Formatting */
     ///@{
+
     /**
-     * @brief Formats a specific tick value as a human-readable string.
+     * @brief Returns string for ticks.
      */
     QString toString(qint64 ticks) const;
 
     /**
-     * @brief Formats the current time as a human-readable string.
+     * @brief Returns string representation.
      */
     QString toString() const;
+
     ///@}
 
     /** @name Setters */
     ///@{
+
+    /**
+     * @brief Sets ticks.
+     */
     void setTicks(qint64 ticks);
+
+    /**
+     * @brief Sets timescale.
+     */
     void setTimeScale(qint32 timeScale);
+
+    /**
+     * @brief Sets Fps.
+     */
     void setFps(const Fps& fps);
+
     ///@}
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     Time& operator=(const Time& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const Time& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const Time& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     */
     bool operator<(const Time& other) const;
+
+    /**
+     * @brief Greater-than operator.
+     */
     bool operator>(const Time& other) const;
+
+    /**
+     * @brief Less-than or equal operator.
+     */
     bool operator<=(const Time& other) const;
+
+    /**
+     * @brief Greater-than or equal operator.
+     */
     bool operator>=(const Time& other) const;
+
+    /**
+     * @brief Addition operator.
+     */
     Time operator+(const Time& other) const;
+
+    /**
+     * @brief Subtraction operator.
+     */
     Time operator-(const Time& other) const;
 
     /**
-     * @brief Convenience operator to return time as seconds.
+     * @brief Returns time as seconds.
      */
     operator double() const;
+
     ///@}
 
     /** @name Static Utilities */
     ///@{
+
     /**
-     * @brief Converts a Time object to a new frame rate.
+     * @brief Converts to a new Fps.
      */
     static Time convert(const Time& time, const Fps& to);
 
     /**
-     * @brief Changes the underlying timescale of a Time object.
-     * @param timeScale The new resolution (default 24000).
+     * @brief Converts to a new timescale.
      */
     static Time convert(const Time& time, qint32 timeScale = 24000);
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<TimePrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<TimePrivate> p;
 };
 
 }  // namespace flipman::sdk::av

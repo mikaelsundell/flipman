@@ -2,11 +2,14 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/plugins/fx/fxreader.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/mediawriter.h>
+#include <flipmansdk/plugins/oiio/oiiowriter.h>
 #include <flipmansdk/plugins/pluginregistry.h>
-#include <flipmansdk/plugins/qt/qt.h>
-#include <flipmansdk/plugins/quicktime/quicktime.h>
+#include <flipmansdk/plugins/qt/qtwriter.h>
+#include <flipmansdk/plugins/quicktime/quicktimereader.h>
+#include <flipmansdk/plugins/quicktime/quicktimewriter.h>
 
 #include <QMap>
 
@@ -23,7 +26,9 @@ public:
 PluginRegistry::PluginRegistry()
     : p(new PluginRegistryPrivate())
 {
+    registerPlugin(FxReader::handler());
     registerPlugin(QuicktimeReader::handler());
+    registerPlugin(OIIOWriter::handler());
     registerPlugin(QtWriter::handler());
 }
 

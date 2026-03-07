@@ -17,59 +17,69 @@ class AudioBufferPrivate;
 
 /**
  * @class AudioBuffer
- * @brief Manages a container for audio sample data using explicit sharing.
- * * Provides a lightweight handle to audio data, allowing for efficient passing
- * and assignment. Memory is only duplicated when explicitly detached or modified.
+ * @brief Explicitly shared container for audio sample data.
+ *
+ * Provides value semantics with copy-on-write behavior.
  */
 class FLIPMANSDK_EXPORT AudioBuffer {
 public:
     /**
-     * @brief Constructs an empty, invalid audio buffer.
+     * @brief Constructs an empty AudioBuffer.
      */
     AudioBuffer();
 
     /**
-     * @brief Copy constructor. Performs a shallow copy via shared data pointer.
+     * @brief Copy constructor.
      */
     AudioBuffer(const AudioBuffer& other);
 
     /**
-     * @brief Destroys the audio buffer.
-     * @note Required for the PIMPL pattern to safely delete AudioBufferPrivate.
+     * @brief Destroys the AudioBuffer.
      */
     ~AudioBuffer();
 
     /**
-     * @brief Returns the format (channels, sample rate, bit depth) of the audio data.
+     * @brief Returns the audio format.
      */
     AudioFormat audioFormat() const;
 
     /**
-     * @brief Creates a deep copy of the underlying data if it is shared.
-     * @note Use this before performing write operations on the buffer to ensure
-     * thread-safe mutation.
+     * @brief Detaches shared data (copy-on-write).
      */
     void detach();
 
     /**
-     * @brief Returns true if the buffer contains valid data and a valid format.
+     * @brief Returns true if the buffer contains valid data.
      */
     bool isValid() const;
 
     /**
-     * @brief Clears the buffer data and resets the format.
+     * @brief Resets the buffer to an empty state.
      */
     void reset();
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     */
     AudioBuffer& operator=(const AudioBuffer& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const AudioBuffer& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const AudioBuffer& other) const;
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<AudioBufferPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<AudioBufferPrivate> p;
 };
 
 }  // namespace flipman::sdk::core

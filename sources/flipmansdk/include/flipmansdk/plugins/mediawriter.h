@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
@@ -11,7 +13,7 @@
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/core/parameters.h>
+#include <flipmansdk/core/metadata.h>
 #include <flipmansdk/core/plugin.h>
 
 #include <QExplicitlySharedDataPointer>
@@ -22,140 +24,156 @@ class MediaWriterPrivate;
 
 /**
  * @class MediaWriter
- * @brief Abstract base class for all media writing plugins.
- * * MediaWriter defines the standard interface for encoding and serializing media data
- * (images and audio) to disk. It inherits from core::Plugin to allow for dynamic
- * discovery and loading within the flipman ecosystem.
- * * Subclasses should implement format-specific logic (e.g., QuickTime, OpenImageIO, FFmpeg)
- * while adhering to the temporal and buffer-based contracts defined here.
+ * @brief Abstract base class for media writing plugins.
+ *
+ * Defines the interface for encoding and writing image and audio
+ * data to a file or container.
  */
 class FLIPMANSDK_EXPORT MediaWriter : public core::Plugin {
 public:
     /**
-     * @brief Constructs a new MediaWriter.
-     * @param parent The parent QObject for ownership management.
+     * @struct Options
+     * @brief Writer configuration parameters.
+     *
+     * Contains backend-defined attributes used to configure
+     * encoding behavior.
      */
-    MediaWriter(QObject* parent = nullptr);
+    struct Options {
+        QVariantMap values;
+    };
 
-    /// Destroys the media writer.
+public:
+    /**
+     * @brief Constructs a MediaWriter.
+     *
+     * @param parent Optional QObject parent.
+     */
+    explicit MediaWriter(QObject* parent = nullptr);
+
+    /**
+     * @brief Destroys the MediaWriter.
+     */
     virtual ~MediaWriter();
 
-    /** @name Initialization and State */
+    /** @name Initialization */
     ///@{
 
     /**
-     * @brief Opens a file for writing and initializes the encoder.
-     * @param file The target file path.
-     * @param parameters Configuration for the encoder (e.g., bitrate, compression level).
-     * @return True if the writer was successfully initialized.
+     * @brief Opens a file for writing.
+     *
+     * @param file Target file.
+     * @param options Encoding configuration.
+     *
+     * @return True if initialization succeeded.
      */
-    virtual bool open(const core::File& file, core::Parameters parameters = core::Parameters()) = 0;
+    virtual bool open(const core::File& file, const Options& options = Options()) = 0;
 
     /**
-     * @brief Finalizes the writing process and closes the file handle.
-     * @return True if the file was written and closed successfully.
+     * @brief Finalizes writing and closes the file.
+     *
+     * @return True if successful.
      */
     virtual bool close() = 0;
 
     /**
-     * @brief Checks if the writer is currently active and a file is open for writing.
-     * @return True if the writing session is valid.
+     * @brief Returns true if the writer is open.
      */
     virtual bool isOpen() const = 0;
+
     ///@}
 
     /** @name Capabilities */
     ///@{
 
     /**
-     * @brief Indicates if this writer supports video/image sequence encoding.
+     * @brief Returns true if image writing is supported.
      */
     virtual bool supportsImage() const = 0;
 
     /**
-     * @brief Indicates if this writer supports audio stream encoding.
+     * @brief Returns true if audio writing is supported.
      */
     virtual bool supportsAudio() const = 0;
 
     /**
-     * @brief Returns the list of file extensions this plugin is capable of writing.
-     * @return A list of strings (e.g., {"mov", "mp4", "exr"}).
+     * @brief Returns supported file extensions.
      */
     virtual QList<QString> extensions() const = 0;
+
     ///@}
 
     /** @name Data Output */
     ///@{
 
     /**
-     * @brief Encodes and writes an audio buffer to the output stream.
-     * @param audio The audio samples to write.
-     * @return The updated presentation time after writing.
+     * @brief Writes an audio buffer.
+     *
+     * @return Updated presentation time.
      */
     virtual av::Time write(const core::AudioBuffer& audio);
 
     /**
-     * @brief Encodes and writes an image buffer (frame) to the output stream.
-     * @param image The pixel data buffer to write.
-     * @return The presentation time associated with the written frame.
+     * @brief Writes an image buffer.
+     *
+     * @return Presentation time of written frame.
      */
     virtual av::Time write(const core::ImageBuffer& image);
 
     /**
-     * @brief Moves the writer's cursor to a specific time range.
-     * @param range The target time range to seek to.
-     * @return The actual time position achieved.
+     * @brief Seeks to a time range.
+     *
+     * @return Achieved time position.
      */
     virtual av::Time seek(const av::TimeRange& range);
+
     ///@}
 
-    /** @name Properties and Metadata */
+    /** @name Properties */
     ///@{
 
     /**
-     * @brief Returns the current presentation time of the writer.
+     * @brief Returns current presentation time.
      */
     virtual av::Time time() const;
 
     /**
-     * @brief Returns the configured frame rate of the output.
+     * @brief Returns configured frame rate.
      */
     virtual av::Fps fps() const;
 
     /**
-     * @brief Returns the total time range (duration) of the media being written.
+     * @brief Returns configured time range.
      */
     virtual av::TimeRange timeRange() const;
 
     /**
-     * @brief Sets the target frame rate for the encoding session.
-     * @param fps The desired frames per second.
+     * @brief Sets frame rate.
      */
     virtual void setFps(const av::Fps& fps);
 
     /**
-     * @brief Sets the intended total time range for the output file.
-     * @param timerange The start and duration of the file.
+     * @brief Sets intended time range.
      */
     virtual void setTimeRange(const av::TimeRange& timeRange);
 
     /**
-     * @brief Applies metadata (tags, comments, etc.) to the output container.
-     * @param metadata A set of parameters representing metadata keys and values.
-     * @return True if the metadata was successfully applied.
+     * @brief Sets container metadata.
+     *
+     * @return True if metadata was applied.
      */
-    virtual bool setMetaData(const core::Parameters& metaData);
+    virtual bool setMetaData(const core::MetaData& metaData);
 
     /**
-     * @brief Returns the current error state of the media.
+     * @brief Returns current error state.
      */
     virtual core::Error error() const;
+
     ///@}
 };
 
 }  // namespace flipman::sdk::plugins
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::plugins::MediaWriter)

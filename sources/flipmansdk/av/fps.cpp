@@ -21,12 +21,12 @@ Fps::Fps()
     : p(new FpsPrivate())
 {}
 
-Fps::Fps(qint32 numerator, qint32 denominator, bool drop_frame)
+Fps::Fps(qint32 numerator, qint32 denominator, bool dropFrame)
     : p(new FpsPrivate())
 {
     p->d.numerator = numerator;
     p->d.denominator = denominator;
-    p->d.dropFrame = drop_frame;
+    p->d.dropFrame = dropFrame;
 }
 
 Fps::Fps(const Fps& other)
@@ -69,7 +69,6 @@ qreal
 Fps::real() const
 {
     Q_ASSERT("fps is not valid" && isValid());
-
     return static_cast<qreal>(numerator()) / denominator();
 }
 

@@ -16,89 +16,109 @@ class FileRangePrivate;
 
 /**
  * @class FileRange
- * @brief Manages a sequence of files mapped to specific frame numbers.
- *
- * FileRange is used to handle image sequences or frame-based assets. It tracks
- * the relationship between a linear timeline (frames) and specific file paths
- * on disk using explicit data sharing for performance.
+ * @brief Explicitly shared frame-to-file mapping.
  */
 class FLIPMANSDK_EXPORT FileRange {
 public:
     /**
-     * @brief Constructs an empty file range.
+     * @brief Constructs an empty FileRange.
      */
     FileRange();
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     FileRange(const FileRange& other);
 
     /**
-     * @brief Destroys the file range.
-     * @note Required for the PIMPL pattern to safely delete FileRangePrivate.
+     * @brief Destroys the FileRange.
      */
     ~FileRange();
 
     /** @name Frame Access */
     ///@{
+
     /**
-     * @brief Returns true if a specific frame number is mapped to a file.
+     * @brief Returns true if a frame is mapped.
      */
     bool hasFrame(qint64 frame) const;
 
     /**
-     * @brief Returns the File object associated with the given frame number.
+     * @brief Returns the File mapped to a frame.
      */
     File frame(qint64 frame) const;
 
     /**
-     * @brief Returns the first frame number in the sequence.
+     * @brief Returns the first frame index.
      */
     qint64 start() const;
 
     /**
-     * @brief Returns the last frame number in the sequence.
+     * @brief Returns the last frame index.
      */
     qint64 end() const;
 
     /**
-     * @brief Returns the total number of frames in the sequence.
+     * @brief Returns the number of mapped frames.
      */
     qint64 size() const;
+
     ///@}
 
     /** @name Management */
     ///@{
+
     /**
-     * @brief Returns true if the range contains at least one valid frame mapping.
+     * @brief Returns true if the range contains frames.
      */
     bool isValid() const;
 
     /**
-     * @brief Clears all frame mappings and resets the range.
+     * @brief Resets the range to an empty state.
      */
     void reset();
 
     /**
-     * @brief Maps a specific frame number to a file.
-     * @param frame The index of the frame.
-     * @param file The file associated with this frame.
+     * @brief Inserts a frame-to-file mapping.
      */
     void insertFrame(qint64 frame, const File& file);
+
     ///@}
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     FileRange& operator=(const FileRange& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const FileRange& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const FileRange& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     *
+     * Provides deterministic ordering.
+     */
     bool operator<(const FileRange& other) const;
+
+    /**
+     * @brief Greater-than operator.
+     */
     bool operator>(const FileRange& other) const;
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<FileRangePrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<FileRangePrivate> p;
 };
 
 }  // namespace flipman::sdk::core

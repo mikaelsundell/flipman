@@ -4,15 +4,16 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/av/fps.h>
-#include <flipmansdk/av/renderlayer.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/av/track.h>
-#include <flipmansdk/flipmansdk.h>
 
-#include <QImage>
+#include <flipmansdk/render/imagelayer.h>
+
 #include <QObject>
 #include <QScopedPointer>
 
@@ -22,12 +23,7 @@ class TimelinePrivate;
 
 /**
  * @class Timeline
- * @brief The central coordinator for multi-track media playback and composition.
- *
- * Timeline manages the temporal and spatial organization of media tracks. It handles
- * playback logic (play/stop/seek), loop behavior, and I/O (In/Out) ranges. As the
- * playhead moves, the Timeline synthesizes the state of all active tracks into
- * renderable layers and audio streams.
+ * @brief Multi-track playback and composition controller.
  */
 class FLIPMANSDK_EXPORT Timeline : public QObject {
     Q_OBJECT
@@ -37,125 +33,166 @@ class FLIPMANSDK_EXPORT Timeline : public QObject {
 
 public:
     /**
-     * @brief Constructs a new Timeline.
-     * @param parent The ownership parent for the QObject tree.
+     * @brief Constructs a Timeline.
      */
     explicit Timeline(QObject* parent = nullptr);
 
     /**
-     * @brief Destroys the Timeline and all managed tracks.
-     * @note Required for the PIMPL pattern to safely delete TimelinePrivate.
+     * @brief Destroys the Timeline.
      */
     ~Timeline() override;
 
-    /** @name State Query */
+    /** @name State */
     ///@{
+
     /**
-     * @brief Returns true if the playback is currently active.
+     * @brief Returns true if playing.
      */
     bool isPlaying() const;
 
     /**
-     * @brief Returns true if loop playback is enabled.
+     * @brief Returns true if loop enabled.
      */
     bool loop() const;
 
     /**
-     * @brief Returns the canvas width.
+     * @brief Returns the width.
      */
     int width() const;
 
     /**
-     * @brief Returns the canvas height.
+     * @brief Returns the height.
      */
     int height() const;
+
     ///@}
 
-    /** @name Temporal Properties */
+    /** @name Temporal */
     ///@{
+
     /**
-     * @brief Returns the total duration/range of the timeline.
+     * @brief Returns the time range.
      */
     TimeRange timeRange() const;
 
     /**
-     * @brief Returns the current In/Out (working) range.
+     * @brief Returns the I/O range.
      */
     TimeRange ioRange() const;
 
     /**
-     * @brief Returns the current playhead position.
+     * @brief Returns the current time.
      */
     Time time() const;
 
     /**
-     * @brief Returns the starting time of the timeline (e.g., 01:00:00:00).
+     * @brief Returns the start time.
      */
     Time startTime() const;
 
     /**
-     * @brief Returns the current playhead position formatted as SMPTE timecode.
+     * @brief Returns the timecode.
      */
     SmpteTime timeCode() const;
 
     /**
-     * @brief Returns the master frame rate of the timeline.
+     * @brief Returns the frame rate.
      */
     Fps fps() const;
+
     ///@}
 
-
-
-    /** @name Track Management */
+    /** @name Tracks */
     ///@{
+
     /**
-     * @brief Checks if a specific track is managed by this timeline.
+     * @brief Returns true if track exists.
      */
     bool hasTrack(Track* track) const;
 
     /**
-     * @brief Returns a list of all tracks in the timeline.
+     * @brief Returns all tracks.
      */
     QList<Track*> tracks() const;
+
     ///@}
 
-    /** @name Engine Configuration */
+    /** @name Configuration */
     ///@{
+
     /**
-     * @brief Returns the number of threads allocated for background decoding.
+     * @brief Returns the thread count.
      */
     int threadCount() const;
 
     /**
-     * @brief Returns the current error state of the timeline.
+     * @brief Returns the error state.
      */
     core::Error error() const;
 
     /**
-     * @brief Resets the timeline, removing all tracks and clearing state.
+     * @brief Resets to default state.
      */
     void reset();
+
     ///@}
 
 public Q_SLOTS:
-    /** @name Composition Control */
+    /** @name Composition */
     ///@{
+
+    /**
+     * @brief Inserts a track.
+     */
     void insertTrack(Track* track);
+
+    /**
+     * @brief Removes a track.
+     */
     void removeTrack(Track* track);
+
+    /**
+     * @brief Sets the time range.
+     */
     void setTimeRange(const TimeRange& timeRange);
+
+    /**
+     * @brief Sets the I/O range.
+     */
     void setIoRange(const TimeRange& ioRange);
+
+    /**
+     * @brief Sets the width.
+     */
     void setWidth(int width);
+
+    /**
+     * @brief Sets the height.
+     */
     void setHeight(int height);
+
     ///@}
 
-    /** @name Playback Control */
+    /** @name Playback */
     ///@{
+
+    /**
+     * @brief Enables or disables every-frame mode.
+     */
     void setEveryFrame(bool everyFrame);
+
+    /**
+     * @brief Enables or disables loop.
+     */
     void setLoop(bool loop);
+
+    /**
+     * @brief Sets the thread count.
+     */
     void setThreadCount(int threadCount);
 
     /**
-     * @brief Moves the playhead to a specific time.
+     * @brief Seeks to time.
      */
     void seek(const Time& time);
 
@@ -165,42 +202,47 @@ public Q_SLOTS:
     void play();
 
     /**
-     * @brief Pauses playback.
+     * @brief Stops playback.
      */
     void stop();
+
     ///@}
 
 Q_SIGNALS:
-    /** @name Property Notifications */
+    /** @name Notifications */
     ///@{
+
     void timerangeChanged(const TimeRange& timeRange);
     void ioRangeChanged(const TimeRange& io);
     void timeChanged(const Time& time);
     void timeCodeChanged(const Time& time);
     void loopChanged(bool loop);
-    void everyFrameChanged(bool everyframe);
+    void everyFrameChanged(bool everyFrame);
     void actualFpsChanged(qreal fps);
     void widthChanged(int width);
     void heightChanged(int height);
     void playChanged(bool playing);
+
     ///@}
 
-    /** @name Data Production */
+    /** @name Output */
     ///@{
-    /**
-     * @brief Emitted when a new composite frame is ready for display.
-     */
-    void renderLayerChanged(const RenderLayer& renderLayer);
 
     /**
-     * @brief Emitted when a new audio buffer is ready for playback.
+     * @brief Emitted when image layer changes.
+     */
+    void imageLayerChanged(const render::ImageLayer& imageLayer);
+
+    /**
+     * @brief Emitted when audio changes.
      */
     void audioChanged(const QByteArray& buffer);
+
     ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(Timeline)
-    QScopedPointer<TimelinePrivate> p;  ///< Private implementation.
+    QScopedPointer<TimelinePrivate> p;
 };
 
 }  // namespace flipman::sdk::av

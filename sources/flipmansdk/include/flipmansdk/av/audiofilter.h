@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/parameters.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/metadata.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -48,24 +49,24 @@ public:
     /** @name Attributes */
     ///@{
     /**
-     * @brief Returns the collection of key-value parameters for this filter.
+     * @brief Returns the collection of key-value metadata for this filter.
      */
-    core::Parameters parameters() const;
+    core::MetaData metaData() const;
 
     /**
-     * @brief Sets the processing parameters.
+     * @brief Sets the processing metadata.
      */
-    void set_parameters(const core::Parameters& parameters);
+    void setMetaData(const core::MetaData& metaData);
 
     /**
-     * @brief Returns the unique identifier/type code for the filter algorithm.
+     * @brief Returns the unique identifier/type code for the filter data.
      */
-    QString code() const;
+    QString data() const;
 
     /**
-     * @brief Sets the filter type or algorithm code.
+     * @brief Sets the filter type or data.
      */
-    void set_code(const QString& code);
+    void setData(const QString& data);
     ///@}
 
     /** @name Management */

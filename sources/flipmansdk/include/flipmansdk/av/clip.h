@@ -4,14 +4,18 @@
 
 #pragma once
 
-#include <flipmansdk/av/audiofilter.h>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/av/rendereffect.h>
 #include <flipmansdk/flipmansdk.h>
 
+#include <flipmansdk/av/audiofilter.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/render/imageeffect.h>
+
+#include <QColor>
 #include <QMatrix4x4>
 #include <QObject>
+#include <QPointF>
 #include <QScopedPointer>
+#include <QSizeF>
 
 namespace flipman::sdk::av {
 
@@ -19,119 +23,114 @@ class ClipPrivate;
 
 /**
  * @class Clip
- * @brief Represents an editable instance of media within a sequence.
- *
- * The Clip class extends QObject to manage a single media asset on a timeline.
- * It encapsulates the source media, spatial transformations (2D position, scale,
- * and 3D matrices), and processing stacks for both audio and video.
- *
- * Clips are the primary unit for arranging content in time and space.
+ * @brief Editable media instance placed on a timeline.
  */
 class FLIPMANSDK_EXPORT Clip : public QObject {
     Q_OBJECT
 public:
     /**
-     * @brief Constructs a new Clip.
-     * @param parent The ownership parent for the QObject tree.
+     * @brief Constructs a Clip.
      */
     explicit Clip(QObject* parent = nullptr);
 
     /**
-     * @brief Destroys the Clip and releases associated resources.
+     * @brief Destroys the Clip.
      */
     ~Clip() override;
 
-    /** @name Metadata and Identification */
+    /** @name Metadata */
     ///@{
+
     /**
-     * @brief Returns the display name of the clip.
+     * @brief Returns the clip display name.
      */
     QString name() const;
 
     /**
-     * @brief Returns the timeline color associated with this clip.
+     * @brief Returns the clip timeline color.
      */
     QColor color() const;
+
     ///@}
 
     /** @name Media and Processing */
     ///@{
+
     /**
-     * @brief Returns the source media asset.
+     * @brief Returns the associated media.
      */
     Media media() const;
 
     /**
-     * @brief Returns the current audio processing filter.
+     * @brief Returns the audio filter.
      */
     AudioFilter audioFilter() const;
 
     /**
-     * @brief Returns the current render/video effect.
+     * @brief Returns the image effect.
      */
-    RenderEffect renderEffect() const;
+    render::ImageEffect imageEffect() const;
+
     ///@}
 
-
-
-    /** @name Spatial Transformations */
+    /** @name Spatial Transform */
     ///@{
+
     /**
-     * @brief Returns the 2D coordinate position on the canvas.
+     * @brief Returns the 2D position.
      */
     QPointF position() const;
 
     /**
-     * @brief Returns the scale factors for width and height.
+     * @brief Returns the 2D scale.
      */
     QSizeF scale() const;
 
     /**
-     * @brief Returns the full 4x4 transformation matrix for the clip.
-     * This combines position, scale, rotation, and any custom shear/perspective.
+     * @brief Returns the transformation matrix.
      */
     QMatrix4x4 transform() const;
+
     ///@}
 
-
-
     /**
-     * @brief Returns the current error state of the clip (e.g., media offline).
+     * @brief Returns the current error state.
      */
     core::Error error() const;
 
     /**
-     * @brief Resets all transformations and processing filters to default values.
+     * @brief Resets the clip to default state.
      */
     void reset();
 
 public Q_SLOTS:
     /** @name Setters */
     ///@{
+
     /**
-     * @brief Sets the display name.
+     * @brief Sets the clip display name.
      */
     void setName(const QString& name);
 
     /**
-     * @brief Sets the timeline color.
+     * @brief Sets the clip timeline color.
      */
     void setColor(const QColor& color);
 
     /**
-     * @brief Sets the source media asset.
+     * @brief Sets the associated media.
      */
     void setMedia(const Media& media);
 
     /**
-     * @brief Sets the audio processing filter.
+     * @brief Sets the audio filter.
      */
-    void setAudiofilter(const AudioFilter& audioFilter);
+    void setAudioFilter(const AudioFilter& audioFilter);
 
     /**
-     * @brief Sets the render/video effect.
+     * @brief Sets the image effect.
      */
-    void setRenderEffect(const RenderEffect& renderEffect);
+    void setImageEffect(const render::ImageEffect& imageEffect);
 
     /**
      * @brief Sets the 2D position.
@@ -139,19 +138,20 @@ public Q_SLOTS:
     void setPosition(qreal x, qreal y);
 
     /**
-     * @brief Sets the scale factors.
+     * @brief Sets the 2D scale.
      */
     void setScale(qreal width, qreal height);
 
     /**
-     * @brief Sets the full transformation matrix.
+     * @brief Sets the transformation matrix.
      */
     void setTransform(const QMatrix4x4& matrix);
+
     ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(Clip)
-    QScopedPointer<ClipPrivate> p;  ///< Private implementation.
+    QScopedPointer<ClipPrivate> p;
 };
 
 }  // namespace flipman::sdk::av

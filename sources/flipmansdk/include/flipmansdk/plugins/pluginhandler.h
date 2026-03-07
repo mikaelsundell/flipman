@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/core/plugin.h>
 
 #include <functional>
@@ -13,34 +15,42 @@ namespace flipman::sdk::plugins {
 
 /**
  * @class PluginHandler
- * @brief Manages the registration and instantiation of SDK plugins.
- * * The PluginHandler stores metadata (Info) and the functional logic (Factory)
- * required to identify and create instances of a specific plugin type at runtime.
+ * @brief Describes a plugin and provides instantiation logic.
+ *
+ * Stores metadata and factory functions used by PluginRegistry
+ * to resolve and create plugin instances.
  */
 class PluginHandler {
 public:
     /**
      * @struct Info
-     * @brief Human-readable metadata for the plugin.
+     * @brief Metadata describing the plugin.
      */
     struct Info {
-        QString name;         ///< Name of the plugin (e.g., "OpenEXR Reader").
-        QString description;  ///< Brief overview of the plugin's purpose.
-        QString version;      ///< Semantic versioning string (e.g., "1.0.0").
+        QString name;         ///< Plugin name.
+        QString description;  ///< Short description.
+        QString version;      ///< Version string.
     };
 
     /**
      * @struct Factory
-     * @brief Technical specifications for plugin creation.
+     * @brief Runtime factory configuration.
+     *
+     * Defines the plugin type, supported extensions,
+     * and the creator function.
      */
     struct Factory {
-        std::type_index type;                        ///< The RTTI type index of the plugin class.
-        std::function<QList<QString>()> extensions;  ///< Returns supported file extensions (if applicable).
-        std::function<core::Plugin*()> creator;      ///< Lambda or function to instantiate the plugin.
+        std::type_index type;                        ///< RTTI type index of the plugin class.
+        std::function<QList<QString>()> extensions;  ///< Returns supported file extensions.
+        std::function<core::Plugin*()> creator;      ///< Creates a new plugin instance.
     };
 
+public:
     /**
-     * @brief Constructs a plugin handler with the given metadata and factory.
+     * @brief Constructs a PluginHandler.
+     *
+     * @param info Plugin metadata.
+     * @param factory Factory configuration.
      */
     explicit PluginHandler(const Info& info, const Factory& factory)
         : plugininfo(info)
@@ -48,11 +58,14 @@ public:
     {}
 
     /**
-     * @brief Helper template to create a handler for a specific plugin type T.
-     * @param info Metadata for the plugin.
-     * @param exts Function returning supported file extensions.
-     * @param create Function returning a new instance of the plugin.
-     * @return A configured PluginHandler instance.
+     * @brief Creates a PluginHandler for type T.
+     *
+     * @tparam T Plugin interface type.
+     * @param info Plugin metadata.
+     * @param exts Function returning supported extensions.
+     * @param create Function creating plugin instances.
+     *
+     * @return Configured PluginHandler.
      */
     template<typename T>
     static PluginHandler create(const Info& info, std::function<QList<QString>()> exts,
@@ -62,13 +75,14 @@ public:
         return PluginHandler(info, factory);
     }
 
-    Info plugininfo;        ///< The metadata associated with this handler.
-    Factory pluginfactory;  ///< The factory logic associated with this handler.
+public:
+    Info plugininfo;        ///< Plugin metadata.
+    Factory pluginfactory;  ///< Factory configuration.
 };
 
 }  // namespace flipman::sdk::plugins
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::plugins::PluginHandler)

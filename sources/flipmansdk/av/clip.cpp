@@ -16,7 +16,7 @@ public:
         QColor color;
         Media media;
         AudioFilter audioFilter;
-        RenderEffect renderEffect;
+        render::ImageEffect imageEffect;
         QMatrix4x4 transform;
     };
     Data d;
@@ -61,10 +61,10 @@ Clip::audioFilter() const
     return p->d.audioFilter;
 }
 
-RenderEffect
-Clip::renderEffect() const
+render::ImageEffect
+Clip::imageEffect() const
 {
-    return p->d.renderEffect;
+    return p->d.imageEffect;
 }
 
 QPointF
@@ -123,18 +123,18 @@ Clip::setMedia(const Media& media)
 }
 
 void
-Clip::setAudiofilter(const AudioFilter& audiofilter)
+Clip::setAudioFilter(const AudioFilter& audioFilter)
 {
-    if (p->d.audioFilter != audiofilter) {
-        p->d.audioFilter = audiofilter;
+    if (p->d.audioFilter != audioFilter) {
+        p->d.audioFilter = audioFilter;
     }
 }
 
 void
-Clip::setRenderEffect(const RenderEffect& renderEffect)
+Clip::setImageEffect(const render::ImageEffect& imageEffect)
 {
-    if (p->d.renderEffect != renderEffect) {
-        p->d.renderEffect = renderEffect;
+    if (p->d.imageEffect != imageEffect) {
+        p->d.imageEffect = imageEffect;
     }
 }
 

@@ -4,6 +4,8 @@
 #pragma once
 
 namespace flipman::sdk::test {
+void
+init();
 bool
 testClip();
 bool
@@ -19,11 +21,15 @@ testTimeRange();
 bool
 testMedia();
 bool
+testRender();
+bool
+testShader();
+bool
 testSmpte();
 bool
 testTimer();
 bool
-testPlugins();
+testPlugin();
 bool
 testPluginRegistry();
 bool

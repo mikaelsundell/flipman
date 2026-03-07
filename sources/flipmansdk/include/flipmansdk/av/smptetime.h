@@ -4,9 +4,10 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
-#include <flipmansdk/flipmansdk.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -17,159 +18,207 @@ class SmpteTimePrivate;
 
 /**
  * @class SmpteTime
- * @brief Represents time in industry-standard SMPTE (HH:MM:SS:FF) format.
- *
- * SmpteTime provides tools to convert raw temporal data into professional
- * timecode. It supports various frame rates, drop-frame math, and high-precision
- * subframe addressing.
- *
- * @note This class uses implicit sharing via QExplicitlySharedDataPointer,
- * making it efficient to pass through the UI and rendering pipelines.
+ * @brief SMPTE timecode descriptor.
  */
 class FLIPMANSDK_EXPORT SmpteTime {
 public:
     /**
-     * @brief Constructs an empty SmpteTime object.
+     * @brief Constructs an invalid SmpteTime.
      */
     SmpteTime();
 
     /**
-     * @brief Constructs SmpteTime from a generic Time object.
-     * @param time The source time to convert.
+     * @brief Constructs SmpteTime from Time.
      */
     explicit SmpteTime(const Time& time);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     SmpteTime(const SmpteTime& other);
 
     /**
-     * @brief Destroys the SmpteTime object.
-     * @note Required for the PIMPL pattern to safely delete SmpteTimePrivate.
+     * @brief Destroys the SmpteTime.
      */
     ~SmpteTime();
 
     /** @name Timecode Components */
     ///@{
+
     /**
-     * @brief Returns the total running count of temporal units.
+     * @brief Returns the counter value.
      */
     quint32 counter() const;
 
     /**
-     * @brief Returns the hour component.
+     * @brief Returns the hours component.
      */
     qint16 hours() const;
 
     /**
-     * @brief Returns the minute component.
+     * @brief Returns the minutes component.
      */
     qint16 minutes() const;
 
     /**
-     * @brief Returns the second component.
+     * @brief Returns the seconds component.
      */
     qint16 seconds() const;
 
     /**
-     * @brief Returns the frame component based on the associated FPS.
+     * @brief Returns the frames component.
      */
     qint16 frames() const;
+
     ///@}
 
-
-
-    /** @name Precision and Frames */
+    /** @name Precision */
     ///@{
+
     /**
-     * @brief Returns the subframe position, used for audio-sync precision.
+     * @brief Returns the subframe value.
      */
     qint16 subFrames() const;
 
     /**
-     * @brief Returns the scale for subframes (e.g., 80 or 100 divisions per frame).
+     * @brief Returns the subframe divisor.
      */
     qint16 subframeDivisor() const;
 
     /**
-     * @brief Returns the total absolute frame number.
+     * @brief Returns the absolute frame number.
      */
     qint64 frame() const;
 
     /**
-     * @brief Converts the current SMPTE breakdown back into a generic Time object.
+     * @brief Returns the corresponding Time.
      */
     Time time() const;
+
     ///@}
 
-    /** @name Formatting Options */
+    /** @name Formatting */
     ///@{
+
     /**
-     * @brief Returns true if the timecode supports negative values.
+     * @brief Returns true if negatives are enabled.
      */
     bool negatives() const;
 
     /**
-     * @brief Returns true if hours are allowed to exceed the standard 24-hour clamp.
+     * @brief Returns true if full hours are enabled.
      */
     bool fullhours() const;
 
     /**
-     * @brief Returns a standard timecode string (e.g., "01:00:04:05").
-     * Uses ':' for non-drop and ';' for drop-frame FPS.
+     * @brief Returns a string representation.
      */
     QString toString() const;
+
     ///@}
 
-    /** @name Status and Validation */
+    /** @name Status */
     ///@{
+
     /**
-     * @brief Returns true if the timecode is initialized and valid.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the timecode to an uninitialized state.
+     * @brief Resets to invalid state.
      */
     void reset();
+
     ///@}
 
     /** @name Setters */
     ///@{
+
+    /**
+     * @brief Sets the Time value.
+     */
     void setTime(const Time& time);
+
+    /**
+     * @brief Enables or disables negatives.
+     */
     void setNegatives(bool negatives);
+
+    /**
+     * @brief Enables or disables full hours.
+     */
     void setFullHours(bool fullhours);
+
     ///@}
 
-    /** @name Math Operators */
+    /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     SmpteTime& operator=(const SmpteTime& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const SmpteTime& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const SmpteTime& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     */
     bool operator<(const SmpteTime& other) const;
+
+    /**
+     * @brief Greater-than operator.
+     */
     bool operator>(const SmpteTime& other) const;
+
+    /**
+     * @brief Less-than or equal operator.
+     */
     bool operator<=(const SmpteTime& other) const;
+
+    /**
+     * @brief Greater-than or equal operator.
+     */
     bool operator>=(const SmpteTime& other) const;
+
+    /**
+     * @brief Addition operator.
+     */
     SmpteTime operator+(const SmpteTime& other) const;
+
+    /**
+     * @brief Subtraction operator.
+     */
     SmpteTime operator-(const SmpteTime& other) const;
+
     ///@}
 
     /** @name Conversion Utilities */
     ///@{
+
     /**
-     * @brief Maps a frame count from one frame rate to another.
+     * @brief Converts frame count between frame rates.
      */
     static qint64 convert(quint64 frame, const Fps& from, const Fps& to);
 
     /**
-     * @brief Converts between frame count and drop-frame timecode indices.
+     * @brief Converts frame count using drop-frame logic.
      */
     static qint64 convert(quint64 frame, const Fps& fps, bool reverse = false);
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<SmpteTimePrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<SmpteTimePrivate> p;
 };
 
 }  // namespace flipman::sdk::av

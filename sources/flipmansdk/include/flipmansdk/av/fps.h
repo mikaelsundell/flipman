@@ -15,153 +15,188 @@ class FpsPrivate;
 
 /**
  * @class Fps
- * @brief Represents a high-precision frame rate using rational numbers.
- *
- * The Fps class manages frame rates as fractions (numerator / denominator) to avoid
- * floating-point accumulation errors in long-form media. It supports industry-standard
- * rates, NTSC drop-frame logic, and provides utilities for frame-rate conversion.
- *
- * Because it uses QExplicitlySharedDataPointer, it is cheap to copy and can be
- * passed by value.
+ * @brief Rational frame rate descriptor.
  */
 class FLIPMANSDK_EXPORT Fps {
 public:
     /**
-     * @brief Constructs an invalid Fps object.
+     * @brief Constructs an invalid Fps.
      */
     Fps();
 
     /**
-     * @brief Constructs an Fps object from a rational fraction.
-     * @param numerator The top of the fraction (e.g., 24000).
-     * @param denominator The bottom of the fraction (e.g., 1001).
-     * @param drop_frame Whether to use NTSC drop-frame timecode math.
+     * @brief Constructs an Fps from numerator and denominator.
      */
     explicit Fps(qint32 numerator, qint32 denominator, bool drop_frame = false);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     Fps(const Fps& other);
 
     /**
-     * @brief Destroys the Fps object.
-     * @note Required for the PIMPL pattern to safely delete FpsPrivate.
+     * @brief Destroys the Fps.
      */
     ~Fps();
 
     /** @name Status and Properties */
     ///@{
+
     /**
-     * @brief Returns true if NTSC drop-frame logic is enabled.
+     * @brief Returns true if drop-frame is enabled.
      */
     bool dropFrame() const;
 
     /**
-     * @brief Returns the numerator of the frame rate fraction.
+     * @brief Returns the numerator.
      */
     qint64 numerator() const;
 
     /**
-     * @brief Returns the denominator of the frame rate fraction.
+     * @brief Returns the denominator.
      */
     qint32 denominator() const;
 
     /**
-     * @brief Returns true if the object contains a valid numerator and denominator.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the Fps to an uninitialized state.
+     * @brief Resets to invalid state.
      */
     void reset();
+
     ///@}
 
     /** @name Conversion and Math */
     ///@{
+
     /**
-     * @brief Returns the integer part of the frame rate (e.g., 24 for 23.976).
+     * @brief Returns the integer frame quanta.
      */
     qint16 frameQuanta() const;
 
     /**
-     * @brief Returns the scaled integer representation.
+     * @brief Returns the frame scale.
      */
     qint32 frameScale() const;
 
     /**
-     * @brief Returns the frame rate as a real number (e.g., 23.976023...).
+     * @brief Returns the frame rate as a real value.
      */
     qreal real() const;
 
     /**
-     * @brief Returns the duration of a single frame in seconds.
+     * @brief Returns the duration of one frame in seconds.
      */
     qreal seconds() const;
 
     /**
-     * @brief Maps a frame number from this FPS to another FPS timeline.
+     * @brief Converts a frame value to another Fps.
      */
     qreal toFps(qint64 frame, const Fps& other) const;
 
     /**
-     * @brief Returns a human-readable string (e.g., "23.976").
+     * @brief Returns a string representation.
      */
     QString toString() const;
+
     ///@}
-
-
 
     /** @name Setters */
     ///@{
+
+    /**
+     * @brief Sets the numerator.
+     */
     void setNumerator(qint32 numerator);
+
+    /**
+     * @brief Sets the denominator.
+     */
     void setDenominator(qint32 denominator);
+
+    /**
+     * @brief Enables or disables drop-frame.
+     */
     void setDropFrame(bool dropframe);
+
     ///@}
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     Fps& operator=(const Fps& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const Fps& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const Fps& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     */
     bool operator<(const Fps& other) const;
+
+    /**
+     * @brief Greater-than operator.
+     */
     bool operator>(const Fps& other) const;
+
+    /**
+     * @brief Less-than or equal operator.
+     */
     bool operator<=(const Fps& other) const;
+
+    /**
+     * @brief Greater-than or equal operator.
+     */
     bool operator>=(const Fps& other) const;
 
     /**
-     * @brief Convenience operator to return the frame rate as a double.
+     * @brief Returns the frame rate as double.
      */
     operator double() const;
+
     ///@}
 
     /** @name Common Industry Rates */
     ///@{
+
     /**
-     * @brief Attempts to find the closest rational match for a given float value.
+     * @brief Guesses a rational Fps from a real value.
      */
     static Fps guess(qreal fps);
 
-    static Fps fps23_976();  // 24000/1001
-    static Fps fps24();      // 24/1
-    static Fps fps25();      // 25/1 (PAL)
-    static Fps fps29_97();   // 30000/1001
-    static Fps fps30();      // 30/1
+    static Fps fps23_976();
+    static Fps fps24();
+    static Fps fps25();
+    static Fps fps29_97();
+    static Fps fps30();
     static Fps fps47_952();
     static Fps fps48();
     static Fps fps50();
     static Fps fps59_94();
     static Fps fps60();
+
     ///@}
 
     /**
-     * @brief Static utility to convert a frame count between two different timebases.
+     * @brief Converts a frame value between two Fps.
      */
     static qint64 convert(quint64 value, const Fps& from, const Fps& to);
 
 private:
-    QExplicitlySharedDataPointer<FpsPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<FpsPrivate> p;
 };
 
 }  // namespace flipman::sdk::av

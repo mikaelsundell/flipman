@@ -13,6 +13,9 @@
 #include <QRegularExpression>
 #include <QSurfaceFormat>
 
+
+#include <QDir>
+
 namespace flipman::sdk::core {
 class StylePrivate {
 public:
@@ -135,6 +138,8 @@ StylePrivate::updateTheme(Style::Theme theme)
         map(Style::Progress, QColor::fromHsl(216, 82, 20));
         map(Style::Button, QColor::fromHsl(220, 6, 40));
         map(Style::ButtonAlt, QColor::fromHsl(220, 6, 54));
+        map(Style::Viewer, QColor::fromHsl(220, 6, 25));
+        map(Style::ViewerAlt, QColor::fromHsl(220, 6, 40));
     }
     else {
         map(Style::Base, QColor::fromHsl(0, 0, 210));
@@ -153,6 +158,8 @@ StylePrivate::updateTheme(Style::Theme theme)
         map(Style::Progress, QColor::fromHsl(210, 90, 45));
         map(Style::Button, QColor::fromHsl(0, 0, 180));
         map(Style::ButtonAlt, QColor::fromHsl(0, 0, 160));
+        map(Style::Viewer, QColor::fromHsl(220, 6, 25));
+        map(Style::ViewerAlt, QColor::fromHsl(220, 6, 40));
     }
     d.fonts[roleName(Style::LargeSize)] = 14;
     d.fonts[roleName(Style::DefaultSize)] = 12;

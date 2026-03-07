@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/av/time.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/av/time.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -16,14 +17,7 @@ class TimeRangePrivate;
 
 /**
  * @class TimeRange
- * @brief Represents a continuous segment of time defined by a start point and a duration.
- *
- * The TimeRange class is a fundamental building block for timeline organization.
- * It provides geometric-like operations for time, such as intersection testing and
- * value clamping (bounding).
- *
- * @note This class utilizes implicit sharing via QExplicitlySharedDataPointer
- * for high-performance copying and thread-safe data access.
+ * @brief Continuous time segment descriptor.
  */
 class FLIPMANSDK_EXPORT TimeRange {
 public:
@@ -33,95 +27,95 @@ public:
     TimeRange();
 
     /**
-     * @brief Constructs a TimeRange with a specific start and duration.
-     * @param start The anchor point in time.
-     * @param duration The length of the range.
+     * @brief Constructs TimeRange from start and duration.
      */
     TimeRange(Time start, Time duration);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     TimeRange(const TimeRange& other);
 
     /**
-     * @brief Destroys the TimeRange object.
-     * @note Required for the PIMPL pattern to safely delete TimeRangePrivate.
+     * @brief Destroys the TimeRange.
      */
     ~TimeRange();
 
     /** @name Attributes */
     ///@{
+
     /**
-     * @brief Returns the start point of the range.
+     * @brief Returns the start time.
      */
     Time start() const;
 
     /**
-     * @brief Sets the start point of the range.
+     * @brief Sets the start time.
      */
     void setStart(Time start);
 
     /**
-     * @brief Returns the length of the range.
+     * @brief Returns the duration.
      */
     Time duration() const;
 
     /**
-     * @brief Sets the length of the range.
+     * @brief Sets the duration.
      */
     void setDuration(Time duration);
 
     /**
-     * @brief Returns the calculated end point (start + duration).
+     * @brief Returns the end time.
      */
     Time end() const;
+
     ///@}
 
-
-
-    /** @name Logic and Clamping */
+    /** @name Logic */
     ///@{
+
     /**
-     * @brief Clamps a given time value so it falls within this range.
+     * @brief Bounds time to range.
      */
     Time bound(const Time& time);
 
     /**
-     * @brief Clamps a given time value within this range, with optional looping logic.
-     * @param time The time to evaluate.
-     * @param loop If true, values exceeding 'end' wrap back to 'start'.
+     * @brief Bounds time with optional loop.
      */
     Time bound(const Time& time, bool loop = false);
 
     /**
-     * @brief Checks if this range overlaps with another range.
+     * @brief Returns true if intersects.
      */
     bool intersects(const TimeRange& other) const;
 
     /**
-     * @brief Returns a human-readable representation of the range (e.g., "[start - end]").
+     * @brief Returns string representation.
      */
     QString toString() const;
+
     ///@}
 
-    /** @name Status and Validation */
+    /** @name Status */
     ///@{
+
     /**
-     * @brief Returns true if the range is initialized and has a valid duration.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the range to an uninitialized state.
+     * @brief Resets to invalid state.
      */
     void reset();
+
     ///@}
 
     /** @name Operators */
     ///@{
+
     /**
-     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     * @brief Assignment operator. Performs a shallow copy.
      */
     TimeRange& operator=(const TimeRange& other);
 
@@ -134,25 +128,26 @@ public:
      * @brief Inequality operator.
      */
     bool operator!=(const TimeRange& other) const;
+
     ///@}
 
     /** @name Static Utilities */
     ///@{
+
     /**
-     * @brief Converts the entire range to a new frame rate.
+     * @brief Converts to a new Fps.
      */
     static TimeRange convert(const TimeRange& timerange, const Fps& to);
 
     /**
-     * @brief Changes the underlying timescale of the range.
-     * @param timerange The range to convert.
-     * @param timescale The new resolution (default 24000).
+     * @brief Converts to a new timescale.
      */
     static TimeRange convert(const TimeRange& timerange, qint32 timescale = 24000);
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<TimeRangePrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<TimeRangePrivate> p;
 };
 
 }  // namespace flipman::sdk::av

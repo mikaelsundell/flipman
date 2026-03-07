@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/core/error.h>
-#include <flipmansdk/flipmansdk.h>
 
 #include <QObject>
 #include <QScopedPointer>
@@ -19,80 +20,65 @@ class MediaProcessorPrivate;
 
 /**
  * @class MediaProcessor
- * @brief Handles the transcoding, exporting, and rendering of Media resources to disk.
- *
- * MediaProcessor provides a high-level interface for processing media. It allows
- * for extracting specific time ranges from a Media source and writing them to
- * a new destination file. The processing happens asynchronously, reporting
- * progress via signals.
+ * @brief Processes Media resources to disk.
  */
 class FLIPMANSDK_EXPORT MediaProcessor : public QObject {
     Q_OBJECT
 public:
     /**
      * @brief Constructs a MediaProcessor.
-     * @param parent The ownership parent.
      */
     explicit MediaProcessor(QObject* parent = nullptr);
 
     /**
      * @brief Destroys the MediaProcessor.
-     * @note Required for the PIMPL pattern to safely delete MediaProcessorPrivate.
      */
     ~MediaProcessor() override;
 
     /** @name Processing */
     ///@{
+
     /**
-     * @brief Writes a specified range of media to a destination file.
-     *
-     * This method initiates the render/export process. Depending on the implementation,
-     * this may trigger an internal thread or utilize background task scheduling.
-     *
-     * @param media The source media to process.
-     * @param timerange The specific segment to export.
-     * @param file The destination file path and format.
-     * @return true if the process started successfully.
+     * @brief Writes a time range to a file.
      */
     bool write(Media& media, const TimeRange& timerange, const core::File& file);
 
     /**
-     * @brief Cancels any active processing and resets the processor state.
+     * @brief Resets the processor state.
      */
     void reset();
+
     ///@}
-
-
 
     /** @name Status */
     ///@{
+
     /**
-     * @brief Returns the last error encountered during processing.
+     * @brief Returns the error state.
      */
     core::Error error() const;
 
     /**
-     * @brief Validates if the processor is in a state ready for execution.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
+
     ///@}
 
 Q_SIGNALS:
     /**
-     * @brief Emitted periodically to report the current progress of the write operation.
-     * @param time The current timestamp being processed.
-     * @param range The total range being processed for percentage calculation.
+     * @brief Emitted when progress changes.
      */
     void progressChanged(const sdk::av::Time& time, const sdk::av::TimeRange& range);
 
     /**
-     * @brief Emitted when the processing job has finished successfully.
+     * @brief Emitted when processing finishes.
      */
     void finished();
 
 private:
     Q_DISABLE_COPY_MOVE(MediaProcessor)
-    QScopedPointer<MediaProcessorPrivate> p;  ///< Private implementation.
+    QScopedPointer<MediaProcessorPrivate> p;
 };
 
 }  // namespace flipman::sdk::av

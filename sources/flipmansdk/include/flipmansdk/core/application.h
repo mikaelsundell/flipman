@@ -9,6 +9,10 @@
 #include <QApplication>
 #include <QScopedPointer>
 
+namespace flipman::sdk::plugins {
+class PluginRegistry;
+}
+
 namespace flipman::sdk::core {
 
 class Environment;
@@ -18,44 +22,50 @@ class ApplicationPrivate;
 
 /**
  * @class Application
- * @brief The primary application class for the Flipman SDK.
- * * Extends QApplication to provide centralized access to core SDK subsystems
- * including Environment, Style, and System management.
+ * @brief Root application object for the Flipman SDK.
+ *
+ * Extends QApplication and provides access to core subsystems.
  */
 class FLIPMANSDK_EXPORT Application : public QApplication {
     Q_OBJECT
 public:
     /**
-     * @brief Initializes the SDK application.
-     * @param argc Argument count from main.
-     * @param argv Argument vector from main.
+     * @brief Constructs the SDK application.
+     *
+     * @param argc Argument count.
+     * @param argv Argument vector.
      */
     Application(int& argc, char** argv);
 
     /**
      * @brief Destroys the application.
-     * @note Overrides the virtual destructor to ensure safe SDK teardown.
      */
     ~Application() override;
 
     /**
-     * @brief Returns the environment manager for path and resource resolution.
+     * @brief Returns the Environment subsystem.
      */
     Environment* environment() const;
 
     /**
-     * @brief Returns the global style manager for themes and UI branding.
+     * @brief Returns the Style subsystem.
      */
     Style* style() const;
 
     /**
-     * @brief Returns the system manager for power and hardware interaction.
+     * @brief Returns the System subsystem.
      */
     System* system() const;
 
     /**
+     * @brief Returns the global PluginRegistry.
+     */
+    plugins::PluginRegistry* pluginRegistry() const;
+
+    /**
      * @brief Returns the global Application instance.
-     * @note Will assert if the current QCoreApplication is not a core::Application.
+     *
+     * Asserts if the active QCoreApplication is not a core::Application.
      */
     static Application* instance();
 
@@ -65,7 +75,7 @@ private:
 };
 
 /**
- * @brief Convenience helper to access the global Application instance.
+ * @brief Returns the global Application instance.
  */
 inline Application*
 app()
@@ -74,7 +84,7 @@ app()
 }
 
 /**
- * @brief Global accessor for the SDK Environment subsystem.
+ * @brief Returns the global Environment subsystem.
  */
 inline Environment*
 environment()
@@ -84,7 +94,7 @@ environment()
 }
 
 /**
- * @brief Global accessor for the SDK Style subsystem.
+ * @brief Returns the global Style subsystem.
  */
 inline Style*
 style()
@@ -94,13 +104,23 @@ style()
 }
 
 /**
- * @brief Global accessor for the SDK System subsystem.
+ * @brief Returns the global System subsystem.
  */
 inline System*
 system()
 {
     auto* a = app();
     return a ? a->system() : nullptr;
+}
+
+/**
+ * @brief Returns the global Plugin registery subsystem.
+ */
+inline plugins::PluginRegistry*
+pluginRegistry()
+{
+    auto* a = app();
+    return a ? a->pluginRegistry() : nullptr;
 }
 
 }  // namespace flipman::sdk::core

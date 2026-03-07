@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
@@ -11,7 +13,7 @@
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/core/parameters.h>
+#include <flipmansdk/core/metadata.h>
 #include <flipmansdk/core/plugin.h>
 
 #include <QExplicitlySharedDataPointer>
@@ -22,152 +24,164 @@ class MediaReaderPrivate;
 
 /**
  * @class MediaReader
- * @brief Abstract base class for all media reading plugins.
- * * MediaReader defines the standard interface for decoding and streaming media data
- * (images and audio) from disk. As a core::Plugin, it allows the flipman engine
- * to support various formats (QuickTime, BRAW, OIIO) through a unified API.
- * * The interface is designed for high-performance playback, supporting
- * non-linear seeking, frame skipping, and asynchronous buffer access.
+ * @brief Abstract base class for media reading plugins.
+ *
+ * Defines the interface for decoding and streaming image and audio
+ * data from a file or container.
  */
 class FLIPMANSDK_EXPORT MediaReader : public core::Plugin {
     Q_OBJECT
 public:
     /**
-     * @brief Constructs a new MediaReader.
-     * @param parent The parent QObject for ownership management.
+     * @struct Options
+     * @brief Reader configuration parameters.
+     *
+     * Contains backend-defined attributes used when opening media.
      */
-    MediaReader(QObject* parent = nullptr);
+    struct Options {
+        QVariantMap values;
+    };
 
-    /// Destroys the media reader.
+public:
+    /**
+     * @brief Constructs a MediaReader.
+     *
+     * @param parent Optional QObject parent.
+     */
+    explicit MediaReader(QObject* parent = nullptr);
+
+    /**
+     * @brief Destroys the MediaReader.
+     */
     virtual ~MediaReader();
 
-    /** @name Initialization and State */
+    /** @name Initialization */
     ///@{
 
     /**
-     * @brief Starts opening a media file.
+     * @brief Opens a media file.
      *
-     * This function initiates reader initialization. Completion may occur
-     * synchronously or asynchronously.
+     * @param file Target file.
+     * @param options Reader configuration.
      *
-     * @return true if initialization was successfully started.
-     *         false if the operation failed immediately.
+     * @return True if initialization started successfully.
      */
-    virtual bool open(const core::File& file, core::Parameters parameters = core::Parameters()) = 0;
+    virtual bool open(const core::File& file, const Options& options = Options()) = 0;
 
     /**
-     * @brief Closes the media file and releases decoder resources.
-     * @return True if the resource was released successfully.
+     * @brief Closes the media file.
+     *
+     * @return True if successful.
      */
     virtual bool close() = 0;
 
     /**
-     * @brief Checks if the reader currently has a file open.
+     * @brief Returns true if the reader is open.
      */
     virtual bool isOpen() const = 0;
+
     ///@}
 
     /** @name Capabilities */
     ///@{
 
     /**
-     * @brief Returns true if the media contains decodable video/image data.
+     * @brief Returns true if image decoding is supported.
      */
     virtual bool supportsImage() const = 0;
 
     /**
-     * @brief Returns true if the media contains decodable audio data.
+     * @brief Returns true if audio decoding is supported.
      */
     virtual bool supportsAudio() const = 0;
 
     /**
-     * @brief Returns the list of file extensions this plugin is registered to handle.
+     * @brief Returns supported file extensions.
      */
     virtual QList<QString> extensions() const = 0;
+
     ///@}
 
-    /** @name Navigation and Decoding */
+    /** @name Navigation */
     ///@{
 
     /**
-     * @brief Reads the next sequential frame/sample from the stream.
-     * @return The presentation timestamp (PTS) of the decoded data.
+     * @brief Reads the next frame or sample.
+     *
+     * @return Presentation time of decoded data.
      */
     virtual av::Time read() = 0;
 
     /**
-     * @brief Advances the internal cursor by one frame without performing a full decode.
-     * @return The new time position.
+     * @brief Advances without full decode.
+     *
+     * @return New presentation time.
      */
     virtual av::Time skip() = 0;
 
     /**
-     * @brief Seeks to a specific time or frame range.
-     * @param range The target temporal position.
-     * @return The actual time achieved (closest sync frame or exact match).
+     * @brief Seeks to a time range.
+     *
+     * @return Achieved time position.
      */
     virtual av::Time seek(const av::TimeRange& range) = 0;
+
     ///@}
 
     /** @name Temporal Properties */
     ///@{
 
     /**
-     * @brief Returns the absolute start time of the media (e.g., timecode start).
+     * @brief Returns start time of the media.
      */
     virtual av::Time start() const = 0;
 
     /**
-     * @brief Returns the current playback/cursor position.
+     * @brief Returns current time position.
      */
     virtual av::Time time() const = 0;
 
     /**
-     * @brief Returns the native frame rate of the media.
+     * @brief Returns native frame rate.
      */
     virtual av::Fps fps() const = 0;
 
     /**
-     * @brief Returns the total duration/range of the media file.
+     * @brief Returns total time range.
      */
     virtual av::TimeRange timeRange() const = 0;
+
     ///@}
 
     /** @name Data Retrieval */
     ///@{
 
     /**
-     * @brief Retrieves the last decoded audio buffer.
+     * @brief Returns last decoded audio buffer.
      */
     virtual core::AudioBuffer audio() const;
 
     /**
-     * @brief Retrieves the last decoded image buffer.
+     * @brief Returns last decoded image buffer.
      */
     virtual core::ImageBuffer image() const;
 
     /**
-     * @brief Returns technical metadata from the file (e.g., codec info, camera metadata).
+     * @brief Returns container metadata.
      */
-    virtual core::Parameters metaData() const;
+    virtual core::MetaData metaData() const;
 
     /**
-     * @brief Returns the operational parameters used when opening the reader.
-     */
-    virtual core::Parameters parameters() const;
-
-    /**
-     * @brief Returns the current error state of the media.
+     * @brief Returns current error state.
      */
     virtual core::Error error() const;
+
     ///@}
 
 Q_SIGNALS:
+
     /**
-     * @brief Emitted when the reader becomes ready for read/seek.
-     *
-     * For synchronous readers this MAY be emitted during open().
-     * For asynchronous readers this MUST be emitted later.
+     * @brief Emitted when the reader becomes ready.
      */
     void opened();
 };
@@ -175,6 +189,6 @@ Q_SIGNALS:
 }  // namespace flipman::sdk::plugins
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::plugins::MediaReader)

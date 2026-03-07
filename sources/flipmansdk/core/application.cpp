@@ -6,6 +6,7 @@
 #include <flipmansdk/core/environment.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/core/system.h>
+#include <flipmansdk/plugins/pluginregistry.h>
 
 #include <QPointer>
 
@@ -19,6 +20,7 @@ public:
         QScopedPointer<Environment> environment;
         QScopedPointer<Style> style;
         QScopedPointer<System> system;
+        plugins::PluginRegistry* pluginRegistry;
     };
     Data d;
 };
@@ -33,6 +35,7 @@ ApplicationPrivate::init()
     d.environment.reset(new Environment());
     d.style.reset(new Style());
     d.system.reset(new System());
+    d.pluginRegistry = plugins::PluginRegistry::instance();
 }
 
 Application::Application(int& argc, char** argv)
@@ -60,6 +63,12 @@ System*
 Application::system() const
 {
     return p->d.system.data();
+}
+
+plugins::PluginRegistry*
+Application::pluginRegistry() const
+{
+    return p->d.pluginRegistry;
 }
 
 Application*

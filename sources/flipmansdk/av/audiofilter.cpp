@@ -8,8 +8,8 @@ namespace flipman::sdk::av {
 class AudioFilterPrivate : public QSharedData {
 public:
     struct Data {
-        core::Parameters parameters;
-        QString code;
+        QString data;
+        core::MetaData metaData;
         core::Error error;
     };
     Data d;
@@ -25,16 +25,16 @@ AudioFilter::AudioFilter(const AudioFilter& other)
 
 AudioFilter::~AudioFilter() {}
 
-core::Parameters
-AudioFilter::parameters() const
+core::MetaData
+AudioFilter::metaData() const
 {
-    return p->d.parameters;
+    return p->d.metaData;
 }
 
 QString
-AudioFilter::code() const
+AudioFilter::data() const
 {
-    return p->d.code;
+    return p->d.data;
 }
 
 core::Error
@@ -50,15 +50,15 @@ AudioFilter::reset()
 }
 
 void
-AudioFilter::set_parameters(const core::Parameters& parameters)
+AudioFilter::setMetaData(const core::MetaData& metaData)
 {
-    p->d.parameters = parameters;
+    p->d.metaData = metaData;
 }
 
 void
-AudioFilter::set_code(const QString& code)
+AudioFilter::setData(const QString& data)
 {
-    p->d.code = code;
+    p->d.data = data;
 }
 
 AudioFilter&
