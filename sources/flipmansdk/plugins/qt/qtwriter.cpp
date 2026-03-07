@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/qt/qt.h>
+#include <flipmansdk/plugins/qt/qtwriter.h>
 
 #include <QDir>
 #include <QImage>
@@ -22,8 +22,7 @@ public:
         av::Fps fps;
         av::TimeRange timerange;
         av::Time timestamp;
-        core::Parameters parameters;
-        core::Parameters metadata;
+        core::MetaData metaData;
         core::Error error;
     };
     Data d;
@@ -64,10 +63,9 @@ QtWriter::QtWriter(QObject* object)
 QtWriter::~QtWriter() {}
 
 bool
-QtWriter::open(const core::File& file, core::Parameters parameters)
+QtWriter::open(const core::File& file, const Options& options)
 {
     p->d.file = file;
-    p->d.parameters = parameters;
     return true;
 }
 
@@ -105,8 +103,8 @@ QtWriter::write(const core::ImageBuffer& image)
     qint64 frame = p->d.timestamp.frames();
     QString fileName = p->d.file.fileName(frame);
     core::ImageBuffer copy = image;
-    if (copy.imageFormat() != core::ImageFormat::UINT8 || copy.channels() != 4) {
-        copy = core::ImageBuffer::convert(copy, core::ImageFormat::UINT8, 4);
+    if (copy.imageFormat() != core::ImageFormat::UInt8 || copy.channels() != 4) {
+        copy = core::ImageBuffer::convert(copy, core::ImageFormat::UInt8, 4);
     }
     QImage copyImage(reinterpret_cast<quint8*>(image.data()), copy.dataWindow().width(), copy.dataWindow().height(),
                      copy.strideSize(), QImage::Format_ARGB32);
@@ -165,10 +163,10 @@ QtWriter::setTimeRange(const av::TimeRange& timeRange)
 }
 
 bool
-QtWriter::setMetaData(const core::Parameters& metaData)
+QtWriter::setMetaData(const core::MetaData& metaData)
 {
     p.detach();
-    p->d.metadata = metaData;
+    p->d.metaData = metaData;
 }
 
 plugins::PluginHandler

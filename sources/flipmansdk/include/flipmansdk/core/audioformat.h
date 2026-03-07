@@ -15,51 +15,66 @@ class AudioFormatPrivate;
 
 /**
  * @class AudioFormat
- * @brief Describes the technical layout of audio data.
+ * @brief Explicitly shared description of audio stream format.
  *
- * This class defines the properties of audio streams, such as sample rate,
- * channel count, and sample format (bit depth). It uses explicit data
- * sharing to remain lightweight when passed through signal/slot connections.
+ * Defines sample rate, channel layout, and sample representation.
  */
 class FLIPMANSDK_EXPORT AudioFormat {
 public:
     /**
-     * @brief Constructs an invalid audio format.
+     * @brief Constructs an empty AudioFormat.
      */
     AudioFormat();
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     AudioFormat(const AudioFormat& other);
 
     /**
-     * @brief Destroys the audio format.
-     * @note Required for the PIMPL pattern to safely delete AudioFormatPrivate.
+     * @brief Destroys the AudioFormat.
      */
     ~AudioFormat();
 
     /**
-     * @brief Checks if the format is initialized with valid audio parameters.
-     * @return true if the sample rate and channel count are greater than zero.
+     * @brief Returns true if the format contains valid parameters.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the format to an uninitialized state.
+     * @brief Resets the format to an empty state.
      */
     void reset();
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     */
     AudioFormat& operator=(const AudioFormat& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const AudioFormat& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const AudioFormat& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     *
+     * Provides deterministic ordering for use in associative containers.
+     */
     bool operator<(const AudioFormat& other) const;
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<AudioFormatPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<AudioFormatPrivate> p;
 };
 
 }  // namespace flipman::sdk::core

@@ -10,7 +10,7 @@ public:
     ImageFormatPrivate();
     ~ImageFormatPrivate();
     struct Data {
-        int typesize[ImageFormat::DOUBLE + 1];
+        int typesize[ImageFormat::Double + 1];
         ImageFormat::Type type;
         Data()
             : typesize {
@@ -55,7 +55,7 @@ ImageFormat::~ImageFormat() {}
 size_t
 ImageFormat::size() const
 {
-    Q_ASSERT("type index is out of bounds" && p->d.type >= 0 && p->d.type < ImageFormat::DOUBLE + 1);
+    Q_ASSERT("type index is out of bounds" && p->d.type >= 0 && p->d.type < ImageFormat::Double + 1);
     return p->d.typesize[p->d.type];
 }
 
@@ -75,7 +75,7 @@ void
 ImageFormat::reset()
 {
     p.detach();
-    p->d.type = ImageFormat::NONE;
+    p->d.type = ImageFormat::None;
 }
 
 ImageFormat&

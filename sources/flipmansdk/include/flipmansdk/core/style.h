@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-// Copyright (c) 2025 - present Mikael Sundell
+// Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
 #pragma once
@@ -17,18 +17,13 @@ class StylePrivate;
 
 /**
  * @class Style
- * @brief Manages the visual appearance, themes, and branding of the SDK.
- *
- * Provides centralized control over colors, fonts, and color spaces. Changes
- * to style properties are broadcast via signals to ensure UI consistency
- * across all connected components.
+ * @brief Global style configuration manager.
  */
 class FLIPMANSDK_EXPORT Style : public QObject {
     Q_OBJECT
 public:
     /**
-     * @enum ColorRole
-     * @brief Semantic color definitions for UI elements.
+     * @brief Semantic color roles.
      */
     enum ColorRole {
         Base,
@@ -53,100 +48,102 @@ public:
     Q_ENUM(ColorRole)
 
     /**
-     * @enum FontRole
-     * @brief Logical font categories for consistent typography.
+     * @brief Logical font size roles.
      */
     enum FontRole { DefaultSize, SmallSize, LargeSize };
     Q_ENUM(FontRole)
 
     /**
-     * @enum Theme
-     * @brief Global visual modes.
+     * @brief Global theme modes.
      */
     enum Theme { Dark, Light };
     Q_ENUM(Theme)
 
     /**
-     * @brief Constructs the style manager and initializes default theme values.
+     * @brief Constructs a Style instance.
      */
     Style();
 
     /**
-     * @brief Destroys the style.
-     * @note Required for the PIMPL pattern to safely delete StylePrivate.
+     * @brief Destroys the Style instance.
      */
     ~Style() override;
 
-    /** @name Theme and Color Management */
+    /** @name Theme */
     ///@{
+
     /**
-     * @brief Updates the current theme and emits themeChanged().
+     * @brief Sets the active theme.
      */
     void setTheme(Theme theme);
 
     /**
-     * @brief Returns the currently active theme.
+     * @brief Returns the active theme.
      */
     Theme theme() const;
 
     /**
-     * @brief Sets a specific color for a role and emits colorChanged().
+     * @brief Sets color for a role.
      */
     void setColor(ColorRole role, const QColor& color);
 
     /**
-     * @brief Returns the color associated with the given role.
+     * @brief Returns color for a role.
      */
     QColor color(ColorRole role) const;
+
     ///@}
 
-    /** @name Rendering and Typography */
+    /** @name Rendering */
     ///@{
+
     /**
-     * @brief Configures the active color space for rendering.
+     * @brief Sets rendering color space.
      */
     void setColorSpace(const QColorSpace& colorSpace);
 
     /**
-     * @brief Returns the current rendering color space.
+     * @brief Returns rendering color space.
      */
     QColorSpace colorSpace() const;
 
     /**
-     * @brief Sets the pixel size for a specific font role and emits fontChanged().
+     * @brief Sets font size for a role.
      */
     void setFontSize(FontRole role, int size);
 
     /**
-     * @brief Returns the pixel size for the given font role.
+     * @brief Returns font size for a role.
      */
     int fontSize(FontRole role) const;
+
     ///@}
 
 Q_SIGNALS:
+
     /**
-     * @brief Emitted when the global theme is changed.
+     * @brief Emitted when theme changes.
      */
     void themeChanged(Theme theme);
 
     /**
-     * @brief Emitted when a specific color role is modified.
+     * @brief Emitted when a color role changes.
      */
     void colorChanged(ColorRole role);
 
     /**
-     * @brief Emitted when a font size role is updated.
+     * @brief Emitted when a font role changes.
      */
     void fontChanged(FontRole role);
 
 private:
     Q_DISABLE_COPY_MOVE(Style)
-    QScopedPointer<StylePrivate> p;  ///< Private implementation.
+    QScopedPointer<StylePrivate> p;
 };
 
 }  // namespace flipman::sdk::core
 
 /**
- * @note Registering the style type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::Style*)

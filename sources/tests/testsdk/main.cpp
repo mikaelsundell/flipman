@@ -14,13 +14,13 @@ template<typename Fn>
 static bool
 runTest(const char* name, Fn&& fn)
 {
-    qDebug().noquote() << QStringLiteral("testsuite: %1 ...").arg(name);
+    qDebug().noquote() << QStringLiteral("run: %1 ...").arg(name);
     const bool ok = fn();
     if (ok) {
-        qDebug().noquote() << QStringLiteral("testsuite: %1 [OK]").arg(name);
+        qDebug().noquote() << QStringLiteral("run: %1 [OK]").arg(name);
     }
     else {
-        qWarning().noquote() << QStringLiteral("testsuite: %1 [FAILED]").arg(name);
+        qWarning().noquote() << QStringLiteral("run: %1 [FAILED]").arg(name);
     }
     return ok;
 }
@@ -28,41 +28,49 @@ runTest(const char* name, Fn&& fn)
 bool
 run()
 {
-    bool ok = true;
-    const bool runContainers = false;
-    const bool runTypes = false;
-    const bool runMedia = false;
-    const bool runTimer = false;
-    const bool runPlugins = true;
-    const bool runTimeLine = false;
+    const bool runContainers = true;
+    const bool runTypes = true;
+    const bool runImage = true;
+    const bool runMedia = true;
+    const bool runTimer = true;
+    const bool runPlugin = true;
+    const bool runRender = true;
+    const bool runShader = true;
+    const bool runTimeLine = true;
 
-    if (runContainers) {
-        ok &= runTest("containers", [] { return testClip(); });
-    }
-    if (runTypes) {
-        ok &= runTest("types", [] {
+    init();
+
+    if (runContainers && !runTest("containers", [] { return testClip(); }))
+        return false;
+
+    if (runTypes && !runTest("types", [] {
             return testFile() && testImage() && testTime() && testTimeRange() && testFps() && testSmpte();
-        });
-    }
-    if (runMedia) {
-        ok &= runTest("media", [] { return testMedia(); });
-    }
+        }))
+        return false;
 
-    if (runTimer) {
-        ok &= runTest("timer", [] { return testTimer(); });
-    }
+    if (runImage && !runTest("image", [] { return testImage(); }))
+        return false;
 
-    if (runPlugins) {
-        ok &= runTest("plugins", [] { return testPlugins() && testPluginRegistry(); });
-    }
+    if (runMedia && !runTest("media", [] { return testMedia(); }))
+        return false;
 
-    if (runTimeLine) {
-        ok &= runTest("timeline", [] { return testTimeLine(); });
-    }
+    if (runTimer && !runTest("timer", [] { return testTimer(); }))
+        return false;
 
-    qDebug().noquote() << (ok ? "testsuite: ALL TESTS PASSED" : "testsuite: TEST FAILURES DETECTED");
+    if (runPlugin && !runTest("plugin", [] { return testPlugin() && testPluginRegistry(); }))
+        return false;
 
-    return ok;
+    if (runRender && !runTest("render", [] { return testRender(); }))
+        return false;
+
+    if (runShader && !runTest("shader", [] { return testShader(); }))
+        return false;
+
+    if (runTimeLine && !runTest("timeline", [] { return testTimeLine(); }))
+        return false;
+
+    qDebug().noquote() << "run: ALL TESTS PASSED";
+    return true;
 }
 }  // namespace flipman::sdk::test
 
@@ -70,11 +78,9 @@ int
 main(int argc, char* argv[])
 {
     flipman::sdk::core::Application app(argc, argv);
-
     QTimer::singleShot(0, [&]() {
         const bool ok = flipman::sdk::test::run();
         QCoreApplication::exit(ok ? 0 : 1);
     });
-
     return app.exec();
 }

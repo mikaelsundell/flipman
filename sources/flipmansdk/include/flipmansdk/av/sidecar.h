@@ -14,59 +14,53 @@ namespace flipman::sdk::av {
 class SideCarPrivate;
 
 /**
- * @class Sidecar
- * @brief Represents an external metadata container associated with a media resource.
- *
- * The Sidecar class manages auxiliary data that is stored separately from the
- * primary media file. This is commonly used for non-destructive metadata,
- * sidecar captions, or application-specific markers (e.g., .xmp or .xml files).
- *
- * @note This class uses implicit sharing via QExplicitlySharedDataPointer for
- * efficient copying and resource management.
+ * @class SideCar
+ * @brief Shared external metadata container.
  */
 class FLIPMANSDK_EXPORT SideCar {
 public:
     /**
-     * @brief Constructs an empty Sidecar object.
+     * @brief Constructs an invalid SideCar.
      */
     SideCar();
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the sidecar data.
+     * @brief Copy constructor.
      */
     SideCar(const SideCar& other);
 
     /**
-     * @brief Destroys the Sidecar object.
-     * @note Required for the PIMPL pattern to safely delete SideCarPrivate.
+     * @brief Destroys the SideCar.
      */
     ~SideCar();
 
     /** @name Status */
     ///@{
+
     /**
-     * @brief Returns true if the sidecar contains valid metadata and is linked correctly.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Clears all metadata and resets the sidecar to an uninitialized state.
+     * @brief Resets to invalid state.
      */
     void reset();
+
     ///@}
-
-
 
     /** @name Operators */
     ///@{
+
     /**
-     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     * @brief Assignment operator. Performs a shallow copy.
      */
     SideCar& operator=(const SideCar& other);
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<SideCarPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<SideCarPrivate> p;
 };
 
 }  // namespace flipman::sdk::av

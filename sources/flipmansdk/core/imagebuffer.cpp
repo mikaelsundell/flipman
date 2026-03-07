@@ -4,173 +4,118 @@
 
 #include <flipmansdk/core/imagebuffer.h>
 
-using namespace flipman::sdk;
+#include <OpenImageIO/half.h>
 
-namespace imageio {
+namespace flipman::sdk::core {
 
-// Copyright Contributors to the OpenImageIO project.
-// Original source: https://github.com/AcademySoftwareFoundation/OpenImageIO
-// Modifications made by Mikael Sundell
-// Licensed under the Apache License, Version 2.0
-
-template<typename T> struct big_enough_float {
-    typedef float float_t;
+template<typename T> struct BigEnoughFloat {
+    using type = float;
 };
-template<> struct big_enough_float<int> {
-    typedef double float_t;
+template<> struct BigEnoughFloat<int> {
+    using type = double;
 };
-template<> struct big_enough_float<unsigned int> {
-    typedef double float_t;
+template<> struct BigEnoughFloat<unsigned> {
+    using type = double;
 };
-template<> struct big_enough_float<int64_t> {
-    typedef double float_t;
+template<> struct BigEnoughFloat<int64_t> {
+    using type = double;
 };
-template<> struct big_enough_float<uint64_t> {
-    typedef double float_t;
+template<> struct BigEnoughFloat<uint64_t> {
+    using type = double;
 };
-template<> struct big_enough_float<double> {
-    typedef double float_t;
+template<> struct BigEnoughFloat<half> {
+    using type = float;
+};
+template<> struct BigEnoughFloat<double> {
+    using type = double;
 };
 
 template<typename S, typename D, typename F>
 inline D
-scaled_conversion(const S& src, F scale, F min, F max)
+scaledConversion(const S& src, F scale, F min, F max)
 {
-    if (std::numeric_limits<S>::is_signed) {
+    if constexpr (std::numeric_limits<S>::is_signed) {
         F s = static_cast<F>(src) * scale;
-        s += (s < 0 ? static_cast<F>(-0.5) : static_cast<F>(0.5));
+        s += (s < F(0)) ? F(-0.5) : F(0.5);
         return static_cast<D>(std::clamp(s, min, max));
     }
     else {
-        return static_cast<D>(std::clamp(static_cast<F>(src) * scale + static_cast<F>(0.5), min, max));
+        return static_cast<D>(std::clamp(static_cast<F>(src) * scale + F(0.5), min, max));
     }
 }
 
 template<typename S, typename D>
 inline D
-convert_type(const S& src)
+convertScalar(const S& src)
 {
-    if (std::is_same<S, D>::value) {
-        return (D)src;
-    }
-    typedef typename big_enough_float<D>::float_t F;
-    F scale = std::numeric_limits<S>::is_integer ? F(1) / F(std::numeric_limits<S>::max()) : F(1);
-    if (std::numeric_limits<D>::is_integer) {
-        F min = (F)std::numeric_limits<D>::min();
-        F max = (F)std::numeric_limits<D>::max();
-        scale *= max;
-        return scaled_conversion<S, D, F>(src, scale, min, max);
-    }
-    else {
-        return (D)((F)src * scale);
-    }
-}
+    if constexpr (std::is_same_v<S, D>)
+        return src;
+    using F = typename BigEnoughFloat<D>::type;
 
-template<typename S, typename D>
-void
-convert_type(const S* src, D* dst, size_t n, D _min, D _max)
-{
-    if (std::is_same<S, D>::value) {
-        memcpy(dst, src, n * sizeof(D));
-        return;
-    }
-    typedef typename big_enough_float<D>::float_t F;
-    F scale = std::numeric_limits<S>::is_integer ? (F(1)) / F(std::numeric_limits<S>::max()) : F(1);
-    if (std::numeric_limits<D>::is_integer) {
-        F min = (F)_min;
-        F max = (F)_max;
-        scale *= _max;
-        for (; n >= 16; n -= 16) {
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
-        }
-        while (n--)
-            *dst++ = scaled_conversion<S, D, F>(*src++, scale, min, max);
+    // normalize integer -> [0..1], leave floats unscaled
+    F scale = std::numeric_limits<S>::is_integer ? (F(1) / F(std::numeric_limits<S>::max())) : F(1);
+    if constexpr (std::numeric_limits<D>::is_integer) {
+        F min = static_cast<F>(std::numeric_limits<D>::min());
+        F max = static_cast<F>(std::numeric_limits<D>::max());
+        scale *= max;
+        return scaledConversion<S, D, F>(src, scale, min, max);
     }
     else {
-        for (; n >= 16; n -= 16) {
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-            *dst++ = (D)((*src++) * scale);
-        }
-        while (n--)
-            *dst++ = (D)((*src++) * scale);
+        return static_cast<D>(static_cast<F>(src) * scale);
     }
 }
 
 template<typename S, typename D>
 inline void
-to_type(const S* src, D* dst, size_t n)
+convertBuffer(const S* src, D* dst, size_t count)
 {
-    convert_type<S, D>(src, dst, n, std::numeric_limits<D>::min(), std::numeric_limits<D>::max());
-}
-
-const float*
-to_float(const void* from, float* to, int count, const core::ImageFormat::Type type)
-{
-    switch (type) {
-    case core::ImageFormat::FLOAT: return (float*)from;
-    case core::ImageFormat::UINT8: to_type((const unsigned char*)from, to, count); break;
-    case core::ImageFormat::INT8: to_type((const char*)from, to, count); break;
-    case core::ImageFormat::UINT16: to_type((const unsigned short*)from, to, count); break;
-    case core::ImageFormat::INT16: to_type((const short*)from, to, count); break;
-    case core::ImageFormat::INT32: to_type((const int*)from, to, count); break;
-    case core::ImageFormat::UINT32: to_type((const unsigned int*)from, to, count); break;
-    case core::ImageFormat::INT64: to_type((const long long*)from, to, count); break;
-    case core::ImageFormat::UINT64: to_type((const unsigned long long*)from, to, count); break;
-    //case core::ImageFormat::HALF:
-    //  to_type((const half*)from, to, count);*/ break;
-    case core::ImageFormat::DOUBLE: to_type((const double*)from, to, count); break;
-    default: Q_ASSERT("image format not supported" && 0);
+    if constexpr (std::is_same_v<S, D>) {
+        std::memcpy(dst, src, count * sizeof(D));
+        return;
     }
-    return to;
+    for (size_t i = 0; i < count; ++i)
+        dst[i] = convertScalar<S, D>(src[i]);
 }
-}  // namespace imageio
 
-namespace flipman::sdk::core {
+template<typename F>
+inline void
+dispatchByFormat(ImageFormat::Type t, F&& fn)
+{
+    using T = ImageFormat::Type;
+    switch (t) {
+    case T::UInt8: fn(uint8_t {}); break;
+    case T::Int8: fn(int8_t {}); break;
+    case T::UInt16: fn(uint16_t {}); break;
+    case T::Int16: fn(int16_t {}); break;
+    case T::UInt32: fn(uint32_t {}); break;
+    case T::Int32: fn(int32_t {}); break;
+    case T::UInt64: fn(uint64_t {}); break;
+    case T::Int64: fn(int64_t {}); break;
+    case T::Half: fn(half {}); break;
+    case T::Float: fn(float {}); break;
+    case T::Double: fn(double {}); break;
+    default: Q_ASSERT(false && "Unsupported ImageFormat::Type");
+    }
+}
+
 class ImageBufferPrivate : public QSharedData {
 public:
     ImageBufferPrivate();
     ~ImageBufferPrivate();
     void alloc();
-    size_t bytesize() const;
-    size_t pixelsize() const;
-    size_t stridesize() const;
+    size_t byteSize() const;
+    size_t pixelSize() const;
+    size_t strideSize() const;
     size_t size() const;
     static void convert(const ImageFormat& fromformat, const quint8* from, const ImageFormat& toformat, quint8* to,
                         int count);
     struct Data {
         ImageFormat format;
-        QRect datawindow;
-        QRect displaywindow;
+        QRect dataWindow;
+        QRect displayWindow;
         int channels;
+        ImageBuffer::Packing packing = ImageBuffer::Packing::Interleaved;
+        ImageBuffer::Subsampling subsampling = ImageBuffer::Subsampling::None;
         QByteArray data;
     };
     Data d;
@@ -183,68 +128,86 @@ ImageBufferPrivate::~ImageBufferPrivate() {}
 void
 ImageBufferPrivate::alloc()
 {
-    d.data.resize(size() * pixelsize());
+    const int w = d.dataWindow.width();
+    const int h = d.dataWindow.height();
+    const size_t comp = d.format.size();
+    size_t total = 0;
+
+    switch (d.packing) {
+    case ImageBuffer::Packing::Interleaved:
+    case ImageBuffer::Packing::Packed: total = w * h * d.channels * comp; break;
+    case ImageBuffer::Packing::Planar: total = w * h * d.channels * comp; break;
+    case ImageBuffer::Packing::BiPlanar: {
+        size_t y = w * h * comp;
+        int cw = w;
+        int ch = h;
+        if (d.subsampling == ImageBuffer::Subsampling::CS420) {
+            cw /= 2;
+            ch /= 2;
+        }
+        else if (d.subsampling == ImageBuffer::Subsampling::CS422) {
+            cw /= 2;
+        }
+        size_t uv = cw * ch * 2 * comp;
+        total = y + uv;
+        break;
+    }
+    default: total = 0;
+    }
+    d.data.resize(total);
 }
 
 size_t
-ImageBufferPrivate::bytesize() const
+ImageBufferPrivate::byteSize() const
 {
-    return pixelsize() * size();
+    return pixelSize() * size();
 }
 
 size_t
-ImageBufferPrivate::pixelsize() const
+ImageBufferPrivate::pixelSize() const
 {
     return d.format.size() * d.channels;
 }
 
 size_t
-ImageBufferPrivate::stridesize() const
+ImageBufferPrivate::strideSize() const
 {
-    Q_ASSERT("datawindow is empty" && !d.datawindow.isEmpty());
-    return d.datawindow.width() * pixelsize();
+    Q_ASSERT(!d.dataWindow.isEmpty() && "datawindow is empty");
+    return d.dataWindow.width() * pixelSize();
 }
 
 size_t
 ImageBufferPrivate::size() const
 {
-    Q_ASSERT("datawindow is empty" && !d.datawindow.isEmpty());
-    return d.datawindow.width() * d.datawindow.height();
+    Q_ASSERT(!d.dataWindow.isEmpty() && "datawindow is empty");
+    return d.dataWindow.width() * d.dataWindow.height();
 }
 
 void
 ImageBufferPrivate::convert(const ImageFormat& fromformat, const quint8* from, const ImageFormat& toformat, quint8* to,
                             int count)
 {
-    if (fromformat.type() == toformat.type()) {
-        memcpy((void*)to, (const void*)from, count * fromformat.size());
-        return;
-    }
-    if (toformat.type() == ImageFormat::FLOAT) {
-        imageio::to_float(from, (float*)to, count, fromformat.type());
-        return;
-    }
-    else {
-        std::array<float, 4096> stackbuf;
-        std::unique_ptr<float[]> tmp;
-        float* buf = (count <= 4096) ? stackbuf.data() : (tmp = std::make_unique<float[]>(count)).get();
-        imageio::to_float(from, buf, count, fromformat.type());
+    Q_ASSERT(from && "source pointer must not be null, must provide at least 'count' elements of fromformat.");
+    Q_ASSERT(
+        to && "Destination pointer must not be null, must provide storage for at least 'count' elements of toformat.");
+    Q_ASSERT(count >= 0 && "count must be non-negative, count represents number of scalar components, not pixels.");
 
-        switch (toformat.type()) {
-        case core::ImageFormat::UINT8: imageio::to_type(buf, (unsigned char*)to, count); break;
-        case core::ImageFormat::INT8: imageio::to_type(buf, (char*)to, count); break;
-        case core::ImageFormat::UINT16: imageio::to_type(buf, (unsigned short*)to, count); break;
-        case core::ImageFormat::INT16: imageio::to_type(buf, (short*)to, count); break;
-        case core::ImageFormat::UINT32: imageio::to_type(buf, (unsigned int*)to, count); break;
-        case core::ImageFormat::INT32: imageio::to_type(buf, (int*)to, count); break;
-        case core::ImageFormat::UINT64: imageio::to_type(buf, (unsigned long long*)to, count); break;
-        case core::ImageFormat::INT64: imageio::to_type(buf, (long long*)to, count); break;
-        //case core::ImageFormat::HALF:
-        //  to_type((const half*)from, to, count);*/ break;
-        case core::ImageFormat::DOUBLE: imageio::to_type((const double*)from, to, count); break;
-        default: Q_ASSERT("image format not supported" && 0);
-        }
+    if (fromformat.type() == toformat.type()) {
+        std::memcpy(to, from, size_t(count) * fromformat.size());
+        return;
     }
+
+    dispatchByFormat(fromformat.type(), [&](auto sTag) {
+        using S = decltype(sTag);
+        const S* src = reinterpret_cast<const S*>(from);
+
+        dispatchByFormat(toformat.type(), [&](auto dTag) {
+            using D = decltype(dTag);
+            D* dst = reinterpret_cast<D*>(to);
+
+            convertBuffer<S, D>(src, dst, size_t(count));
+        });
+    });
 }
 
 ImageBuffer::ImageBuffer()
@@ -254,8 +217,8 @@ ImageBuffer::ImageBuffer()
 ImageBuffer::ImageBuffer(const QRect& datawindow, const QRect& displaywindow, const ImageFormat& format, int channels)
     : p(new ImageBufferPrivate())
 {
-    p->d.datawindow = datawindow;
-    p->d.displaywindow = displaywindow;
+    p->d.dataWindow = datawindow;
+    p->d.displayWindow = displaywindow;
     p->d.channels = channels;
     p->d.format = format;
     p->alloc();
@@ -276,13 +239,13 @@ ImageBuffer::imageFormat() const
 QRect
 ImageBuffer::dataWindow() const
 {
-    return p->d.datawindow;
+    return p->d.dataWindow;
 }
 
 QRect
 ImageBuffer::displayWindow() const
 {
-    return p->d.displaywindow;
+    return p->d.displayWindow;
 }
 
 int
@@ -294,25 +257,57 @@ ImageBuffer::channels() const
 size_t
 ImageBuffer::byteSize() const
 {
-    return p->bytesize();
+    return p->byteSize();
 }
 
 size_t
 ImageBuffer::pixelSize() const
 {
-    return p->pixelsize();
+    return p->pixelSize();
 }
 
 size_t
 ImageBuffer::strideSize() const
 {
-    return p->stridesize();
+    return p->strideSize();
 }
 
 size_t
 ImageBuffer::size() const
 {
     return p->size();
+}
+
+ImageBuffer::Packing
+ImageBuffer::packing() const
+{}
+
+void
+ImageBuffer::setPacking(Packing packing)
+{
+    if (p->d.packing != packing) {
+        detach();
+        p->d.packing = packing;
+        if (packing == Packing::Interleaved) {
+            p->d.subsampling = Subsampling::None;
+        }
+    }
+}
+
+ImageBuffer::Subsampling
+ImageBuffer::subsampling() const
+{
+    return p->d.subsampling;
+}
+
+void
+ImageBuffer::setSubsampling(Subsampling s)
+{
+    Q_ASSERT(s == Subsampling::None || p->d.packing == Packing::Planar || p->d.packing == Packing::BiPlanar);
+    if (p->d.subsampling != s) {
+        detach();
+        p->d.subsampling = s;
+    }
 }
 
 quint8*
@@ -324,10 +319,123 @@ ImageBuffer::data() const
 quint8*
 ImageBuffer::data(const QPoint& pos) const
 {
-    QPoint pixel = pos - p->d.datawindow.topLeft();
-    size_t offset = pixel.y() * strideSize() + pixel.x() * pixelSize();
-    Q_ASSERT("offset is out of bounds!" && offset < static_cast<size_t>(p->d.data.size()));
+    Q_ASSERT(p->d.packing == Packing::Interleaved);
+    QPoint pixel = pos - p->d.dataWindow.topLeft();
+    size_t offset = size_t(pixel.y()) * strideSize() + size_t(pixel.x()) * pixelSize();
+    Q_ASSERT(offset < static_cast<size_t>(p->d.data.size()));
     return reinterpret_cast<quint8*>(p->d.data.data()) + offset;
+}
+
+int
+ImageBuffer::planeCount() const
+{
+    switch (p->d.packing) {
+    case Packing::Interleaved:
+    case Packing::Packed: return 1;
+    case Packing::Planar: return p->d.channels;
+    case Packing::BiPlanar: return 2;
+    default: return 0;
+    }
+}
+
+size_t
+ImageBuffer::planeStride(int plane) const
+{
+    Q_ASSERT(plane >= 0 && plane < planeCount());
+
+    const int width = p->d.dataWindow.width();
+
+    switch (p->d.packing) {
+    case Packing::Interleaved:
+    case Packing::Packed: return width * pixelSize();
+    case Packing::Planar: return width * p->d.format.size();
+    case Packing::BiPlanar:
+        if (plane == 0) {
+            // y plane
+            return width * p->d.format.size();
+        }
+        else {
+            // uv plane
+            int chromaWidth = width;
+            if (p->d.subsampling == Subsampling::CS420 || p->d.subsampling == Subsampling::CS422)
+                chromaWidth /= 2;
+            return chromaWidth * 2 * p->d.format.size();  // interleaved UV
+        }
+    }
+    return 0;
+}
+
+QSize
+ImageBuffer::planeSize(int plane) const
+{
+    Q_ASSERT(plane >= 0 && plane < planeCount() && "ImageBuffer::planeSize: plane index out of range.");
+
+    const int width = p->d.dataWindow.width();
+    const int height = p->d.dataWindow.height();
+
+    switch (p->d.packing) {
+    case Packing::Interleaved:
+    case Packing::Packed: return QSize(width, height);
+
+    case Packing::Planar:
+        // each channel is full resolution
+        return QSize(width, height);
+
+    case Packing::BiPlanar:
+        if (plane == 0) {
+            // y plane (full resolution)
+            return QSize(width, height);
+        }
+        else {
+            // uv plane (subsampled depending on mode)
+            int chromaWidth = width;
+            int chromaHeight = height;
+
+            switch (p->d.subsampling) {
+            case Subsampling::CS420:
+                chromaWidth /= 2;
+                chromaHeight /= 2;
+                break;
+
+            case Subsampling::CS422: chromaWidth /= 2; break;
+
+            case Subsampling::CS444:
+            case Subsampling::None: break;
+            }
+            return QSize(chromaWidth, chromaHeight);
+        }
+    }
+    return QSize();
+}
+
+quint8*
+ImageBuffer::planeData(int plane) const
+{
+    Q_ASSERT(plane >= 0 && plane < planeCount()
+             && "ImageBuffer::planeData/planeStride: plane index out of range. "
+                "Valid range is [0, planeCount()).");
+
+    quint8* base = reinterpret_cast<quint8*>(p->d.data.data());
+
+    switch (p->d.packing) {
+    case Packing::Interleaved:
+    case Packing::Packed: return base;
+
+    case Packing::Planar: {
+        size_t planeSize = p->d.dataWindow.width() * p->d.dataWindow.height() * p->d.format.size();
+
+        return base + plane * planeSize;
+    }
+
+    case Packing::BiPlanar: {
+        if (plane == 0)
+            return base;
+        size_t yPlaneSize = p->d.dataWindow.width() * p->d.dataWindow.height() * p->d.format.size();
+        return base + yPlaneSize;
+    }
+    }
+
+    return nullptr;
 }
 
 ImageBuffer
@@ -351,9 +459,9 @@ ImageBuffer::reset()
 {}
 
 void
-ImageBuffer::setDisplayWindow(const QRect& displaywindow)
-{  // no auto-detach
-    p->d.displaywindow = displaywindow;
+ImageBuffer::setDisplayWindow(const QRect& displayWindow)
+{
+    p->d.displayWindow = displayWindow;
 }
 
 ImageBuffer&
@@ -380,35 +488,49 @@ ImageBuffer::operator!=(const ImageBuffer& other) const
 ImageBuffer
 ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels)
 {
+    Q_ASSERT(imagebuffer.p->d.packing == Packing::Interleaved
+             && "ImageBuffer::convert currently only supports interleaved packing. "
+                "Planar and BiPlanar formats must be converted to interleaved first.");
+
+    Q_ASSERT(imagebuffer.p->d.subsampling == Subsampling::None
+             && "ImageBuffer::convert does not support chroma subsampled images "
+                "(CS420/CS422). Convert to full-resolution interleaved format before calling.");
+
     if (imagebuffer.imageFormat().type() == type) {
         ImageBuffer copy = imagebuffer;
         return copy.detach();
     }
-    else {
-        ImageBuffer copy(imagebuffer.dataWindow(), imagebuffer.displayWindow(), type, channels);
-        const quint8* src = imagebuffer.data();
-        quint8* dst = copy.data();
 
-        bool contiguous = (imagebuffer.strideSize() == imagebuffer.dataWindow().width() * imagebuffer.channels()
-                           && copy.strideSize() == copy.dataWindow().width() * copy.channels());
+    ImageBuffer copy(imagebuffer.dataWindow(), imagebuffer.displayWindow(), type, channels);
+    const quint8* src = imagebuffer.data();
+    quint8* dst = copy.data();
 
-        for (int y = 0; y < imagebuffer.dataWindow().height(); ++y) {
-            const quint8* from = src + y * imagebuffer.strideSize();
-            quint8* to = (quint8*)dst + y * copy.strideSize();
+    const size_t srcRowBytes = size_t(imagebuffer.dataWindow().width()) * size_t(imagebuffer.channels())
+                               * imagebuffer.imageFormat().size();
 
-            if (contiguous) {
-                ImageBufferPrivate::convert(imagebuffer.imageFormat(), from, copy.imageFormat(), to,
-                                            channels * imagebuffer.dataWindow().width());
+    const size_t dstRowBytes = size_t(copy.dataWindow().width()) * size_t(copy.channels()) * copy.imageFormat().size();
+    const bool contiguous = (imagebuffer.strideSize() == srcRowBytes) && (copy.strideSize() == dstRowBytes);
+
+    for (int y = 0; y < imagebuffer.dataWindow().height(); ++y) {
+        const quint8* from = src + size_t(y) * imagebuffer.strideSize();
+        quint8* to = dst + size_t(y) * copy.strideSize();
+
+        for (int x = 0; x < imagebuffer.dataWindow().width(); ++x) {
+            const int copyChannels = std::min(imagebuffer.channels(), copy.channels());
+            ImageBufferPrivate::convert(imagebuffer.imageFormat(), from, copy.imageFormat(), to, copyChannels);
+            if (copy.channels() > imagebuffer.channels()) {
+                dispatchByFormat(copy.imageFormat().type(), [&](auto tag) {
+                    using D = decltype(tag);
+                    D* dstPixel = reinterpret_cast<D*>(to);
+
+                    for (int c = copyChannels; c < copy.channels(); ++c)
+                        dstPixel[c] = std::numeric_limits<D>::is_integer ? std::numeric_limits<D>::max() : D(1);
+                });
             }
-            else {
-                for (int x = 0; x < imagebuffer.dataWindow().width(); ++x) {
-                    ImageBufferPrivate::convert(imagebuffer.imageFormat(), from, copy.imageFormat(), to, channels);
-                    from += imagebuffer.pixelSize();
-                    to += copy.pixelSize();
-                }
-            }
+            from += imagebuffer.pixelSize();
+            to += copy.pixelSize();
         }
-        return copy;
     }
+    return copy;
 }
 }  // namespace flipman::sdk::core

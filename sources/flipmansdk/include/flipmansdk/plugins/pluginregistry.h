@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/plugin.h>
 #include <flipmansdk/plugins/pluginhandler.h>

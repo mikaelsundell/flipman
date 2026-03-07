@@ -16,84 +16,88 @@ class ErrorPrivate;
 
 /**
  * @class Error
- * @brief Represents a system or application error with domain-specific context.
+ * @brief Explicitly shared error object.
  *
- * Uses explicit data sharing for efficient passing. An Error consists of a
- * domain (category), a human-readable message, and a numeric status code.
+ * Encapsulates domain, message, and error code.
  */
 class FLIPMANSDK_EXPORT Error {
 public:
     /**
-     * @brief Constructs a null error with no message or domain.
+     * @brief Constructs a null Error.
      */
     Error();
 
     /**
-     * @brief Constructs an error with specific details.
-     * @param domain The category of the error (e.g., "IO", "Network", "Internal").
-     * @param message A human-readable description of the error.
-     * @param code A specific error code for programmatic handling.
+     * @brief Constructs an Error with details.
+     *
+     * @param domain Error category.
+     * @param message Human-readable description.
+     * @param code Optional numeric code.
      */
     explicit Error(const QString& domain, const QString& message, int code = 0);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     Error(const Error& other);
 
     /**
-     * @brief Destroys the error.
-     * @note Required for the PIMPL pattern to safely delete ErrorPrivate.
+     * @brief Destroys the Error.
      */
     ~Error();
 
     /**
-     * @brief Returns the error domain/category.
+     * @brief Returns the error domain.
      */
     QString domain() const;
 
     /**
-     * @brief Returns the human-readable error message.
+     * @brief Returns the error message.
      */
     QString message() const;
 
     /**
-     * @brief Returns the numeric error code.
+     * @brief Returns the error code.
      */
     int code() const;
 
     /**
-     * @brief Returns true if an error is present (alias for isValid).
-     */
-    bool hasError() const;
-
-    /**
-     * @brief Returns true if the error object contains valid error information.
+     * @brief Returns true if the error is valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the error object to a null state.
+     * @brief Alias for isValid().
+     */
+    bool hasError() const;
+
+    /**
+     * @brief Resets the Error to a null state.
      */
     void reset();
 
     /**
-     * @brief Sets new error details, detaching from shared data if necessary.
+     * @brief Sets error details.
      */
     void setError(const QString& domain, const QString& message, int code);
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     Error& operator=(const Error& other);
 
     /**
-     * @brief Convenience operator to return the error message as a QString.
+     * @brief Conversion operator returning the error message.
      */
     operator QString() const;
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<ErrorPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<ErrorPrivate> p;
 };
 
 }  // namespace flipman::sdk::core

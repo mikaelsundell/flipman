@@ -16,76 +16,89 @@ class ImageFormatPrivate;
 
 /**
  * @class ImageFormat
- * @brief Represents pixel data types and provides memory size information.
- *
- * This class uses explicit sharing to ensure lightweight copying and is
- * registered with the Qt Meta-Object system via Q_GADGET to support
- * enum-to-string conversion and metadata inspection.
+ * @brief Explicitly shared pixel format descriptor.
  */
 class FLIPMANSDK_EXPORT ImageFormat {
     Q_GADGET
 public:
     /**
-     * @enum Type
-     * @brief Supported pixel bit-depths and floating-point formats.
+     * @brief Supported pixel component types.
      */
-    enum Type { NONE, UINT8, INT8, UINT16, INT16, UINT32, INT32, UINT64, INT64, HALF, FLOAT, DOUBLE };
+    enum Type { None, UInt8, Int8, UInt16, Int16, UInt32, Int32, UInt64, Int64, Half, Float, Double };
     Q_ENUM(Type)
 
     /**
-     * @brief Constructs an invalid image format (NONE).
+     * @brief Constructs an invalid ImageFormat.
      */
     ImageFormat();
 
     /**
-     * @brief Constructs a format with the specified pixel type.
-     * @param type The pixel bit-depth or floating-point format.
+     * @brief Constructs an ImageFormat from a Type.
      */
-    ImageFormat(ImageFormat::Type type);
+    ImageFormat(Type type);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy of the shared data.
+     * @brief Copy constructor.
      */
     ImageFormat(const ImageFormat& other);
 
     /**
-     * @brief Destroys the image format.
-     * @note Required for the PIMPL pattern to safely delete ImageFormatPrivate.
+     * @brief Destroys the ImageFormat.
      */
     ~ImageFormat();
 
     /**
-     * @brief Returns the byte size of a single pixel component for the current type.
-     * @return Size in bytes (e.g., 4 for FLOAT, 1 for UINT8).
+     * @brief Returns the byte size of a single component.
      */
     size_t size() const;
 
     /**
-     * @brief Returns the current pixel type.
+     * @brief Returns the pixel type.
      */
-    ImageFormat::Type type() const;
+    Type type() const;
 
     /**
-     * @brief Returns true if the type is not NONE.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the format to NONE.
+     * @brief Resets to invalid state.
      */
     void reset();
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     ImageFormat& operator=(const ImageFormat& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const ImageFormat& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const ImageFormat& other) const;
+
+    /**
+     * @brief Strict ordering operator.
+     */
     bool operator<(const ImageFormat& other) const;
+
+    /**
+     * @brief Greater-than operator.
+     */
     bool operator>(const ImageFormat& other) const;
+
     ///@}
 
 private:
-    QExplicitlySharedDataPointer<ImageFormatPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<ImageFormatPrivate> p;
 };
 
 }  // namespace flipman::sdk::core

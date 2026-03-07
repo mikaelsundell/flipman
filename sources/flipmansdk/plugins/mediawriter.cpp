@@ -54,11 +54,11 @@ MediaWriter::setFps(const av::Fps& fps)
 {}
 
 void
-MediaWriter::setTimeRange(const av::TimeRange& timerange)
+MediaWriter::setTimeRange(const av::TimeRange& timeRange)
 {}
 
 bool
-MediaWriter::setMetaData(const core::Parameters& metadata)
+MediaWriter::setMetaData(const core::MetaData& metaData)
 {}
 
 core::Error

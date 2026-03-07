@@ -13,7 +13,7 @@ public:
     struct Data {
         QString name = "Track";
         QColor color;
-        TimeRange timerange;
+        TimeRange timeRange;
         QHash<Clip*, TimeRange> clips;
     };
     Data d;
@@ -99,16 +99,18 @@ Track::setColor(const QColor& color)
 void
 Track::insertClip(Clip* clip, const TimeRange& range)
 {
-    /*for (const auto& existingClip : p->d.clips.keys()) {
-     AVTimeRange existingRange = p->d.clips.value(existingClip);
-     if (range.intersects(existingRange)) {
-     qint64 ticks = existingRange.end().ticks() + 1;
-     AVTimeRange adjusted(AVTime(range.start, ticks), range.duration());
-     p->d.clips[clip] = adjusted;
-     return;
-     }
-     }*/
+    /*
+    for (const auto& existingClip : p->d.clips.keys()) {
+        AVTimeRange existingRange = p->d.clips.value(existingClip);
+        if (range.intersects(existingRange)) {
+            qint64 ticks = existingRange.end().ticks() + 1;
+            AVTimeRange adjusted(AVTime(range.start, ticks), range.duration());
+            p->d.clips[clip] = adjusted;
+            return;
+        }
+    }
     p->d.clips[clip] = range;
+    */
 }
 
 void

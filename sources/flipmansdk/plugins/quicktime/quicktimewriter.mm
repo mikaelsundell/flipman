@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/quicktime/quicktime.h>
+#include <flipmansdk/plugins/quicktime/quicktimewriter.h>
 #include <QDebug>
 
 namespace flipman::sdk::plugins {
@@ -25,7 +25,7 @@ QuicktimeWriter::~QuicktimeWriter()
 }
 
 bool
-QuicktimeWriter::open(const core::File& file, core::Parameters parameters)
+QuicktimeWriter::open(const core::File& file, const Options& options)
 {
     return true;
 }
@@ -108,13 +108,13 @@ QuicktimeWriter::setFps(const av::Fps& fps)
 }
 
 void
-QuicktimeWriter::setTimeRange(const av::TimeRange& timerange)
+QuicktimeWriter::setTimeRange(const av::TimeRange& timeRange)
 {
     return true;
 }
 
 bool
-QuicktimeWriter::setMetaData(const core::Parameters& metadata)
+QuicktimeWriter::setMetaData(const core::MetaData& metaData)
 {
     return true;
 }

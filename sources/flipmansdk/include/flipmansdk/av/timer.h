@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/av/fps.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/av/fps.h>
 
 #include <QList>
 #include <QScopedPointer>
@@ -16,34 +17,27 @@ class TimerPrivate;
 
 /**
  * @class Timer
- * @brief A high-precision monotonic timer for playback synchronization and profiling.
- * * The Timer class provides nanosecond-accurate timing utilities. It is primarily
- * used to maintain stable playback speeds by calculating frame intervals based on
- * Fps. It also supports "lap" timing, which is useful for profiling the performance
- * of the RenderEngine or MediaProcessor.
+ * @brief High-precision playback timer.
  */
 class FLIPMANSDK_EXPORT Timer {
 public:
     /**
-     * @enum Unit
-     * @brief Time units for conversion and reporting.
+     * @brief Time units.
      */
-    enum Unit {
-        Nanos,    ///< Nanoseconds
-        Seconds,  ///< Seconds
-        Minutes,  ///< Minutes
-        Hours     ///< Hours
-    };
+    enum Unit { Nanos, Seconds, Minutes, Hours };
 
     /**
-     * @brief Constructs a new Timer instance.
+     * @brief Constructs a Timer.
      */
     Timer();
 
     /**
      * @brief Destroys the Timer.
      */
-    virtual ~Timer();
+    ~Timer();
+
+    /** @name Control */
+    ///@{
 
     /**
      * @brief Starts the timer.
@@ -51,74 +45,76 @@ public:
     void start();
 
     /**
-     * @brief Starts the timer and internally calculates the interval based on FPS.
-     * @param fps The frame rate to synchronize against.
+     * @brief Starts the timer with Fps.
      */
     void start(const Fps& fps);
 
     /**
-     * @brief Stops the timer and records the final elapsed time.
+     * @brief Stops the timer.
      */
     void stop();
 
     /**
-     * @brief Resets the elapsed time to zero and starts the timer immediately.
+     * @brief Restarts the timer.
      */
     void restart();
 
     /**
-     * @brief Captures the current elapsed time as a "lap" without stopping the timer.
+     * @brief Records a lap.
      */
     void lap();
 
     /**
-     * @brief Determines if enough time has elapsed to advance to the next frame.
-     * * This is used in "real-time" playback loops to decide when to trigger a
-     * new frame render based on the provided FPS.
-     * @param fps The target playback frame rate.
-     * @return true if the interval for the next frame has been reached.
+     * @brief Returns true if next frame interval reached.
      */
     bool next(const Fps& fps);
 
     /**
-     * @brief Blocks the current thread until the next frame interval is reached.
-     * Used to throttle playback loops to the correct speed.
+     * @brief Waits until next interval.
      */
     void wait();
 
     /**
-     * @brief Suspends the current thread for a specific duration.
-     * @param msecs Duration in milliseconds.
+     * @brief Sleeps for milliseconds.
      */
     void sleep(quint64 msecs);
 
+    ///@}
+
+    /** @name Query */
+    ///@{
+
     /**
-     * @brief Returns the total nanoseconds elapsed since the timer started.
+     * @brief Returns elapsed nanoseconds.
      */
     quint64 elapsed() const;
 
     /**
-     * @brief Returns a list of all captured lap times in nanoseconds.
+     * @brief Returns recorded laps.
      */
     QList<quint64> laps() const;
 
     /**
-     * @brief Returns true if the timer has been started and is running.
+     * @brief Returns true if running.
      */
     bool isValid() const;
 
     /**
-     * @brief Stops the timer and clears all recorded data.
+     * @brief Resets the timer.
      */
     void reset();
 
+    ///@}
+
+    /** @name Utilities */
+    ///@{
+
     /**
-     * @brief Static helper to convert nanoseconds into other time units.
-     * @param nano The nanosecond value.
-     * @param unit The target unit for the conversion.
-     * @return The converted value as a real number.
+     * @brief Converts nanoseconds to unit.
      */
     static qreal convert(quint64 nano, Unit unit = Unit::Nanos);
+
+    ///@}
 
 private:
     Q_DISABLE_COPY_MOVE(Timer)
@@ -128,6 +124,6 @@ private:
 }  // namespace flipman::sdk::av
 
 /**
- * @note Registering the widget type for use in signals/slots and QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::av::Timer*)

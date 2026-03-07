@@ -30,7 +30,7 @@ Testplay::Testplay(QWidget* parent)
     frame->setLineWidth(1);
     frame->setMidLineWidth(0);
 
-    widgets::RenderWidget* renderWidget = new widgets::RenderWidget(frame);
+    widgets::Viewer* renderWidget = new widgets::Viewer(frame);
     viewport->set_resolution(size / 2.0f);  // half default size
     qDebug() << "renderWidget resolution: " << viewport->resolution();
 
@@ -58,14 +58,14 @@ Testplay::Testplay(QWidget* parent)
             }
         }
 
-        av::RenderLayer renderlayer;
-        renderlayer.set_image(image);
+        av::ImageLayer imageLayer;
+        imageLayer.set_image(image);
 
-        // av::RenderEffect effect(av::Gaussian)
+        // av::ImageEffect effect(av::Gaussian)
         // effect->set_parameter("kernel", 10.0f);
-        // renderlayer->set_effect(effect);
+        // imageLayer->set_effect(effect);
 
-        viewport->set_renderlayers(QList<av::RenderLayer>({ renderlayer }));
+        viewport->set_imageLayers(QList<av::ImageLayer>({ imageLayer }));
     }
     else {
         QString resourcepath = "../../data";

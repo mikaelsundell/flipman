@@ -2,7 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/quicktime/quicktime.h>
+#include <flipmansdk/plugins/quicktime/quicktimereader.h>
 
 #include <flipmansdk/av/smptetime.h>
 
@@ -34,7 +34,7 @@ public:
     ~QuicktimeReaderPrivate();
     void init();
     void loadAsset();
-    bool open(const core::File& file, core::Parameters parameters);
+    bool open(const core::File& file, const MediaReader::Options& options);
     bool close();
     bool isOpen();
     av::Time read();
@@ -64,7 +64,7 @@ public:
         QString title;
         core::ImageBuffer image;
         core::AudioBuffer audio;
-        core::Parameters metaData;
+        core::MetaData metaData;
         core::Error error;
         QPointer<QuicktimeReader> object;
     };
@@ -261,7 +261,7 @@ void QuicktimeReaderPrivate::loadAsset()
 }
 
 bool
-QuicktimeReaderPrivate::open(const core::File& file, core::Parameters)
+QuicktimeReaderPrivate::open(const core::File& file, const MediaReader::Options& options)
 {
     close();
     d.file = file;
@@ -376,7 +376,7 @@ QuicktimeReaderPrivate::read()
     size_t bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
     size_t totalBytes = bytesPerRow * height;
     
-    core::ImageFormat format(core::ImageFormat::UINT8);  // Assuming 8-bit per channel
+    core::ImageFormat format(core::ImageFormat::UInt8);  // Assuming 8-bit per channel
     QRect dataWindow(0, 0, static_cast<int>(width), static_cast<int>(height));
     QRect displayWindow = dataWindow;
     int channels = 4; // Assuming ARGB (4 channels)
@@ -513,9 +513,9 @@ QuicktimeReader::~QuicktimeReader()
 }
 
 bool
-QuicktimeReader::open(const core::File& file, core::Parameters parameters)
+QuicktimeReader::open(const core::File& file, const Options& options)
 {
-    return p->open(file, parameters);
+    return p->open(file, options);
 }
 
 bool
@@ -602,13 +602,7 @@ QuicktimeReader::image() const
     return p->d.image;
 }
 
-core::Parameters
-QuicktimeReader::parameters() const
-{
-    return core::Parameters();
-}
-
-core::Parameters
+core::MetaData
 QuicktimeReader::metaData() const
 {
     return p->d.metaData;

@@ -24,16 +24,10 @@ MediaReader::image() const
     return core::ImageBuffer();
 }
 
-core::Parameters
-MediaReader::parameters() const
-{
-    return core::Parameters();
-}
-
-core::Parameters
+core::MetaData
 MediaReader::metaData() const
 {
-    return core::Parameters();
+    return core::MetaData();
 }
 
 core::Error

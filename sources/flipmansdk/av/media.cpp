@@ -31,7 +31,7 @@ MediaPrivate::reader(const QString& extension)
     auto* registry = plugins::PluginRegistry::instance();
     plugins::MediaReader* reader = registry->getPlugin<plugins::MediaReader>(extension);
     if (!reader) {
-        d.error = core::Error("Media", QStringLiteral("No MediaReader registered for extension: %1").arg(extension));
+        d.error = core::Error("media", QStringLiteral("No MediaReader registered for extension: %1").arg(extension));
         return nullptr;
     }
     d.reader.reset(reader);  // MediaPrivate now OWNS the reader
@@ -163,14 +163,7 @@ Media::image() const
     return p->d.reader->image();
 }
 
-core::Parameters
-Media::parameters() const
-{
-    Q_ASSERT("media is not open" && isOpen());
-    return p->d.reader->parameters();
-}
-
-core::Parameters
+core::MetaData
 Media::metaData() const
 {
     Q_ASSERT("media is not open" && isOpen());

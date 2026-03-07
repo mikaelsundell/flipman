@@ -19,8 +19,9 @@ list (APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 # dependencies
 set (QT_NO_PRIVATE_MODULE_WARNING ON)
-set (qt6_modules Core Concurrent Gui GuiPrivate Widgets ShaderTools)
+set (qt6_modules Core Concurrent Gui GuiPrivate Widgets ShaderTools ShaderToolsPrivate)
 find_package (Qt6 COMPONENTS ${qt6_modules} CONFIG REQUIRED)
+find_package (OpenImageIO CONFIG REQUIRED)
 
 # build settings
 set (CMAKE_AUTOMOC ON)

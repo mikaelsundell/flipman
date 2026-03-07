@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/core/imageformat.h>
 #include <flipmansdk/flipmansdk.h>
+
+#include <flipmansdk/core/imageformat.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -18,138 +19,207 @@ class ImageBufferPrivate;
 
 /**
  * @class ImageBuffer
- * @brief Represents a multi-channel 2D image container with explicit data sharing.
+ * @brief Explicitly shared 2D image container.
  *
- * ImageBuffer manages raw pixel data using a "Data Window" (actual pixels in memory)
- * and a "Display Window" (the viewable area), supporting high-performance
- * imaging workflows and zero-copy passing.
+ * Provides data and display windows, pixel format, and memory layout control.
  */
 class FLIPMANSDK_EXPORT ImageBuffer {
+    Q_GADGET
 public:
     /**
-     * @brief Constructs an empty, invalid image buffer.
+     * @brief Pixel component memory layout.
+     */
+    enum class Packing { Interleaved, Planar, BiPlanar, Packed };
+    Q_ENUM(Packing)
+
+    /**
+     * @brief Chroma subsampling mode.
+     */
+    enum class Subsampling { None, CS420, CS422, CS444 };
+    Q_ENUM(Subsampling)
+
+    /**
+     * @brief Constructs an empty ImageBuffer.
      */
     ImageBuffer();
 
     /**
-     * @brief Constructs a buffer with specified dimensions and format.
-     * @param datawindow The actual pixel bounds in memory.
-     * @param displaywindow The viewable area of the image.
-     * @param format The pixel data type (e.g., FLOAT, UINT8).
-     * @param channels The number of color/alpha channels.
+     * @brief Constructs a buffer with dimensions and format.
      */
     explicit ImageBuffer(const QRect& datawindow, const QRect& displaywindow, const ImageFormat& format, int channels);
 
     /**
-     * @brief Copy constructor. Performs a shallow copy via shared data pointer.
+     * @brief Copy constructor.
      */
     ImageBuffer(const ImageBuffer& other);
 
     /**
-     * @brief Destroys the image buffer.
-     * @note Required for the PIMPL pattern to safely delete ImageBufferPrivate.
+     * @brief Destroys the ImageBuffer.
      */
     ~ImageBuffer();
 
-    /** @name Dimensions and Windows */
+    /** @name Windows */
     ///@{
+
     /**
-     * @brief Returns the pixel bounds of the actual data stored in memory.
+     * @brief Returns the data window.
      */
     QRect dataWindow() const;
 
     /**
-     * @brief Returns the bounds of the image as it should be displayed.
+     * @brief Returns the display window.
      */
     QRect displayWindow() const;
 
     /**
-     * @brief Updates the display window without modifying the underlying pixel data.
+     * @brief Sets the display window.
      */
     void setDisplayWindow(const QRect& displaywindow);
+
     ///@}
 
-
-
-    /** @name Memory and Format */
+    /** @name Format */
     ///@{
+
     /**
-     * @brief Returns the pixel data format.
+     * @brief Returns the image format.
      */
     ImageFormat imageFormat() const;
 
     /**
-     * @brief Returns the number of channels per pixel.
+     * @brief Returns channel count.
      */
     int channels() const;
 
     /**
-     * @brief Returns the total size of the buffer in bytes.
+     * @brief Returns total byte size.
      */
     size_t byteSize() const;
 
     /**
-     * @brief Returns the byte size of a single pixel (channels * format size).
+     * @brief Returns bytes per pixel.
      */
     size_t pixelSize() const;
 
     /**
-     * @brief Returns the byte size of a single scanline (width * pixelSize).
+     * @brief Returns bytes per row.
      */
     size_t strideSize() const;
 
     /**
-     * @brief Returns the total number of pixels in the data window.
+     * @brief Returns pixel count.
      */
     size_t size() const;
+
+    ///@}
+
+    /** @name Layout */
+    ///@{
+
+    /**
+     * @brief Returns memory packing.
+     */
+    Packing packing() const;
+
+    /**
+     * @brief Sets memory packing.
+     */
+    void setPacking(Packing packing);
+
+    /**
+     * @brief Returns chroma subsampling.
+     */
+    Subsampling subsampling() const;
+
+    /**
+     * @brief Sets chroma subsampling.
+     */
+    void setSubsampling(Subsampling subsampling);
+
     ///@}
 
     /** @name Data Access */
     ///@{
+
     /**
-     * @brief Returns a pointer to the start of the raw pixel data.
+     * @brief Returns pointer to raw data.
      */
     quint8* data() const;
 
     /**
-     * @brief Returns a pointer to the pixel data at a specific coordinate.
+     * @brief Returns pointer to pixel at position.
      */
     quint8* data(const QPoint& pos) const;
 
     /**
-     * @brief Creates a deep copy of the buffer if the data is shared.
-     * @return A reference to the detached buffer.
+     * @brief Returns number of planes.
+     */
+    int planeCount() const;
+
+    /**
+     * @brief Returns row stride for a plane.
+     */
+    size_t planeStride(int plane) const;
+
+    /**
+     * @brief Returns logical size of a plane.
+     */
+    QSize planeSize(int plane) const;
+
+    /**
+     * @brief Returns total byte size of a plane.
+     */
+    size_t planeByteSize(int plane) const;
+
+    /**
+     * @brief Returns pointer to a plane.
+     */
+    quint8* planeData(int plane) const;
+
+    /**
+     * @brief Detaches shared data.
      */
     ImageBuffer detach();
 
     /**
-     * @brief Returns true if the buffer contains valid data.
+     * @brief Returns true if valid.
      */
     bool isValid() const;
 
     /**
-     * @brief Resets the buffer to an uninitialized state.
+     * @brief Resets to empty state.
      */
     void reset();
+
     ///@}
 
     /** @name Operators */
     ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy.
+     */
     ImageBuffer& operator=(const ImageBuffer& other);
+
+    /**
+     * @brief Equality operator.
+     */
     bool operator==(const ImageBuffer& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
     bool operator!=(const ImageBuffer& other) const;
+
     ///@}
 
     /**
-     * @brief Returns a copy of the buffer converted to a different format or channel count.
-     * @param imagebuffer The source buffer.
-     * @param type The target pixel type.
-     * @param channels The target channel count.
+     * @brief Converts buffer to different format or channel count.
      */
     static ImageBuffer convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels);
 
 private:
-    QExplicitlySharedDataPointer<ImageBufferPrivate> p;  ///< Private implementation.
+    QExplicitlySharedDataPointer<ImageBufferPrivate> p;
 };
 
 }  // namespace flipman::sdk::core
