@@ -23,8 +23,9 @@ public:
     Data d;
 };
 
-PluginRegistry::PluginRegistry()
-    : p(new PluginRegistryPrivate())
+PluginRegistry::PluginRegistry(QObject* parent)
+    : QObject(parent)
+    , p(new PluginRegistryPrivate())
 {
     registerPlugin(FxReader::handler());
     registerPlugin(QuicktimeReader::handler());
@@ -32,7 +33,7 @@ PluginRegistry::PluginRegistry()
     registerPlugin(QtWriter::handler());
 }
 
-PluginRegistry::~PluginRegistry() { reset(); }
+PluginRegistry::~PluginRegistry() {}
 
 bool
 PluginRegistry::registerPlugin(const PluginHandler& handler)
@@ -75,18 +76,4 @@ PluginRegistry::getPlugins() const
     return result;
 }
 
-PluginRegistry*
-PluginRegistry::instance()
-{
-    static PluginRegistry registry;
-    return &registry;
-}
-
-void
-PluginRegistry::reset()
-{
-    PluginRegistry* registery = instance();
-    registery->p->d.plugins.clear();
-    registery->p->d.error.reset();
-}
 }  // namespace flipman::sdk::plugins

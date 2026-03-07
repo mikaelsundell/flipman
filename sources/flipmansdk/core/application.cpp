@@ -20,7 +20,7 @@ public:
         QScopedPointer<Environment> environment;
         QScopedPointer<Style> style;
         QScopedPointer<System> system;
-        plugins::PluginRegistry* pluginRegistry;
+        QScopedPointer<plugins::PluginRegistry> pluginRegistry;
     };
     Data d;
 };
@@ -35,7 +35,7 @@ ApplicationPrivate::init()
     d.environment.reset(new Environment());
     d.style.reset(new Style());
     d.system.reset(new System());
-    d.pluginRegistry = plugins::PluginRegistry::instance();
+    d.pluginRegistry.reset(new plugins::PluginRegistry());
 }
 
 Application::Application(int& argc, char** argv)
@@ -68,7 +68,7 @@ Application::system() const
 plugins::PluginRegistry*
 Application::pluginRegistry() const
 {
-    return p->d.pluginRegistry;
+    return p->d.pluginRegistry.data();
 }
 
 Application*

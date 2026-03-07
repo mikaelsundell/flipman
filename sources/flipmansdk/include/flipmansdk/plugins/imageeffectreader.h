@@ -15,16 +15,16 @@
 
 namespace flipman::sdk::plugins {
 
-class EffectReaderPrivate;
+class ImageEffectReaderPrivate;
 
 /**
- * @class EffectReader
- * @brief Abstract base class for effect file reader plugins.
+ * @class ImageEffectReader
+ * @brief Abstract base class for image effect file reader plugins.
  *
  * Defines the interface for loading ImageEffect objects
  * from an external file or container.
  */
-class FLIPMANSDK_EXPORT EffectReader : public core::Plugin {
+class FLIPMANSDK_EXPORT ImageEffectReader : public core::Plugin {
     Q_OBJECT
 public:
     /**
@@ -40,16 +40,16 @@ public:
 
 public:
     /**
-     * @brief Constructs an EffectReader.
+     * @brief Constructs an ImageEffectReader.
      *
      * @param parent Optional QObject parent.
      */
-    explicit EffectReader(QObject* parent = nullptr);
+    explicit ImageEffectReader(QObject* parent = nullptr);
 
     /**
-     * @brief Destroys the EffectReader.
+     * @brief Destroys the ImageEffectReader.
      */
-    virtual ~EffectReader();
+    virtual ~ImageEffectReader();
 
     /** @name Initialization */
     ///@{
@@ -106,4 +106,4 @@ Q_SIGNALS:
 /**
  * @note Registering the type for use in signals/slots and QVariant.
  */
-Q_DECLARE_METATYPE(flipman::sdk::plugins::EffectReader)
+Q_DECLARE_METATYPE(flipman::sdk::plugins::ImageEffectReader)
