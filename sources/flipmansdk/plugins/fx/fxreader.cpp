@@ -60,7 +60,7 @@ FxReaderPrivate::extensions()
 }
 
 FxReader::FxReader(QObject* parent)
-    : plugins::EffectReader(parent)
+    : plugins::ImageEffectReader(parent)
     , p(new FxReaderPrivate())
 {}
 
@@ -99,9 +99,9 @@ FxReader::error() const
 plugins::PluginHandler
 FxReader::handler()
 {
-    static plugins::PluginHandler handler = plugins::PluginHandler::create<EffectReader>(FxReaderPrivate::info(),
-                                                                                         FxReaderPrivate::extensions,
-                                                                                         FxReaderPrivate::creator);
+    static plugins::PluginHandler handler
+        = plugins::PluginHandler::create<ImageEffectReader>(FxReaderPrivate::info(), FxReaderPrivate::extensions,
+                                                            FxReaderPrivate::creator);
     return handler;
 }
 

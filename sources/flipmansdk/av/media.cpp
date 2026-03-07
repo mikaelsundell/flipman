@@ -4,6 +4,7 @@
 
 #include <flipmansdk/av/media.h>
 
+#include <flipmansdk/core/application.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/pluginregistry.h>
 
@@ -28,8 +29,7 @@ public:
 plugins::MediaReader*
 MediaPrivate::reader(const QString& extension)
 {
-    auto* registry = plugins::PluginRegistry::instance();
-    plugins::MediaReader* reader = registry->getPlugin<plugins::MediaReader>(extension);
+    plugins::MediaReader* reader = core::pluginRegistry()->getPlugin<plugins::MediaReader>(extension);
     if (!reader) {
         d.error = core::Error("media", QStringLiteral("No MediaReader registered for extension: %1").arg(extension));
         return nullptr;
@@ -91,8 +91,7 @@ Media::isOpen() const
 bool
 Media::isSupported(const QString& extension) const
 {
-    plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-    return registry->hasExtension<plugins::MediaReader>(extension);
+    return core::pluginRegistry()->hasExtension<plugins::MediaReader>(extension);
 }
 
 bool

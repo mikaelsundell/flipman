@@ -24,7 +24,7 @@
 #include <flipmansdk/core/log.h>
 #include <flipmansdk/core/system.h>
 
-#include <flipmansdk/plugins/effectreader.h>
+#include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/mediawriter.h>
 
@@ -634,7 +634,7 @@ testMedia()
                 }
             }
 
-            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.png");
+            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr");
             sdk::av::MediaProcessor mediaProcessor;
 
             QObject::connect(
@@ -1480,8 +1480,8 @@ testPluginFx()
     std::atomic<bool> ok { true };
     core::DispatchGroup group;
     group.async([file, &ok]() {
-        plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-        QScopedPointer<plugins::EffectReader> reader(registry->getPlugin<plugins::EffectReader>(file.extension()));
+        QScopedPointer<plugins::ImageEffectReader> reader(
+            core::pluginRegistry()->getPlugin<plugins::ImageEffectReader>(file.extension()));
         if (!reader) {
             core::logErr() << "no reader found for extension: " << file.extension() << Qt::endl;
             ok = false;
@@ -1593,8 +1593,8 @@ testPluginImage()
     std::atomic<bool> ok { true };
     core::DispatchGroup group;
     group.async([file, &ok]() {
-        plugins::PluginRegistry* registry = plugins::PluginRegistry::instance();
-        QScopedPointer<plugins::MediaReader> reader(registry->getPlugin<plugins::MediaReader>(file.extension()));
+        QScopedPointer<plugins::MediaReader> reader(
+            core::pluginRegistry()->getPlugin<plugins::MediaReader>(file.extension()));
         if (!reader) {
             core::logErr() << "no reader found for extension: " << file.extension() << Qt::endl;
             ok = false;
@@ -1645,7 +1645,7 @@ testPluginImage()
             }
         }
 
-        core::File output = core::Environment::resourcePath(QString("%1/testPlugins/qtwriter.#####.png").arg(testPath));
+        core::File output = core::Environment::resourcePath(QString("%1/testPlugins/image.#####.exr").arg(testPath));
 
         QDir outDir(output.dirName());
         if (!outDir.exists()) {
@@ -1656,7 +1656,8 @@ testPluginImage()
             }
         }
 
-        QScopedPointer<plugins::MediaWriter> writer(registry->getPlugin<plugins::MediaWriter>(output.extension()));
+        QScopedPointer<plugins::MediaWriter> writer(
+            core::pluginRegistry()->getPlugin<plugins::MediaWriter>(output.extension()));
         if (!writer) {
             core::logErr() << "no writer found for extension:" << output.extension() << Qt::endl;
             ok = false;
@@ -1710,26 +1711,32 @@ testPluginRegistry()
         return false;
     }
 
+    std::atomic<bool> ok { true };
     core::DispatchGroup group;
-    group.async([file]() {
-        sdk::plugins::PluginRegistry* registry = sdk::plugins::PluginRegistry::instance();
+    group.async([file, &ok]() {
         QScopedPointer<sdk::plugins::MediaReader> reader(
-            registry->getPlugin<sdk::plugins::MediaReader>(file.extension()));
+            core::pluginRegistry()->getPlugin<sdk::plugins::MediaReader>(file.extension()));
 
         if (!reader) {
             core::logErr() << "no reader found for extension: " << file.extension() << Qt::endl;
-            return false;
+            ok = false;
+            return;
         }
 
-        if (!reader->open(file)) {
-            core::logOut() << "file:" << file << "is open";
+        reader->open(file);
+        if (!reader->isOpen()) {
+            QEventLoop loop;
+            QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            loop.exec();
         }
-        else {
-            core::logErr() << "could not open file: " << reader->error() << Qt::endl;
+        if (!reader->isOpen()) {
+            core::logErr() << "could not open file: " << file << ", error: " << reader->error() << Qt::endl;
+            ok = false;
+            return;
         }
     });
     group.wait();
-    return true;
+    return ok.load();
 }
 
 bool

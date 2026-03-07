@@ -19,13 +19,25 @@ class PluginRegistryPrivate;
 
 /**
  * @class PluginRegistry
- * @brief The central manager for all registered SDK plugins.
- * * The PluginRegistry is a singleton that maintains a database of available plugins,
- * allowing the SDK to find the correct plugin for a specific file extension or
+ * @brief Central manager for all registered SDK plugins.
+ *
+ * The PluginRegistry maintains a database of available plugins and allows
+ * the SDK to locate the appropriate plugin for a given file extension or
  * functional requirement.
  */
-class FLIPMANSDK_EXPORT PluginRegistry {
+class FLIPMANSDK_EXPORT PluginRegistry : public QObject {
 public:
+    /**
+     * @brief Constructs a PluginRegistry.
+     * @param parent Optional QObject parent.
+     */
+    explicit PluginRegistry(QObject* parent = nullptr);
+
+    /**
+     * @brief Destroys the PluginRegistry.
+     */
+    ~PluginRegistry();
+
     /**
      * @brief Registers a new plugin via its handler.
      * @param handler The handler containing metadata and factory logic.
@@ -61,16 +73,6 @@ public:
     QList<core::Plugin*> getPlugins() const;
 
     /**
-     * @brief Returns the global instance of the registry.
-     */
-    static PluginRegistry* instance();
-
-    /**
-     * @brief Destroys the global instance and cleans up all plugins.
-     */
-    static void reset();
-
-    /**
      * @brief Returns the last error encountered by the registry.
      */
     static core::Error error();
@@ -85,17 +87,6 @@ private:
      * @brief Internal check for extension support.
      */
     bool hasExtension(std::type_index type, const QString& extension) const;
-
-    /**
-     * @brief Private constructor for singleton pattern.
-     */
-    PluginRegistry();
-
-    /**
-     * @brief Private destructor.
-     * @note Required for PIMPL cleanup of PluginRegistryPrivate.
-     */
-    ~PluginRegistry();
 
     QScopedPointer<PluginRegistryPrivate> p;  ///< Private implementation.
 };

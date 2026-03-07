@@ -2,25 +2,25 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/effectreader.h>
+#include <flipmansdk/plugins/imageeffectreader.h>
 
 #include <QPointer>
 
 namespace flipman::sdk::plugins {
-EffectReader::EffectReader(QObject* parent)
+ImageEffectReader::ImageEffectReader(QObject* parent)
     : core::Plugin(parent)
 {}
 
-EffectReader::~EffectReader() {}
+ImageEffectReader::~ImageEffectReader() {}
 
 render::ImageEffect
-EffectReader::imageEffect() const
+ImageEffectReader::imageEffect() const
 {
     return render::ImageEffect();
 }
 
 core::Error
-EffectReader::error() const
+ImageEffectReader::error() const
 {
     return core::Error();
 }

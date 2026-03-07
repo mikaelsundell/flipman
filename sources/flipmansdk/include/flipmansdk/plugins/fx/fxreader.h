@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <flipmansdk/plugins/effectreader.h>
+#include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/pluginhandler.h>
 #include <flipmansdk/render/imageeffect.h>
 
@@ -16,11 +16,11 @@ class FxReaderPrivate;
 
 /**
  * @class FxReader
- * @brief EffectReader implementation for .fx-based effect files.
+ * @brief ImageEffectReader implementation for .fx-based effect files.
  *
  * Loads ImageEffect definitions from disk.
  */
-class FLIPMANSDK_EXPORT FxReader : public EffectReader {
+class FLIPMANSDK_EXPORT FxReader : public ImageEffectReader {
 public:
     /**
      * @brief Constructs an FxReader.
