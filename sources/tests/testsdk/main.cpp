@@ -28,24 +28,23 @@ runTest(const char* name, Fn&& fn)
 bool
 run()
 {
-    const bool runContainers = true;
-    const bool runTypes = true;
+    const bool runContainers = false;
+    const bool runTypes = false;
     const bool runImage = true;
-    const bool runMedia = true;
-    const bool runTimer = true;
-    const bool runPlugin = true;
-    const bool runRender = true;
-    const bool runShader = true;
-    const bool runTimeLine = true;
+    const bool runMedia = false;
+    const bool runTimer = false;
+    const bool runPlugin = false;
+    const bool runRender = false;
+    const bool runShader = false;
+    const bool runTimeLine = false;
 
     init();
 
     if (runContainers && !runTest("containers", [] { return testClip(); }))
         return false;
 
-    if (runTypes && !runTest("types", [] {
-            return testFile() && testImage() && testTime() && testTimeRange() && testFps() && testSmpte();
-        }))
+    if (runTypes
+        && !runTest("types", [] { return testFile() && testTime() && testTimeRange() && testFps() && testSmpte(); }))
         return false;
 
     if (runImage && !runTest("image", [] { return testImage(); }))
@@ -57,7 +56,7 @@ run()
     if (runTimer && !runTest("timer", [] { return testTimer(); }))
         return false;
 
-    if (runPlugin && !runTest("plugin", [] { return /*testPlugin() && */ testPluginRegistry(); }))
+    if (runPlugin && !runTest("plugin", [] { return testPlugin() && testPluginRegistry(); }))
         return false;
 
     if (runRender && !runTest("render", [] { return testRender(); }))

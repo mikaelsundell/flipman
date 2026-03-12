@@ -84,7 +84,122 @@ QuicktimeReaderPrivate::init()
 {
 }
 
-void QuicktimeReaderPrivate::loadAsset()
+
+
+static QString
+pixelFormatName(OSType format)
+{
+    switch (format) {
+    case kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange: return "NV12 VideoRange";
+    case kCVPixelFormatType_420YpCbCr8BiPlanarFullRange: return "NV12 FullRange";
+    case kCVPixelFormatType_32BGRA: return "BGRA";
+    case kCVPixelFormatType_422YpCbCr8: return "UYVY 422";
+    default: return QString("OSType(0x%1)").arg(quint32(format), 8, 16, QLatin1Char('0'));
+    }
+}
+
+static bool
+copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& image, core::Error& error)
+{
+    if (!pixelBuffer) {
+        error = core::Error("quicktimereader", "invalid CVPixelBuffer");
+        return false;
+    }
+
+    const OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
+    const int width = int(CVPixelBufferGetWidth(pixelBuffer));
+    const int height = int(CVPixelBufferGetHeight(pixelBuffer));
+    const QRect dataWindow(0, 0, width, height);
+    const QRect displayWindow = dataWindow;
+
+    qDebug() << "QuicktimeReader pixel format:" << pixelFormatName(pixelFormat);
+
+    if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+        || pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
+
+        image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::UInt8), 1);
+        image.setPacking(core::ImageBuffer::Packing::BiPlanar);
+        image.setSubsampling(core::ImageBuffer::Subsampling::CS420);
+
+        quint8* dstY = image.planeData(0);
+        quint8* dstUV = image.planeData(1);
+
+        const quint8* srcY = static_cast<const quint8*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+        const quint8* srcUV = static_cast<const quint8*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1));
+
+        const size_t srcStrideY = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+        const size_t srcStrideUV = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
+
+        const size_t dstStrideY = image.planeStride(0);
+        const size_t dstStrideUV = image.planeStride(1);
+
+        const QSize uvSize = image.planeSize(1);
+
+        for (int y = 0; y < height; ++y) {
+            memcpy(dstY + size_t(y) * dstStrideY,
+                   srcY + size_t(y) * srcStrideY,
+                   std::min(dstStrideY, srcStrideY));
+        }
+
+        for (int y = 0; y < uvSize.height(); ++y) {
+            memcpy(dstUV + size_t(y) * dstStrideUV,
+                   srcUV + size_t(y) * srcStrideUV,
+                   std::min(dstStrideUV, srcStrideUV));
+        }
+
+        return true;
+    }
+
+    if (pixelFormat == kCVPixelFormatType_32BGRA) {
+        image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::UInt8), 4);
+        image.setPacking(core::ImageBuffer::Packing::Interleaved);
+
+        const quint8* src = static_cast<const quint8*>(CVPixelBufferGetBaseAddress(pixelBuffer));
+        const size_t srcStride = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        const size_t dstStride = image.strideSize();
+
+        quint8* dst = image.data();
+        for (int y = 0; y < height; ++y) {
+            memcpy(dst + size_t(y) * dstStride,
+                   src + size_t(y) * srcStride,
+                   std::min(dstStride, srcStride));
+        }
+
+        return true;
+    }
+
+    if (pixelFormat == kCVPixelFormatType_422YpCbCr8) {
+        image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::UInt8), 2);
+        image.setPacking(core::ImageBuffer::Packing::Packed);
+        image.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+
+        const quint8* src = static_cast<const quint8*>(CVPixelBufferGetBaseAddress(pixelBuffer));
+        const size_t srcStride = CVPixelBufferGetBytesPerRow(pixelBuffer);
+        const size_t dstStride = image.strideSize();
+
+        quint8* dst = image.data();
+        for (int y = 0; y < height; ++y) {
+            memcpy(dst + size_t(y) * dstStride,
+                   src + size_t(y) * srcStride,
+                   std::min(dstStride, srcStride));
+        }
+
+        return true;
+    }
+
+    error = core::Error("quicktimereader",
+                        QString("unsupported CVPixelBuffer format: %1").arg(pixelFormatName(pixelFormat)));
+    return false;
+}
+
+
+
+
+
+
+
+void
+QuicktimeReaderPrivate::loadAsset()
 {
     dispatch_group_t group = dispatch_group_create();
     
@@ -112,7 +227,6 @@ void QuicktimeReaderPrivate::loadAsset()
         [d.asset loadMetadataForFormat:format
                      completionHandler:^(NSArray<AVMetadataItem*>* items,
                                          NSError* error) {
-            
             if (!error) {
                 for (AVMetadataItem* item in items) {
                     if (!item.commonKey || !item.value)
@@ -220,7 +334,7 @@ void QuicktimeReaderPrivate::loadAsset()
                             }
                             if (frame) {
                                 frame = av::SmpteTime::convert(frame, startFps, d.fps);
-                                d.startStamp = av::Time::convert(av::Time(frame, d.fps), d.fps);
+                                d.startStamp = av::Time::convert(av::Time::fromFrames(frame, d.fps), d.fps);
                             }
                         }
                         else {
@@ -239,13 +353,25 @@ void QuicktimeReaderPrivate::loadAsset()
             }
             d.timeCodeTrack = timeCodeTrack;
         }
-        d.videoOutput =
+        /*d.videoOutput =
         [[AVAssetReaderTrackOutput alloc]
          initWithTrack:videoTrack
          outputSettings:@{
             (NSString*)kCVPixelBufferPixelFormatTypeKey :
                 @(kCVPixelFormatType_32BGRA)
-        }];
+        }];*/
+            
+        // todo
+            
+        d.videoOutput =
+                [[AVAssetReaderTrackOutput alloc]
+                    initWithTrack:videoTrack
+                   outputSettings:@{
+                       (NSString*)kCVPixelBufferPixelFormatTypeKey :
+                           @(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
+                   }];
+            
+            
         
         [d.reader addOutput:d.videoOutput];
         if (![d.reader startReading]) {
@@ -368,7 +494,31 @@ QuicktimeReaderPrivate::read()
         qWarning() << "warning: " << d.error.message();
         return av::Time();
     }
+
     CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+
+    if (!copyPixelBufferToImageBuffer(imageBuffer, d.image, d.error)) {
+        CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+        CFRelease(sampleBuffer);
+        qWarning() << "warning:" << d.error.message();
+        return av::Time();
+    }
+
+    CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+    CFRelease(sampleBuffer);
+    return d.timeStamp;
+    
+    /*
+    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    if (!imageBuffer) {
+        CFRelease(sampleBuffer);
+        d.error = core::Error(info().name, "CMSampleBuffer has no image buffer");
+        qWarning() << "warning: " << d.error.message();
+        return av::Time();
+    }
+    CVPixelBufferLockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
+    
+    
     
     void* baseAddress = CVPixelBufferGetBaseAddress(imageBuffer);
     size_t width = CVPixelBufferGetWidth(imageBuffer);
@@ -387,7 +537,9 @@ QuicktimeReaderPrivate::read()
     }
     CVPixelBufferUnlockBaseAddress(imageBuffer, kCVPixelBufferLock_ReadOnly);
     CFRelease(sampleBuffer);
-    return d.timeStamp;
+    return d.timeStamp;*/
+    
+    
 }
 
 av::Time
@@ -425,11 +577,16 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
         qWarning() << "warning: " << d.error.message();
         return;
     }
+
     d.videoOutput = [[AVAssetReaderTrackOutput alloc]
                      initWithTrack:d.videoTrack
                      outputSettings:@{
-        (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
+        (NSString*)kCVPixelBufferPixelFormatTypeKey :
+            @(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
     }];
+    
+    
+    
     if (!d.videoOutput) {
         d.error = core::Error(info().name, "unable to create AVAssetReaderTrackOutput");
         qWarning() << "warning: " << d.error.message();
@@ -538,6 +695,12 @@ QuicktimeReader::supportsImage() const
 
 bool
 QuicktimeReader::supportsAudio() const
+{
+    return true;
+}
+
+bool
+QuicktimeReader::supportsConcurrent() const
 {
     return true;
 }

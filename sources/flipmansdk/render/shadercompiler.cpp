@@ -17,7 +17,6 @@ public:
     Data d;
 };
 
-
 QShader
 ShaderCompilerPrivate::compile(const QString& source, QShader::Stage stage, const ShaderCompiler::Options& options)
 {
@@ -52,7 +51,7 @@ ShaderCompilerPrivate::compile(const QString& source, QShader::Stage stage, cons
     QShader shader = baker.bake();
     if (!shader.isValid()) {
         d.error = core::Error("shadercompiler", baker.errorMessage());
-        return {};
+        return QShader();
     }
     return shader;
 }

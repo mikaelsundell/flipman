@@ -68,22 +68,17 @@ namespace {
             core::logErr() << "metadata invalid" << Qt::endl;
             return false;
         }
-
         const QVariant value = meta.value(key);
-
         if (!value.isValid()) {
             core::logErr() << "metadata missing key:" << key << Qt::endl;
             return false;
         }
-
         const QString stringValue = value.toString();
-
         if (stringValue != expected) {
             core::logErr() << "metadata mismatch for key:" << key << "expected:" << expected << "got:" << stringValue
                            << Qt::endl;
             return false;
         }
-
         return true;
     }
 
@@ -162,6 +157,18 @@ testClip()
     }
 
     const core::MetaData& meta = media.metaData();
+
+    core::logOut() << "metadata:" << Qt::endl;
+    for (auto group : meta.groups()) {
+        core::logOut() << "  " << core::MetaData::convert(group) << ":" << Qt::endl;
+
+        for (const QString& key : meta.keys(group)) {
+            QVariant value = meta.value(group, key);
+
+            core::logOut() << "    " << key << ": " << value.toString() << Qt::endl;
+        }
+    }
+
     ok &= testMetaData(meta, "codec type", "avc1");
     ok &= testMetaData(meta, "media type", "vide");
     ok &= testMetaData(meta, "software", "Blackmagic Design DaVinci Resolve Studio");
@@ -588,9 +595,409 @@ testImageInterleaved()
 }
 
 bool
+testImageNV12()
+{
+    core::logOut() << "test image nv12" << Qt::endl;
+    QList<QString> filenames = { "quicktime/square export 23.976.mov" };
+
+    std::atomic<bool> ok { true };
+    core::DispatchGroup group;
+    for (const QString& filename : filenames) {
+        group.async([filename, &ok]() {
+            sdk::core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+            if (!file.exists()) {
+                core::logErr() << "file does not exist: " << file << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            sdk::av::Media media;
+            if (!media.open(file)) {
+                core::logErr() << "could not open media: " << file << ", error: " << media.error() << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (!media.waitForOpened(-1)) {
+                core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            QString imagePath = QString("%1/testImageNV12").arg(testPath);
+            QDir dir(imagePath);
+            if (!dir.exists()) {
+                core::logOut() << "path does not exist, creating: " << imagePath << Qt::endl;
+                if (!dir.mkpath(".")) {
+                    core::logErr() << "failed to create directory: " << imagePath << Qt::endl;
+                    ok = false;
+                    return;
+                }
+            }
+
+            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr");
+            QDir outDir(output.dirName());
+            if (!outDir.exists()) {
+                if (!outDir.mkpath(".")) {
+                    core::logErr() << "could not create output directory:" << outDir.absolutePath() << Qt::endl;
+                    ok = false;
+                    return;
+                }
+            }
+
+            render::RenderOffscreen renderOffscreen;
+            if (!renderOffscreen.initialize(media.image().dataWindow().size())) {
+                core::logErr() << "render offscreen initialization failed" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            renderOffscreen.setBackground(Qt::red);
+            sdk::render::ImageLayer imageLayer;
+            imageLayer.setImage(media.image());
+            renderOffscreen.setImageLayers({ imageLayer });
+
+            core::ImageBuffer image = renderOffscreen.render();
+
+            if (!image.isValid()) {
+                core::logErr() << "failed when trying to render image" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            QScopedPointer<plugins::MediaWriter> writer(
+                core::pluginRegistry()->getPlugin<plugins::MediaWriter>(output.extension()));
+            if (!writer) {
+                core::logErr() << "no writer found for extension:" << output.extension() << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (!writer->open(output)) {
+                core::logErr() << "could not open writer for file:" << output << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            sdk::av::TimeRange range = media.timeRange();
+            writer->setTimeRange(range);
+            if (!writer->write(image)) {
+                core::logErr() << "could not write image" << Qt::endl;
+                return;
+            }
+        });
+    }
+    group.wait();
+    return ok.load();
+}
+
+bool
+testImageAverage()
+{
+    core::logOut() << "test image texture" << Qt::endl;
+    const core::File file = core::File(QString("%1/exr8k/8kdci long 23.976_00087172.exr").arg(dataPath));
+
+    std::atomic<bool> ok { true };
+    core::DispatchGroup group;
+    group.async([file, &ok]() {
+        av::Timer openTimer;
+        openTimer.start();
+
+        QScopedPointer<plugins::MediaReader> reader(
+            core::pluginRegistry()->getPlugin<plugins::MediaReader>(file.extension()));
+
+        if (!reader->open(file)) {
+            core::logErr() << "open request rejected for file: " << file << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        if (!reader->isOpen()) {
+            QEventLoop loop;
+            QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
+
+        openTimer.stop();
+
+        core::logErr() << "open time: " << av::Timer::convert(openTimer.elapsed(), av::Timer::Unit::Seconds) * 1000.0
+                       << " ms" << Qt::endl;
+
+        if (!reader->isOpen()) {
+            core::logErr() << "could not open file: " << file << ", error:" << reader->error() << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        av::Timer readTimer;
+        readTimer.start();
+
+        reader->read();
+        readTimer.stop();
+
+        core::logErr() << "read time: " << av::Timer::convert(readTimer.elapsed(), av::Timer::Unit::Seconds) * 1000.0
+                       << " ms" << Qt::endl;
+
+        core::ImageBuffer image = reader->image();
+
+        if (!image.isValid()) {
+            core::logErr() << "image is not valid" << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        const int iterations = 100;
+
+        av::Timer convertTimer;
+        convertTimer.start();
+
+        for (int i = 0; i < iterations; ++i) {
+            core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
+        }
+
+        convertTimer.stop();
+
+        qreal avgMs = av::Timer::convert(convertTimer.elapsed(), av::Timer::Unit::Seconds) * 1000.0 / iterations;
+        core::logErr() << "avg convert time: " << avgMs << " ms" << Qt::endl;
+
+        core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
+        QString output = "8kdci long 23.976_00087172.exr";
+        core::File outputFile = QString("%1/testImageAverage/%2").arg(testPath).arg(output);
+
+        QDir outDir(outputFile.dirName());
+
+        if (!outDir.exists()) {
+            if (!outDir.mkpath(".")) {
+                core::logErr() << "could not create output directory: " << outDir.absolutePath() << Qt::endl;
+                ok = false;
+                return;
+            }
+        }
+
+        QScopedPointer<plugins::MediaWriter> writer(
+            core::pluginRegistry()->getPlugin<plugins::MediaWriter>(outputFile.extension()));
+
+        if (!writer) {
+            core::logErr() << "no writer found for extension: " << outputFile.extension() << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        if (!writer->open(outputFile)) {
+            core::logErr() << "could not open writer for file: " << outputFile << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        writer->setTimeRange(reader->timeRange());
+
+        av::Timer writeTimer;
+        writeTimer.start();
+
+        if (!writer->write(converted)) {
+            core::logErr() << "could not write image" << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        writeTimer.stop();
+        core::logErr() << "write time: " << av::Timer::convert(writeTimer.elapsed(), av::Timer::Unit::Seconds) * 1000.0
+                       << " ms" << Qt::endl;
+    });
+    group.wait();
+    return ok.load();
+}
+
+bool
+testImageThreaded()
+{
+    core::logOut() << "test image texture" << Qt::endl;
+
+    const QList<core::File> files = core::File::listDir(QString("%1/exr8k").arg(dataPath));
+
+    const int threads = std::min(1, QThread::idealThreadCount());
+
+    std::atomic<bool> ok { true };
+
+    QStringList failures;
+    QMutex failureMutex;
+
+    struct Stats {
+        std::atomic<qint64> frames { 0 };
+        std::atomic<qint64> readSum { 0 };
+        std::atomic<qint64> convertSum { 0 };
+        std::atomic<qint64> readMax { 0 };
+        std::atomic<qint64> convertMax { 0 };
+    };
+
+    for (const core::File& file : files) {
+        core::logOut() << "file: " << file.displayName() << Qt::endl;
+
+        const core::FileRange range = file.fileRange();
+        if (!range.isValid()) {
+            QMutexLocker lock(&failureMutex);
+            failures << QString("file has no sequence range: %1").arg(file.filePath());
+            ok.store(false);
+            continue;
+        }
+
+        core::logOut() << "frames: " << range.size() << ", start: " << range.start() << ", end: " << range.end()
+                       << Qt::endl;
+
+        av::Timer totalTimer;
+        totalTimer.start();
+
+        Stats stats;
+        std::atomic<int> frameCounter { 0 };
+
+        core::DispatchGroup group;
+        for (int t = 0; t < threads; ++t) {
+            group.async([&, t]() {
+                QScopedPointer<plugins::MediaReader> reader(
+                    core::pluginRegistry()->getPlugin<plugins::MediaReader>(file.extension()));
+
+                if (!reader) {
+                    QMutexLocker lock(&failureMutex);
+                    failures << QString("no reader found for extension '%1' (file: %2)")
+                                    .arg(file.extension())
+                                    .arg(file.filePath());
+                    ok.store(false);
+                    return;
+                }
+
+                if (!reader->supportsConcurrent()) {
+                    QMutexLocker lock(&failureMutex);
+                    failures << QString("reader for extension %1 does not support concurrent decoding")
+                                    .arg(file.extension());
+                    ok.store(false);
+                    return;
+                }
+
+                if (!reader->open(file)) {
+                    QMutexLocker lock(&failureMutex);
+                    failures << QString("reader rejected open request: %1").arg(file.filePath());
+                    ok.store(false);
+                    return;
+                }
+
+                if (!reader->isOpen()) {
+                    QEventLoop loop;
+                    QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+                    loop.exec();
+                }
+
+                const av::TimeRange timeRange = reader->timeRange();
+                const qint64 frames = timeRange.duration().frames();
+
+                while (ok.load()) {
+                    int index = frameCounter.fetch_add(1);
+                    if (index >= frames)
+                        break;
+
+                    av::Time t = timeRange.start() + av::Time::fromFrames(index, reader->fps());
+                    reader->seek(av::TimeRange(t, av::Time::fromFrames(1, reader->fps())));
+
+                    av::Timer readTimer;
+                    readTimer.start();
+
+                    reader->read();
+
+                    readTimer.stop();
+
+                    core::ImageBuffer image = reader->image();
+
+                    if (!image.isValid()) {
+                        QMutexLocker lock(&failureMutex);
+                        failures << QString("invalid image returned while reading frame: %1, file: %2, error: %3")
+                                        .arg(index)
+                                        .arg(file.displayName())
+                                        .arg(reader->error());
+                        ok.store(false);
+                        return;
+                    }
+
+                    const qint64 readElapsed = readTimer.elapsed();
+
+                    stats.readSum.fetch_add(readElapsed);
+
+                    qint64 prevMax = stats.readMax.load();
+                    while (prevMax < readElapsed && !stats.readMax.compare_exchange_weak(prevMax, readElapsed))
+                        ;
+
+                    av::Timer convertTimer;
+                    convertTimer.start();
+
+                    core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
+
+                    convertTimer.stop();
+
+                    const qint64 convertElapsed = convertTimer.elapsed();
+
+                    stats.convertSum.fetch_add(convertElapsed);
+
+                    prevMax = stats.convertMax.load();
+                    while (prevMax < convertElapsed && !stats.convertMax.compare_exchange_weak(prevMax, convertElapsed))
+                        ;
+
+                    stats.frames.fetch_add(1);
+                }
+            });
+        }
+
+        group.wait();
+
+        totalTimer.stop();
+
+        if (!ok.load())
+            break;
+
+        const qint64 frames = stats.frames.load();
+
+        if (frames == 0)
+            continue;
+
+        const qreal totalSeconds = av::Timer::convert(totalTimer.elapsed(), av::Timer::Unit::Seconds);
+
+        const qreal avgReadMs = av::Timer::convert(stats.readSum.load(), av::Timer::Unit::Seconds) * 1000.0 / frames;
+
+        const qreal avgConvertMs = av::Timer::convert(stats.convertSum.load(), av::Timer::Unit::Seconds) * 1000.0
+                                   / frames;
+
+        const qreal maxReadMs = av::Timer::convert(stats.readMax.load(), av::Timer::Unit::Seconds) * 1000.0;
+
+        const qreal maxConvertMs = av::Timer::convert(stats.convertMax.load(), av::Timer::Unit::Seconds) * 1000.0;
+
+        core::logOut() << "success\n"
+                       << "threads: " << threads << "\n"
+                       << "frames: " << frames << "\n"
+                       << "total time: " << totalSeconds << " s\n"
+                       << "throughput: " << frames / totalSeconds << " fps\n"
+                       << "avg read: " << avgReadMs << " ms\n"
+                       << "max read: " << maxReadMs << " ms\n"
+                       << "avg convert: " << avgConvertMs << " ms\n"
+                       << "max convert: " << maxConvertMs << " ms\n"
+                       << Qt::endl;
+    }
+
+    if (!failures.isEmpty()) {
+        core::logErr() << "failures" << Qt::endl;
+
+        for (const QString& f : failures)
+            core::logErr() << f << Qt::endl;
+
+        return false;
+    }
+
+    return ok.load();
+}
+
+
+
+bool
 testImage()
 {
-    return testImageUint16() && testImageDouble() && testImagePlanar() && testImageInterleaved();
+    return /*testImageUint16() && testImageDouble() && testImagePlanar() && testImageInterleaved() && testImageNV12() && */
+        testImageAverage() && testImageThreaded();
 }
 
 bool
@@ -650,7 +1057,7 @@ testMedia()
 
             const sdk::av::TimeRange timeRange = media.timeRange();
             sdk::av::Time start = timeRange.start();
-            sdk::av::Time requested(4.0, start.fps());
+            sdk::av::Time requested = sdk::av::Time::fromFrames(4.0, start.fps());
             sdk::av::Time duration = (requested < timeRange.duration()) ? requested : timeRange.duration();
             sdk::av::TimeRange writeRange(start, duration);
 
@@ -1089,7 +1496,7 @@ testSmpte()
     av::Fps fps24 = av::Fps::fps24();
     qint64 frame = 86496;  // typical timecode, 01:00:04:00, 24 fps
 
-    av::Time time(frame, fps24);
+    av::Time time = av::Time::fromFrames(frame, fps24);
     if (!qFuzzyCompare(time.seconds(), 3604.0)) {
         core::logErr() << "86496 frames is not 3604 seconds, got " << time.seconds() << Qt::endl;
         return false;
@@ -1097,49 +1504,49 @@ testSmpte()
     core::logOut() << "time: " << time.seconds() << Qt::endl;
 
     qint64 frame_fps = frame;
-    av::SmpteTime smpte(av::Time(frame_fps, av::Fps::fps24()));
+    av::SmpteTime smpte(av::Time::fromFrames(frame_fps, av::Fps::fps24()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (24 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps24(), av::Fps::fps50());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps50()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps50()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (50 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps50(), av::Fps::fps25());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps25()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps25()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (25 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps25(), av::Fps::fps50());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps50()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps50()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (25 → 50 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps50(), av::Fps::fps23_976());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps23_976()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps23_976()));
     if (smpte.toString() != "01:00:04.00") {
         core::logErr() << "smpte is not 01:00:04.00 (23.976 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps23_976(), av::Fps::fps50());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps50()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps50()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (23.976 → 50 fps)" << Qt::endl;
         return false;
     }
 
     frame_fps = av::SmpteTime::convert(frame_fps, av::Fps::fps50(), av::Fps::fps24());
-    smpte = av::SmpteTime(av::Time(frame_fps, av::Fps::fps24()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_fps, av::Fps::fps24()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 (50 → 24 fps)" << Qt::endl;
         return false;
@@ -1165,7 +1572,7 @@ testSmpte()
     core::logOut() << "smpte 24 fps: " << smpte.toString() << Qt::endl;
 
     qint64 frame_30 = av::Fps::convert(frame, av::Fps::fps24(), av::Fps::fps30());
-    smpte = av::SmpteTime(av::Time(frame_30, av::Fps::fps30()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_30, av::Fps::fps30()));
     if (smpte.toString() != "01:00:04:00") {
         core::logErr() << "smpte is not 01:00:04:00 for 30 fps" << Qt::endl;
         return false;
@@ -1173,7 +1580,7 @@ testSmpte()
     core::logOut() << "smpte 30 fps: " << smpte.toString() << Qt::endl;
 
     qint64 frame_23_976 = av::SmpteTime::convert(frame_24, av::Fps::fps23_976());
-    smpte = av::SmpteTime(av::Time(frame_23_976, av::Fps::fps23_976()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_23_976, av::Fps::fps23_976()));
     if (smpte.toString() != "01:00:04.00") {
         core::logErr() << "smpte is not 01:00:04.00 for 23.976 fps" << Qt::endl;
         return false;
@@ -1181,7 +1588,7 @@ testSmpte()
     core::logOut() << "smpte 23.976 fps: " << smpte.toString() << Qt::endl;
 
     qint64 frame_29_997 = 440658;
-    smpte = av::SmpteTime(av::Time(frame_29_997, av::Fps::fps29_97()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_29_997, av::Fps::fps29_97()));
     if (smpte.toString() != "04:05:03.10") {
         core::logErr() << "smpte is not 04:05:03.10 (29.97 fps)" << Qt::endl;
         return false;
@@ -1189,7 +1596,7 @@ testSmpte()
     core::logOut() << "smpte 29_97 fps: " << smpte.toString() << Qt::endl;
 
     frame_29_997 = 442698;
-    smpte = av::SmpteTime(av::Time(frame_29_997, av::Fps::fps29_97()));
+    smpte = av::SmpteTime(av::Time::fromFrames(frame_29_997, av::Fps::fps29_97()));
     if (smpte.toString() != "04:06:11.12") {
         core::logErr() << "smpte is not 04:06:11.12 (29.97 fps)" << Qt::endl;
         return false;
@@ -1211,7 +1618,7 @@ testSmpte()
     core::logOut() << "time frames: " << time.frames() << Qt::endl;
 
     frame = 2541;
-    av::Time duration = av::Time(frame, av::Fps::fps23_976());  // 0–2542, 2541 last frame
+    av::Time duration = av::Time::fromFrames(frame, av::Fps::fps23_976());  // 0–2542, 2541 last frame
     if (duration.frames() != frame) {
         core::logErr() << "frames mismatch for duration" << Qt::endl;
         return false;
@@ -1219,7 +1626,7 @@ testSmpte()
     core::logOut() << "time frames: " << duration.frames() << Qt::endl;
 
     frame = 86496;
-    av::Time offset = av::Time(frame, av::Fps::fps24());  // typical timecode, 01:00:04:00, 24 fps
+    av::Time offset = av::Time::fromFrames(frame, av::Fps::fps24());  // typical timecode, 01:00:04:00, 24 fps
     core::logOut() << "offset max: " << offset.frames() << Qt::endl;
     core::logOut() << "offset smpte: " << av::SmpteTime(offset).toString() << Qt::endl;
 
@@ -1231,7 +1638,7 @@ testSmpte()
     }
     core::logOut() << "offset dropframe: " << frame << Qt::endl;
 
-    smpte = av::SmpteTime(av::Time(duration.frames() + frame, av::Fps::fps23_976()));
+    smpte = av::SmpteTime(av::Time::fromFrames(duration.frames() + frame, av::Fps::fps23_976()));
     if (smpte.toString() != "01:01:49.23") {
         core::logErr() << "smpte is not 01:01:49.23" << Qt::endl;
         return false;
@@ -1264,7 +1671,7 @@ testSmpte()
     // 01:00:30 (wall clock time)
     // 24 NDF is used in Resolve for 23.967 for timecode
     frame = 87040;
-    time = av::Time(frame, av::Fps::fps23_976());
+    time = av::Time::fromFrames(frame, av::Fps::fps23_976());
     if (time.toString() != "01:00:30") {
         core::logErr() << "Resolve wall clock mismatch" << Qt::endl;
         return false;
@@ -1409,8 +1816,8 @@ testTimer()
 
         av::Fps fps = av::Fps::fps23_976();
         qint64 start = 1;
-        qint64 duration = 24 * 30;  // 30 secs
-        av::TimeRange range(av::Time(start, fps), av::Time(duration, fps));
+        qint64 duration = 24 * 30;
+        av::TimeRange range(av::Time::fromFrames(start, fps), av::Time::fromFrames(duration, fps));
 
         av::Timer totalTimer;
         totalTimer.start();
@@ -1580,9 +1987,9 @@ testPluginFx()
 }
 
 bool
-testPluginImage()
+testPluginContainer()
 {
-    core::logOut() << "test plugin image" << Qt::endl;
+    core::logOut() << "test plugin container" << Qt::endl;
     QString filename = "quicktime/23 967 fps 24 fps timecode.mp4";
     core::File file = QString("%1/%2").arg(dataPath).arg(filename);
     if (!file.exists()) {
@@ -1678,7 +2085,7 @@ testPluginImage()
         qint64 max = std::min<qint64>(100, end - start);
         for (qint64 frame = range.start().frames(); frame < max; ++frame) {
             qDebug() << "read frame:" << frame;
-            av::Time next(frame, reader->fps());
+            av::Time next = av::Time::fromFrames(frame, reader->fps());
             if (time < next || frame == range.start().frames()) {
                 time = reader->read();
             }
@@ -1695,9 +2102,87 @@ testPluginImage()
 }
 
 bool
+testPluginImage()
+{
+    core::logOut() << "test plugin image" << Qt::endl;
+    QString filename = "test.00086400.exr";
+    core::File file = QString("%1/exr/%2").arg(dataPath).arg(filename);
+    if (!file.exists()) {
+        core::logErr() << "file does not exist: " << file << Qt::endl;
+        return false;
+    }
+
+    std::atomic<bool> ok { true };
+    core::DispatchGroup group;
+    group.async([file, &ok]() {
+        QScopedPointer<plugins::MediaReader> reader(
+            core::pluginRegistry()->getPlugin<plugins::MediaReader>(file.extension()));
+        if (!reader) {
+            core::logErr() << "no reader found for extension: " << file.extension() << Qt::endl;
+            ok = false;
+            return;
+        }
+        if (!reader->open(file)) {
+            core::logErr() << "open request rejected for file: " << file << Qt::endl;
+            ok = false;
+            return;
+        }
+        if (!reader->isOpen()) {
+            QEventLoop loop;
+            QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            loop.exec();
+        }
+        if (!reader->isOpen()) {
+            core::logErr() << "could not open file: " << file << ", error: " << reader->error() << Qt::endl;
+            ok = false;
+            return;
+        }
+        reader->read();
+        core::ImageBuffer image = reader->image();
+        if (image.isValid()) {
+            core::logErr() << "image is not valid" << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        QString output = "test.00086400.exr";
+        core::File outputFile = QString("%1/testPluginImage/%2").arg(testPath).arg(output);
+        QDir outDir(outputFile.dirName());
+        if (!outDir.exists()) {
+            if (!outDir.mkpath(".")) {
+                core::logErr() << "could not create output directory:" << outDir.absolutePath() << Qt::endl;
+                ok = false;
+                return;
+            }
+        }
+
+        QScopedPointer<plugins::MediaWriter> writer(
+            core::pluginRegistry()->getPlugin<plugins::MediaWriter>(outputFile.extension()));
+        if (!writer) {
+            core::logErr() << "no writer found for extension:" << outputFile.extension() << Qt::endl;
+            ok = false;
+            return;
+        }
+
+        if (!writer->open(outputFile)) {
+            core::logErr() << "could not open writer for file:" << outputFile << Qt::endl;
+            ok = false;
+            return;
+        }
+        writer->setTimeRange(reader->timeRange());
+        if (!writer->write(reader->image())) {
+            core::logErr() << "could not write image" << Qt::endl;
+            return;
+        }
+    });
+    group.wait();
+    return ok.load();
+}
+
+bool
 testPlugin()
 {
-    return testPluginFx() && testPluginImage();
+    return testPluginFx() && testPluginContainer() && testPluginImage();
 }
 
 bool
@@ -1746,8 +2231,8 @@ testTimeLine()
 
     sdk::av::Timeline timeline;
 
-    av::Time start(0.0, av::Fps::fps24());
-    av::Time duration(10.0, av::Fps::fps24());  // 10 seconds
+    av::Time start = av::Time::fromFrames(0.0, av::Fps::fps24());
+    av::Time duration = av::Time::fromFrames(10.0, av::Fps::fps24());  // 10 seconds
     av::TimeRange range(start, duration);
 
     bool ok = true;

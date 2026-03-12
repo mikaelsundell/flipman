@@ -5,6 +5,7 @@
 #include <flipmansdk/plugins/fx/fxreader.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/mediawriter.h>
+#include <flipmansdk/plugins/oiio/oiioreader.h>
 #include <flipmansdk/plugins/oiio/oiiowriter.h>
 #include <flipmansdk/plugins/pluginregistry.h>
 #include <flipmansdk/plugins/qt/qtwriter.h>
@@ -29,6 +30,7 @@ PluginRegistry::PluginRegistry(QObject* parent)
 {
     registerPlugin(FxReader::handler());
     registerPlugin(QuicktimeReader::handler());
+    registerPlugin(OIIOReader::handler());
     registerPlugin(OIIOWriter::handler());
     registerPlugin(QtWriter::handler());
 }
@@ -44,10 +46,17 @@ PluginRegistry::registerPlugin(const PluginHandler& handler)
 core::Plugin*
 PluginRegistry::getPlugin(std::type_index type, const QString& extension) const
 {
-    for (PluginHandler& handler : p->d.plugins) {
-        if (handler.pluginfactory.type == type && handler.pluginfactory.extensions().contains(extension)) {
-            return handler.pluginfactory.creator();
+    for (const PluginHandler& handler : p->d.plugins) {
+        const std::type_index pluginType = handler.pluginfactory.type;
+        const QStringList exts = handler.pluginfactory.extensions();
+        if (pluginType != type) {
+            continue;
         }
+
+        if (!exts.contains(extension)) {
+            continue;
+        }
+        return handler.pluginfactory.creator();
     }
     return nullptr;
 }

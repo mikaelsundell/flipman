@@ -11,27 +11,27 @@
 
 namespace flipman::sdk::plugins {
 
-class QuicktimeReaderPrivate;
+class OIIOReaderPrivate;
 
 /**
- * @class QuicktimeReader
- * @brief MediaReader implementation for QuickTime-compatible containers.
+ * @class OIIOReader
+ * @brief MediaReader implementation using OIIO facilities.
  *
  * Provides decoding of image and audio streams.
  */
-class QuicktimeReader : public MediaReader {
+class OIIOReader : public MediaReader {
 public:
     /**
-     * @brief Constructs a QuicktimeReader.
+     * @brief Constructs a OIIOReader.
      *
      * @param parent Optional QObject parent.
      */
-    explicit QuicktimeReader(QObject* parent = nullptr);
+    explicit OIIOReader(QObject* parent = nullptr);
 
     /**
-     * @brief Destroys the QuicktimeReader.
+     * @brief Destroys the OIIOReader.
      */
-    ~QuicktimeReader() override;
+    ~OIIOReader() override;
 
     /**
      * @brief Opens a media file.
@@ -141,7 +141,7 @@ public:
     static plugins::PluginHandler handler();
 
 private:
-    QScopedPointer<QuicktimeReaderPrivate> p;
+    QScopedPointer<OIIOReaderPrivate> p;
 };
 
 }  // namespace flipman::sdk::plugins

@@ -96,6 +96,12 @@ public:
     virtual bool supportsAudio() const = 0;
 
     /**
+     * @brief Returns true if multiple reader instances may decode frames
+     * concurrently from the same media source.
+     */
+    virtual bool supportsConcurrent() const = 0;
+
+    /**
      * @brief Returns supported file extensions.
      */
     virtual QList<QString> extensions() const = 0;

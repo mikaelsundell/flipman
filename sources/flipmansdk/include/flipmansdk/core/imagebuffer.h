@@ -218,6 +218,8 @@ public:
      */
     static ImageBuffer convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels);
 
+    static ImageBuffer convert(const ImageBuffer& imageBuffer, int channels);
+
 private:
     QExplicitlySharedDataPointer<ImageBufferPrivate> p;
 };

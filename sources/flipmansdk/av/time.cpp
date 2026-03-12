@@ -78,20 +78,6 @@ Time::Time(qint64 ticks, qint32 timeScale, const Fps& fps)
     p->d.fps = fps;
 }
 
-Time::Time(qint64 frame, const Fps& fps)
-    : p(new TimePrivate())
-{
-    p->d.fps = fps;
-    p->d.ticks = ticks(frame);
-}
-
-Time::Time(qreal seconds, const Fps& fps)
-    : p(new TimePrivate())
-{
-    p->d.fps = fps;
-    p->d.ticks = p->d.timeScale * seconds;
-}
-
 Time::Time(const Time& other, qint64 ticks)
     : p(other.p)
 {
@@ -282,6 +268,32 @@ Time::operator-(const Time& other) const
 }
 
 Time::operator double() const { return seconds(); }
+
+Time
+Time::zero(const Fps& fps)
+{
+    return fromFrames(0, fps);
+}
+
+Time
+Time::fromFrames(qint64 frame, const Fps& fps)
+{
+    Time time;
+    time.p->d.fps = fps;
+    time.p->d.timeScale = 24000;
+    time.p->d.ticks = time.p->ticks(frame);
+    return time;
+}
+
+Time
+Time::fromSeconds(qreal seconds, const Fps& fps)
+{
+    Time time;
+    time.p->d.fps = fps;
+    time.p->d.timeScale = 24000;
+    time.p->d.ticks = time.p->d.timeScale * seconds;
+    return time;
+}
 
 Time
 Time::convert(const Time& time, const Fps& to)

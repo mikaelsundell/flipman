@@ -66,11 +66,18 @@ public:
     ~RenderEngine() override;
 
     /**
+     * @brief Returns whether the render engine has been initialized.
+     *
+     * @return @c true if GPU resources are ready for rendering, otherwise @c false.
+     */
+    bool initialized() const;
+
+    /**
      * @brief Initializes GPU resources for the given context.
      *
      * Safe to call multiple times.
      */
-    void initialize(const Context& context);
+    bool initialize(const Context& context);
 
     /**
      * @brief Records draw commands for active layers.
@@ -109,6 +116,11 @@ public:
     void setImageLayers(const QList<ImageLayer>& imageLayers);
 
     ///@}
+
+    /**
+     * @brief Returns generation error, if any.
+     */
+    core::Error error() const;
 
     /**
      * @brief Returns true if GPU resources are ready.

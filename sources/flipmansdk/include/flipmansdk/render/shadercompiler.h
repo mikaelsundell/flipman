@@ -39,10 +39,10 @@ public:
          */
         Options()
             : glslVersion(440)
-            , generateSpirv(true)
-            , generateMsl(true)
-            , generateHlsl(true)
-            , optimize(true)
+            , generateSpirv(false)
+            , generateMsl(false)
+            , generateHlsl(false)
+            , optimize(false)
         {}
 
         int glslVersion;     ///< GLSL version used as source input.

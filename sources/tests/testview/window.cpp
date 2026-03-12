@@ -5,8 +5,11 @@
 #include "window.h"
 
 #include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
 #include <flipmansdk/core/environment.h>
 #include <flipmansdk/core/log.h>
+#include <flipmansdk/plugins/imageeffectreader.h>
+#include <flipmansdk/plugins/pluginregistry.h>
 #include <flipmansdk/widgets/viewer.h>
 
 #include <QBoxLayout>
@@ -42,22 +45,29 @@ WindowPrivate::init()
 
     d.inputFile = args.at(1);
 
-    const QString dataPath = "../../../data";
-    const QString filename = "square export 23.976 512x512.mov";
+    const QString dataPath = sdk::core::Environment::resourcePath("../../../data");
 
-    sdk::core::File file = QString("%1/quicktime/%2").arg(sdk::core::Environment::resourcePath(dataPath)).arg(filename);
+    //const QString filename = "square export 23.976 512x512.mov";
+    //sdk::core::File file = QString("%1/quicktime/%2").arg(sdk::core::Environment::resourcePath(dataPath)).arg(filename);
+
+    const QString filename = "23.967.00086400.exr";
+    sdk::core::File file = QString("%1/exr/%2").arg(dataPath).arg(filename);
+
 
     if (!file.exists())
-        qFatal("Media file does not exist.");
+        qFatal("file does not exist");
 
     sdk::av::Media media;
     if (!media.open(file) || !media.waitForOpened())
-        qFatal("Failed to open media.");
+        qFatal("could not open media");
 
-    if (media.error().hasError())
-        qFatal("Media error.");
+    if (!media.isValid())
+        qFatal("error open media");
 
     media.read();
+    sdk::core::ImageBuffer image = media.image();
+    if (!image.isValid())
+        qFatal("image not valid");
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -106,7 +116,7 @@ WindowPrivate::init()
     frameLayout->setContentsMargins(0, 0, 0, 0);
 
     d.viewer = new sdk::widgets::Viewer();
-    d.viewer->setResolution(QSize(800, 512));
+    d.viewer->setResolution(QSize(1920, 1080));
 
     frameLayout->addWidget(d.viewer);
     mainLayout->addWidget(viewerFrame);
@@ -120,7 +130,29 @@ WindowPrivate::init()
     mainLayout->addWidget(timelineSlider);
 
     sdk::render::ImageLayer imageLayer;
-    imageLayer.setImage(media.image());
+    imageLayer.setImage(image);
+
+    QString shader = "fx/warm.fx";
+    sdk::core::File shaderFile = QString("%1/%2").arg(dataPath).arg(shader);
+    if (!shaderFile.exists())
+        qFatal("fx file does not exist");
+
+    QScopedPointer<sdk::plugins::ImageEffectReader> reader(
+        sdk::core::pluginRegistry()->getPlugin<sdk::plugins::ImageEffectReader>(shaderFile.extension()));
+
+    if (!reader)
+        qFatal("no reader for fx extension");
+
+    if (!reader->open(shaderFile))
+        qFatal("could not open reader for fx");
+
+    sdk::render::ImageEffect imageEffect = reader->imageEffect();
+    if (!imageEffect.isValid())
+        qFatal("image effect is not valid");
+
+    qDebug().noquote() << "shaderCode: " << imageEffect.shaderDefinition().shaderCode();
+
+    imageLayer.setImageEffect(imageEffect);
     d.viewer->setImageLayers({ imageLayer });
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
