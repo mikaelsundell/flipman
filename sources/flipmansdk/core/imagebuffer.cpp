@@ -496,7 +496,7 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
              && "ImageBuffer::convert does not support chroma subsampled images "
                 "(CS420/CS422). Convert to full-resolution interleaved format before calling.");
 
-    if (imagebuffer.imageFormat().type() == type) {
+    if (imagebuffer.imageFormat().type() == type && imagebuffer.channels() == channels) {
         ImageBuffer copy = imagebuffer;
         return copy.detach();
     }
@@ -533,4 +533,107 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
     }
     return copy;
 }
+
+ImageBuffer
+ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
+{
+    Q_ASSERT(imageBuffer.p->d.packing == Packing::Interleaved);
+
+    if (imageBuffer.channels() == channels)
+        return imageBuffer;
+
+    const int width = imageBuffer.dataWindow().width();
+    const int height = imageBuffer.dataWindow().height();
+
+    ImageBuffer dst(imageBuffer.dataWindow(), imageBuffer.displayWindow(), imageBuffer.imageFormat(), channels);
+
+    const int srcChannels = imageBuffer.channels();
+    const size_t compSize = imageBuffer.imageFormat().size();
+    const auto type = imageBuffer.imageFormat().type();
+
+    const quint8* srcBase = imageBuffer.data();
+    quint8* dstBase = dst.data();
+
+    /*
+        ---------------------------------------------------------
+        Fast path: RGB -> RGBA (most common case)
+        ---------------------------------------------------------
+    */
+
+    if (srcChannels == 3 && channels == 4) {
+        if (type == ImageFormat::Half) {
+            const half alpha = half(1.0f);
+
+            for (int y = 0; y < height; ++y) {
+                const half* s = reinterpret_cast<const half*>(srcBase + y * imageBuffer.strideSize());
+                half* d = reinterpret_cast<half*>(dstBase + y * dst.strideSize());
+
+                for (int x = 0; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = alpha;
+
+                    s += 3;
+                    d += 4;
+                }
+            }
+
+            return dst;
+        }
+
+        if (type == ImageFormat::Float) {
+            const float alpha = 1.0f;
+
+            for (int y = 0; y < height; ++y) {
+                const float* s = reinterpret_cast<const float*>(srcBase + y * imageBuffer.strideSize());
+                float* d = reinterpret_cast<float*>(dstBase + y * dst.strideSize());
+
+                for (int x = 0; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = alpha;
+
+                    s += 3;
+                    d += 4;
+                }
+            }
+
+            return dst;
+        }
+    }
+
+    /*
+        ---------------------------------------------------------
+        Generic fallback (handles all channel combinations)
+        ---------------------------------------------------------
+    */
+
+    const quint64 alpha = std::numeric_limits<quint64>::max();
+
+    for (int y = 0; y < height; ++y) {
+        const quint8* s = srcBase + y * imageBuffer.strideSize();
+        quint8* d = dstBase + y * dst.strideSize();
+
+        for (int x = 0; x < width; ++x) {
+            memcpy(d, s, srcChannels * compSize);
+
+            if (channels > srcChannels) {
+                quint8* a = d + srcChannels * compSize;
+
+                for (int c = srcChannels; c < channels; ++c)
+                    memcpy(a + (c - srcChannels) * compSize, &alpha, compSize);
+            }
+
+            s += srcChannels * compSize;
+            d += channels * compSize;
+        }
+    }
+
+    return dst;
+}
+
+
+
 }  // namespace flipman::sdk::core

@@ -75,7 +75,7 @@ void
 ImageFormat::reset()
 {
     p.detach();
-    p->d.type = ImageFormat::None;
+    p->d.type = ImageFormat::Unknown;
 }
 
 ImageFormat&

@@ -257,9 +257,14 @@ ShaderComposerPrivate::fromFile(const core::File& file, const ShaderComposer::Op
         d.error = core::Error("shaderinterpreter", "failed to open shader file: " + file.filePath());
         return {};
     }
-    QString source = QString::fromUtf8(filePath.readAll());
+    QByteArray bytes = filePath.readAll();
+    QStringDecoder decoder(QStringDecoder::Utf8);
+    QString source = decoder.decode(bytes);
+    if (decoder.hasError()) {
+        d.error = core::Error("shaderinterpreter", "shader file is not valid utf-8: " + file.filePath());
+        return {};
+    }
     filePath.close();
-
     QFileInfo info(filePath);
     QString baseDir = info.absolutePath();
     return fromSource(source, options, baseDir);

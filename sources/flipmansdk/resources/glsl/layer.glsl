@@ -48,8 +48,7 @@ layout(binding = 1) uniform sampler2D tex;
 
 layout(std140, binding = 0) uniform Global
 {
-    mat4  qt_Matrix;
-    float qt_Opacity;
+    mat4  mvp;
     vec2  resolution;
     float time;
     float pad0;
@@ -71,5 +70,7 @@ void main()
     @effectApply
     @odtApply
     
-    fragColor = color * global.qt_Opacity;
+    fragColor = color;
+
+    //fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }

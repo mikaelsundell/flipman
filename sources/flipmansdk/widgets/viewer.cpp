@@ -114,17 +114,15 @@ ViewerPrivate::render(QRhiCommandBuffer* commandBuffer)
 {
     if (!d.renderEngine)
         return;
-
     render::RenderEngine::Context context;
     updateContext(context);
-
     if (!context.isValid())
         return;
-
     d.renderEngine->setBackground(d.background);
     d.renderEngine->setResolution(d.resolution);
     d.renderEngine->setImageLayers(d.imageLayers);
-    d.renderEngine->initialize(context);
+    if (!d.renderEngine->initialize(context))
+        return;
     d.renderEngine->render(context, commandBuffer);
 }
 

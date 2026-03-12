@@ -35,16 +35,6 @@ public:
     Time(qint64 ticks, qint32 timeScale, const Fps& fps);
 
     /**
-     * @brief Constructs Time from frame and Fps.
-     */
-    Time(qint64 frame, const Fps& fps);
-
-    /**
-     * @brief Constructs Time from seconds and Fps.
-     */
-    Time(qreal seconds, const Fps& fps);
-
-    /**
      * @brief Constructs Time from other with new ticks.
      */
     Time(const Time& other, qint64 ticks);
@@ -230,6 +220,21 @@ public:
     operator double() const;
 
     ///@}
+
+    /**
+     * @brief Returns Time at frame zero for the given Fps.
+     */
+    static Time zero(const Fps& fps);
+
+    /**
+     * @brief Constructs Time from frame and Fps.
+     */
+    static Time fromFrames(qint64 frame, const Fps& fps);
+
+    /**
+     * @brief Constructs Time from seconds and Fps.
+     */
+    static Time fromSeconds(qreal seconds, const Fps& fps);
 
     /** @name Static Utilities */
     ///@{

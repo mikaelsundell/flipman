@@ -253,7 +253,7 @@ SmpteTime::operator+(const SmpteTime& other) const
 {
     Q_ASSERT("fps must match" && p->d.time.fps() == other.time().fps());
     qint64 frames = this->time().frames() + other.time().frames();
-    Time time = Time(frames, p->d.time.fps());
+    Time time = Time::fromFrames(frames, p->d.time.fps());
     return SmpteTime(time);
 }
 
@@ -262,7 +262,7 @@ SmpteTime::operator-(const SmpteTime& other) const
 {
     Q_ASSERT("fps must match" && p->d.time.fps() == other.time().fps());
     qint64 frames = this->time().frames() - other.time().frames();
-    Time time = Time(frames, p->d.time.fps());
+    Time time = Time::fromFrames(frames, p->d.time.fps());
     return SmpteTime(time);
 }
 

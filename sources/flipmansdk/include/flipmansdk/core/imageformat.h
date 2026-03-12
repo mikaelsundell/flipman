@@ -24,7 +24,7 @@ public:
     /**
      * @brief Supported pixel component types.
      */
-    enum Type { None, UInt8, Int8, UInt16, Int16, UInt32, Int32, UInt64, Int64, Half, Float, Double };
+    enum Type { Unknown, UInt8, Int8, UInt16, Int16, UInt32, Int32, UInt64, Int64, Half, Float, Double };
     Q_ENUM(Type)
 
     /**
