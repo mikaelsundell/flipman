@@ -5,7 +5,9 @@
 #include <flipmansdk/core/filerange.h>
 #include <flipmansdk/plugins/oiio/oiioreader.h>
 
+#include <OpenImageIO/half.h>
 #include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/typedesc.h>
 
 using namespace OIIO;
@@ -43,11 +45,7 @@ public:
 
 namespace {
     std::once_flag flag;
-    void init()
-    {
-        int threads = 0;
-        OIIO::attribute("exr_threads", threads);
-    }
+    void init() { OIIO::attribute("threads", 0); }
 }  // namespace
 
 OIIOReaderPrivate::OIIOReaderPrivate() { std::call_once(flag, init); }
@@ -62,7 +60,6 @@ OIIOReaderPrivate::open(const core::File& file, const OIIOReader::Options& optio
     d.file = file;
 
     const core::FileRange range = file.fileRange();
-
     d.startStamp = av::Time::zero(d.fps);
     d.timeStamp = d.startStamp;
 
@@ -74,11 +71,7 @@ OIIOReaderPrivate::open(const core::File& file, const OIIOReader::Options& optio
         d.timeRange = av::TimeRange(d.startStamp, av::Time::fromFrames(1, d.fps));
     }
 
-
-    //qDebug() << d.timeRange.toString();
-
     QString fileName;
-
     if (range.isValid())
         fileName = range.frame(range.start()).filePath();
     else
@@ -104,10 +97,8 @@ OIIOReaderPrivate::close()
         d.input->close();
         d.input.reset();
     }
-
     d.fileName.clear();
     d.open = false;
-
     return true;
 }
 
@@ -118,12 +109,10 @@ OIIOReaderPrivate::read()
         d.error = core::Error("oiioreader", "reader not open");
         return d.timeStamp;
     }
-
     const core::FileRange range = d.file.fileRange();
     const qint64 timelineFrame = d.timeStamp.frames();
 
     QString fileName;
-
     if (range.isValid()) {
         const qint64 fileFrame = range.start() + timelineFrame;
 
@@ -138,29 +127,48 @@ OIIOReaderPrivate::read()
         fileName = d.file.filePath();
     }
 
-    qDebug() << "open:" << fileName;
-
     if (!d.input || d.fileName != fileName) {
-        if (d.input)
-            d.input->close();
+        std::unique_ptr<OIIO::ImageInput> newInput = OIIO::ImageInput::open(fileName.toStdString());
 
-        d.input = OIIO::ImageInput::open(fileName.toStdString());
-
-        if (!d.input) {
+        if (!newInput) {
             d.error = core::Error("oiioreader", "could not open frame");
             return d.timeStamp;
         }
 
+        if (d.input)
+            d.input->close();
+
+        d.input = std::move(newInput);
         d.fileName = fileName;
     }
+
+    // read scanlines using OpenImageIO into a temporary ImageBuffer using a
+    // normalized base pixel type (UINT8, HALF, or FLOAT). The buffer is then
+    // converted to the internal RGBA layout used by the reader.
 
     const OIIO::ImageSpec& spec = d.input->spec();
 
     const int width = spec.width;
     const int height = spec.height;
-    const int channels = spec.nchannels;
 
-    const core::ImageFormat::Type type = toImageType(spec.format);
+    OIIO::TypeDesc baseType;
+    switch (spec.format.basetype) {
+    case OIIO::TypeDesc::UINT8:
+    case OIIO::TypeDesc::INT8: baseType = OIIO::TypeDesc::UINT8; break;
+
+    case OIIO::TypeDesc::UINT16:
+    case OIIO::TypeDesc::INT16:
+    case OIIO::TypeDesc::UINT32:
+    case OIIO::TypeDesc::INT32: baseType = OIIO::TypeDesc::HALF; break;
+
+    case OIIO::TypeDesc::HALF: baseType = OIIO::TypeDesc::HALF; break;
+
+    case OIIO::TypeDesc::FLOAT: baseType = OIIO::TypeDesc::FLOAT; break;
+
+    default: baseType = OIIO::TypeDesc::FLOAT; break;
+    }
+
+    const core::ImageFormat::Type type = toImageType(baseType);
 
     if (type == core::ImageFormat::Type::Unknown) {
         d.error = core::Error("oiioreader", "unsupported pixel format");
@@ -168,25 +176,23 @@ OIIOReaderPrivate::read()
     }
 
     core::ImageFormat format(type);
-
     QRect dataWindow(0, 0, width, height);
     QRect displayWindow = dataWindow;
 
-    d.image = core::ImageBuffer(dataWindow, displayWindow, format, channels);
-
-    bool ok = d.input->read_image(0, 0, 0, channels, spec.format, d.image.data(), OIIO::AutoStride, OIIO::AutoStride,
-                                  OIIO::AutoStride);
+    const int srcChannels = spec.nchannels;
+    core::ImageBuffer image(dataWindow, displayWindow, format, srcChannels);
+    bool ok = d.input->read_scanlines(0, 0, 0, height, 0, 0, srcChannels, baseType, image.data(), OIIO::AutoStride,
+                                      OIIO::AutoStride);
 
     if (!ok) {
         std::string err = d.input->geterror();
-
         d.error = core::Error("oiioreader", err.c_str());
-
         return d.timeStamp;
     }
 
-    av::Time current = d.timeStamp;
+    d.image = core::ImageBuffer::convert(image, 4);
 
+    av::Time current = d.timeStamp;
     d.timeStamp.setTicks(d.timeStamp.ticks() + d.timeStamp.tpf());
 
     return current;

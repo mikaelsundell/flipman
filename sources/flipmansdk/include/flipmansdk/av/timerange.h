@@ -135,12 +135,16 @@ public:
     ///@{
 
     /**
-     * @brief Converts to a new Fps.
+     * @brief Converts a time range to a different frame rate.
+     *
+     * Returns a new TimeRange expressed in the specified Fps.
      */
     static TimeRange convert(const TimeRange& timerange, const Fps& to);
 
     /**
-     * @brief Converts to a new timescale.
+     * @brief Converts a time range to a different timescale.
+     *
+     * Returns a new TimeRange expressed using the specified timescale.
      */
     static TimeRange convert(const TimeRange& timerange, qint32 timescale = 24000);
 
