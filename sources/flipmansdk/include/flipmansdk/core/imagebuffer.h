@@ -214,10 +214,19 @@ public:
     ///@}
 
     /**
-     * @brief Converts buffer to different format or channel count.
+     * @brief Converts an image buffer to a different pixel format and channel count.
+     *
+     * Returns a new ImageBuffer where the pixel data is converted to the
+     * specified type and number of channels.
      */
     static ImageBuffer convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels);
 
+    /**
+     * @brief Converts an image buffer to a different channel count.
+     *
+     * Returns a new ImageBuffer with the same pixel format but a different
+     * number of channels.
+     */
     static ImageBuffer convert(const ImageBuffer& imageBuffer, int channels);
 
 private:

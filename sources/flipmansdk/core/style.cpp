@@ -247,7 +247,7 @@ Style::colorSpace() const
 void
 Style::setFontSize(FontRole role, int size)
 {
-    return p->d.fonts.value(p->roleName(role), -1);
+    p->d.fonts.value(p->roleName(role), -1);
 }
 
 int

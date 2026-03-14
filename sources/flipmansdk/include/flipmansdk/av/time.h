@@ -240,12 +240,16 @@ public:
     ///@{
 
     /**
-     * @brief Converts to a new Fps.
+     * @brief Converts a time value to a different frame rate.
+     *
+     * Returns a new Time expressed in the specified Fps.
      */
     static Time convert(const Time& time, const Fps& to);
 
     /**
-     * @brief Converts to a new timescale.
+     * @brief Converts a time value to a different timescale.
+     *
+     * Returns a new Time expressed using the specified timescale.
      */
     static Time convert(const Time& time, qint32 timeScale = 24000);
 

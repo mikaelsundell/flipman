@@ -6,6 +6,14 @@
 
 #include <OpenImageIO/half.h>
 
+
+
+#if defined(__ARM_NEON)
+#    include <arm_neon.h>
+#endif
+#include <cstring>
+#include <limits>
+
 namespace flipman::sdk::core {
 
 template<typename T> struct BigEnoughFloat {
@@ -548,22 +556,98 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
     ImageBuffer dst(imageBuffer.dataWindow(), imageBuffer.displayWindow(), imageBuffer.imageFormat(), channels);
 
     const int srcChannels = imageBuffer.channels();
-    const size_t compSize = imageBuffer.imageFormat().size();
     const auto type = imageBuffer.imageFormat().type();
 
     const quint8* srcBase = imageBuffer.data();
     quint8* dstBase = dst.data();
 
-    /*
-        ---------------------------------------------------------
-        Fast path: RGB -> RGBA (most common case)
-        ---------------------------------------------------------
-    */
-
     if (srcChannels == 3 && channels == 4) {
-        if (type == ImageFormat::Half) {
-            const half alpha = half(1.0f);
+        if (type == ImageFormat::UInt8) {
+#if defined(__ARM_NEON)
+            for (int y = 0; y < height; ++y) {
+                const uint8_t* s = reinterpret_cast<const uint8_t*>(srcBase + y * imageBuffer.strideSize());
+                uint8_t* d = reinterpret_cast<uint8_t*>(dstBase + y * dst.strideSize());
 
+                int x = 0;
+                const uint8x16_t alpha = vdupq_n_u8(255);
+
+                for (; x + 16 <= width; x += 16) {
+                    uint8x16x3_t rgb = vld3q_u8(s);
+                    uint8x16x4_t rgba;
+                    rgba.val[0] = rgb.val[0];
+                    rgba.val[1] = rgb.val[1];
+                    rgba.val[2] = rgb.val[2];
+                    rgba.val[3] = alpha;
+                    vst4q_u8(d, rgba);
+
+                    s += 16 * 3;
+                    d += 16 * 4;
+                }
+
+                for (; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = 255;
+                    s += 3;
+                    d += 4;
+                }
+            }
+#else
+            for (int y = 0; y < height; ++y) {
+                const uint8_t* s = reinterpret_cast<const uint8_t*>(srcBase + y * imageBuffer.strideSize());
+                uint8_t* d = reinterpret_cast<uint8_t*>(dstBase + y * dst.strideSize());
+
+                for (int x = 0; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = 255;
+                    s += 3;
+                    d += 4;
+                }
+            }
+#endif
+            return dst;
+        }
+        if (type == ImageFormat::Half) {
+            static_assert(sizeof(half) == sizeof(uint16_t), "OIIO::half must be 16-bit");
+
+            const half alphaHalf = half(1.0f);
+            uint16_t alphaBits = 0;
+            std::memcpy(&alphaBits, &alphaHalf, sizeof(alphaBits));
+
+#if defined(__ARM_NEON)
+            for (int y = 0; y < height; ++y) {
+                const uint16_t* s = reinterpret_cast<const uint16_t*>(srcBase + y * imageBuffer.strideSize());
+                uint16_t* d = reinterpret_cast<uint16_t*>(dstBase + y * dst.strideSize());
+
+                int x = 0;
+                const uint16x8_t alpha = vdupq_n_u16(alphaBits);
+
+                for (; x + 8 <= width; x += 8) {
+                    uint16x8x3_t rgb = vld3q_u16(s);
+                    uint16x8x4_t rgba;
+                    rgba.val[0] = rgb.val[0];
+                    rgba.val[1] = rgb.val[1];
+                    rgba.val[2] = rgb.val[2];
+                    rgba.val[3] = alpha;
+                    vst4q_u16(d, rgba);
+
+                    s += 8 * 3;
+                    d += 8 * 4;
+                }
+
+                for (; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = alphaBits;
+                    s += 3;
+                    d += 4;
+                }
+            }
+#else
             for (int y = 0; y < height; ++y) {
                 const half* s = reinterpret_cast<const half*>(srcBase + y * imageBuffer.strideSize());
                 half* d = reinterpret_cast<half*>(dstBase + y * dst.strideSize());
@@ -572,19 +656,47 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
                     d[0] = s[0];
                     d[1] = s[1];
                     d[2] = s[2];
-                    d[3] = alpha;
-
+                    d[3] = alphaHalf;
                     s += 3;
                     d += 4;
                 }
             }
-
+#endif
             return dst;
         }
 
         if (type == ImageFormat::Float) {
-            const float alpha = 1.0f;
+#if defined(__ARM_NEON)
+            for (int y = 0; y < height; ++y) {
+                const float* s = reinterpret_cast<const float*>(srcBase + y * imageBuffer.strideSize());
+                float* d = reinterpret_cast<float*>(dstBase + y * dst.strideSize());
 
+                int x = 0;
+                const float32x4_t alpha = vdupq_n_f32(1.0f);
+
+                for (; x + 4 <= width; x += 4) {
+                    float32x4x3_t rgb = vld3q_f32(s);
+                    float32x4x4_t rgba;
+                    rgba.val[0] = rgb.val[0];
+                    rgba.val[1] = rgb.val[1];
+                    rgba.val[2] = rgb.val[2];
+                    rgba.val[3] = alpha;
+                    vst4q_f32(d, rgba);
+
+                    s += 4 * 3;
+                    d += 4 * 4;
+                }
+
+                for (; x < width; ++x) {
+                    d[0] = s[0];
+                    d[1] = s[1];
+                    d[2] = s[2];
+                    d[3] = 1.0f;
+                    s += 3;
+                    d += 4;
+                }
+            }
+#else
             for (int y = 0; y < height; ++y) {
                 const float* s = reinterpret_cast<const float*>(srcBase + y * imageBuffer.strideSize());
                 float* d = reinterpret_cast<float*>(dstBase + y * dst.strideSize());
@@ -593,47 +705,75 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
                     d[0] = s[0];
                     d[1] = s[1];
                     d[2] = s[2];
-                    d[3] = alpha;
-
+                    d[3] = 1.0f;
                     s += 3;
                     d += 4;
                 }
             }
-
+#endif
             return dst;
         }
     }
 
-    /*
-        ---------------------------------------------------------
-        Generic fallback (handles all channel combinations)
-        ---------------------------------------------------------
-    */
+    const size_t compSize = imageBuffer.imageFormat().size();
+    if (type == ImageFormat::UInt8) {
+        for (int y = 0; y < height; ++y) {
+            const uint8_t* s = reinterpret_cast<const uint8_t*>(srcBase + y * imageBuffer.strideSize());
+            uint8_t* d = reinterpret_cast<uint8_t*>(dstBase + y * dst.strideSize());
 
-    const quint64 alpha = std::numeric_limits<quint64>::max();
-
-    for (int y = 0; y < height; ++y) {
-        const quint8* s = srcBase + y * imageBuffer.strideSize();
-        quint8* d = dstBase + y * dst.strideSize();
-
-        for (int x = 0; x < width; ++x) {
-            memcpy(d, s, srcChannels * compSize);
-
-            if (channels > srcChannels) {
-                quint8* a = d + srcChannels * compSize;
+            for (int x = 0; x < width; ++x) {
+                for (int c = 0; c < std::min(srcChannels, channels); ++c)
+                    d[c] = s[c];
 
                 for (int c = srcChannels; c < channels; ++c)
-                    memcpy(a + (c - srcChannels) * compSize, &alpha, compSize);
+                    d[c] = 255;
+
+                s += srcChannels;
+                d += channels;
             }
-
-            s += srcChannels * compSize;
-            d += channels * compSize;
         }
+        return dst;
     }
+    if (type == ImageFormat::Half) {
+        const half alpha = half(1.0f);
 
-    return dst;
+        for (int y = 0; y < height; ++y) {
+            const half* s = reinterpret_cast<const half*>(srcBase + y * imageBuffer.strideSize());
+            half* d = reinterpret_cast<half*>(dstBase + y * dst.strideSize());
+
+            for (int x = 0; x < width; ++x) {
+                for (int c = 0; c < std::min(srcChannels, channels); ++c)
+                    d[c] = s[c];
+
+                for (int c = srcChannels; c < channels; ++c)
+                    d[c] = alpha;
+
+                s += srcChannels;
+                d += channels;
+            }
+        }
+        return dst;
+    }
+    if (type == ImageFormat::Float) {
+        const float alpha = 1.0f;
+
+        for (int y = 0; y < height; ++y) {
+            const float* s = reinterpret_cast<const float*>(srcBase + y * imageBuffer.strideSize());
+            float* d = reinterpret_cast<float*>(dstBase + y * dst.strideSize());
+
+            for (int x = 0; x < width; ++x) {
+                for (int c = 0; c < std::min(srcChannels, channels); ++c)
+                    d[c] = s[c];
+
+                for (int c = srcChannels; c < channels; ++c)
+                    d[c] = alpha;
+
+                s += srcChannels;
+                d += channels;
+            }
+        }
+        return dst;
+    }
 }
-
-
 
 }  // namespace flipman::sdk::core
