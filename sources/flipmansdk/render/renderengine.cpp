@@ -18,8 +18,8 @@
 #include <QCryptographicHash>
 #include <QHash>
 
-//#define RENDERENGINE_STATS 0
-//#define RENDERENGINE_TRACE 0
+#undef RENDERENGINE_STATS
+#undef RENDERENGINE_TRACE
 
 #if defined(RENDERENGINE_STATS)
 #    define RE_STATS_ENABLED 1
@@ -60,6 +60,7 @@ public:
     void render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer);
     void renderScene(const RenderEngine::Context&, QRhiCommandBuffer*);
     void renderBlit(const RenderEngine::Context&, QRhiCommandBuffer*);
+    void parameterValue(char* dst, const ShaderDescriptor::ShaderParameter& param);
     QString loadShader(const QString& name);
     QShader compileShader(const QString& source, QShader::Stage stage);
     QRectF aspectFit(const QSize& src, const QSize& dst);
@@ -530,12 +531,17 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
 
             QByteArray paramData(effectBufferSize, 0);
             for (int p = 0; p < params.size(); ++p) {
-                const float value = params[p].defaultValue.toFloat();
-                memcpy(paramData.data() + p * 16, &value, sizeof(float));
+                parameterValue(paramData.data() + p * 16, params[p]);
             }
 
             if (renderState.effectBuffer && renderState.effectParameterData != paramData) {
                 RE_TRACE() << "renderengine: frame" << frameIndex << "layer" << i << "updating effect buffer";
+
+                qDebug() << "renderengine: effect parameters changed for layer" << i;
+                for (int p = 0; p < params.size(); ++p) {
+                    qDebug() << "  param" << p << params[p].name << "type" << int(params[p].type) << "value"
+                             << (params[p].value.isValid() ? params[p].value : params[p].defaultValue);
+                }
 
                 updates->updateDynamicBuffer(renderState.effectBuffer.get(), 0, static_cast<quint32>(paramData.size()),
                                              paramData.constData());
@@ -897,6 +903,50 @@ RenderEnginePrivate::renderBlit(const RenderEngine::Context& context, QRhiComman
     commandBuffer->draw(4);
 }
 
+void
+RenderEnginePrivate::parameterValue(char* dst, const ShaderDescriptor::ShaderParameter& param)
+{
+    memset(dst, 0, 16);
+
+    const QVariant value = param.value.isValid() ? param.value : param.defaultValue;
+
+    switch (param.type) {
+    case ShaderDescriptor::ShaderParameter::Type::Float: {
+        const float v = value.toFloat();
+        memcpy(dst, &v, sizeof(float));
+        break;
+    }
+    case ShaderDescriptor::ShaderParameter::Type::Int: {
+        const int v = value.toInt();
+        memcpy(dst, &v, sizeof(int));
+        break;
+    }
+    case ShaderDescriptor::ShaderParameter::Type::Bool: {
+        const int v = value.toBool() ? 1 : 0;
+        memcpy(dst, &v, sizeof(int));
+        break;
+    }
+    case ShaderDescriptor::ShaderParameter::Type::Vec2: {
+        const QVector2D v = value.value<QVector2D>();
+        const float data[2] = { v.x(), v.y() };
+        memcpy(dst, data, sizeof(data));
+        break;
+    }
+    case ShaderDescriptor::ShaderParameter::Type::Vec3: {
+        const QVector3D v = value.value<QVector3D>();
+        const float data[3] = { v.x(), v.y(), v.z() };
+        memcpy(dst, data, sizeof(data));
+        break;
+    }
+    case ShaderDescriptor::ShaderParameter::Type::Vec4: {
+        const QVector4D v = value.value<QVector4D>();
+        const float data[4] = { v.x(), v.y(), v.z(), v.w() };
+        memcpy(dst, data, sizeof(data));
+        break;
+    }
+    }
+}
+
 QString
 RenderEnginePrivate::loadShader(const QString& name)
 {
@@ -1188,12 +1238,14 @@ RenderEnginePrivate::logFrameStats() const
 {
 #if RE_STATS_ENABLED
     auto ms = [](qint64 ns) { return double(ns) / 1000000.0; };
+    auto fps = [](qint64 ns) { return ns > 0 ? 1000000000.0 / double(ns) : 0.0; };
+
     qDebug().nospace() << "renderengine: frame " << d.stats.frameIndex << " layers=" << d.stats.layerCount
-                       << " frameMs=" << ms(d.stats.renderFrameNs) << " updateMs=" << ms(d.stats.updateRenderStatesNs)
-                       << " sceneMs=" << ms(d.stats.renderSceneNs) << " blitMs=" << ms(d.stats.renderBlitNs)
-                       << " blitUpdateMs=" << ms(d.stats.updateBlitNs) << " texInit=" << d.stats.texturesInitialized
-                       << " texUpload=" << d.stats.textureUploads << " texBytes=" << d.stats.textureUploadBytes
-                       << " globalUpd=" << d.stats.globalBufferUpdates
+                       << " fps=" << fps(d.stats.renderFrameNs) << " frameMs=" << ms(d.stats.renderFrameNs)
+                       << " updateMs=" << ms(d.stats.updateRenderStatesNs) << " sceneMs=" << ms(d.stats.renderSceneNs)
+                       << " blitMs=" << ms(d.stats.renderBlitNs) << " blitUpdateMs=" << ms(d.stats.updateBlitNs)
+                       << " texInit=" << d.stats.texturesInitialized << " texUpload=" << d.stats.textureUploads
+                       << " texBytes=" << d.stats.textureUploadBytes << " globalUpd=" << d.stats.globalBufferUpdates
                        << " globalBytes=" << d.stats.globalBufferUploadBytes
                        << " effectCreate=" << d.stats.effectBufferCreates
                        << " effectUpd=" << d.stats.effectBufferUpdates

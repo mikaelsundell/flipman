@@ -32,6 +32,7 @@ public:
         QString name;             ///< Parameter name.
         Type type = Type::Float;  ///< Parameter type.
 
+        QVariant value;         ///< Current value.
         QVariant defaultValue;  ///< Default value.
         QVariant minValue;      ///< Optional minimum value.
         QVariant maxValue;      ///< Optional maximum value.
