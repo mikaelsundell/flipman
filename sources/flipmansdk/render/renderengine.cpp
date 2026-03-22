@@ -45,29 +45,38 @@ public:
         core::ImageBuffer imageData1;
         bool initTextures(const core::ImageBuffer& image, QRhi* rhi)
         {
+            if (!rhi || !image.isValid())
+                return false;
+
             if (textureType == TextureType::Nv12) {
-                QSize ySize = image.planeSize(0);
-                QSize uvSize = image.planeSize(1);
-                if (!texture0) {
+                const QSize ySize = image.planeSize(0);
+                const QSize uvSize = image.planeSize(1);
+
+                if (!texture0 || texture0->pixelSize() != ySize || texture0->format() != QRhiTexture::R8) {
                     texture0.reset(rhi->newTexture(QRhiTexture::R8, ySize));
                     if (!texture0->create())
                         return false;
                 }
-                if (!texture1) {
+
+                if (!texture1 || texture1->pixelSize() != uvSize || texture1->format() != QRhiTexture::RG8) {
                     texture1.reset(rhi->newTexture(QRhiTexture::RG8, uvSize));
                     if (!texture1->create())
                         return false;
                 }
+
                 return true;
             }
-            QSize size(imageData0.dataWindow().width(), imageData0.dataWindow().height());
 
-            QRhiTexture::Format format = toTextureFormat(textureType);
+            const core::ImageBuffer& uploadImage = imageData0.isValid() ? imageData0 : image;
+            const QSize size(uploadImage.dataWindow().width(), uploadImage.dataWindow().height());
+            const QRhiTexture::Format format = toTextureFormat(textureType);
+
             if (!texture0 || texture0->pixelSize() != size || texture0->format() != format) {
                 texture0.reset(rhi->newTexture(format, size));
                 if (!texture0->create())
                     return false;
             }
+
             texture1.reset();
             return true;
         }
@@ -75,48 +84,69 @@ public:
         {
             imageData0.reset();
             imageData1.reset();
+
+            if (!image.isValid())
+                return false;
+
             if (textureType == TextureType::Nv12) {
                 imageData0 = image;
                 imageData1 = image;
                 return true;
             }
+
             if (image.channels() == 4) {
                 imageData0 = image;
             }
             else {
                 imageData0 = core::ImageBuffer::convert(image, image.imageFormat().type(), 4);
             }
+
             return imageData0.isValid();
         }
-        void uploadTextures(const core::ImageBuffer& image, QRhiResourceUpdateBatch* updates)
+        void uploadTextures(QRhiResourceUpdateBatch* updates)
         {
-            if (textureType == RenderEnginePrivate::RenderState::TextureType::Nv12) {
-                const auto& y = image;
-                QRhiTextureSubresourceUploadDescription yUpload(y.planeData(0),
-                                                                static_cast<quint32>(y.planeByteSize(0)));
-                yUpload.setDataStride(static_cast<quint32>(y.planeStride(0)));
-                yUpload.setSourceSize(y.planeSize(0));
+            if (!updates || !texture0)
+                return;
 
-                updates->uploadTexture(texture0.get(),
-                                       QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, yUpload) }));
+            if (textureType == TextureType::Nv12) {
+                if (!texture1 || !imageData0.isValid() || !imageData1.isValid())
+                    return;
 
-                QRhiTextureSubresourceUploadDescription uvUpload(y.planeData(1),
-                                                                 static_cast<quint32>(y.planeByteSize(1)));
-                uvUpload.setDataStride(static_cast<quint32>(y.planeStride(1)));
-                uvUpload.setSourceSize(y.planeSize(1));
-                updates->uploadTexture(texture1.get(),
-                                       QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, uvUpload) }));
+                QRhiTextureSubresourceUploadDescription yUpload(
+                    imageData0.planeData(0),
+                    static_cast<quint32>(imageData0.planeByteSize(0)));
+                yUpload.setDataStride(static_cast<quint32>(imageData0.planeStride(0)));
+                yUpload.setSourceSize(imageData0.planeSize(0));
+
+                updates->uploadTexture(
+                    texture0.get(),
+                    QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, yUpload) }));
+
+                QRhiTextureSubresourceUploadDescription uvUpload(
+                    imageData1.planeData(1),
+                    static_cast<quint32>(imageData1.planeByteSize(1)));
+                uvUpload.setDataStride(static_cast<quint32>(imageData1.planeStride(1)));
+                uvUpload.setSourceSize(imageData1.planeSize(1));
+
+                updates->uploadTexture(
+                    texture1.get(),
+                    QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, uvUpload) }));
+
+                return;
             }
-            else {
-                const auto& image = imageData0;
-                QRhiTextureSubresourceUploadDescription subres(image.data(), static_cast<quint32>(image.byteSize()));
 
-                subres.setDataStride(static_cast<quint32>(image.strideSize()));
-                subres.setSourceSize(QSize(image.dataWindow().width(), image.dataWindow().height()));
-                updates->uploadTexture(texture0.get(),
-                                       QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, subres) }));
-            }
-            return true;
+            if (!imageData0.isValid())
+                return;
+
+            QRhiTextureSubresourceUploadDescription subres(
+                imageData0.data(),
+                static_cast<quint32>(imageData0.byteSize()));
+            subres.setDataStride(static_cast<quint32>(imageData0.strideSize()));
+            subres.setSourceSize(QSize(imageData0.dataWindow().width(), imageData0.dataWindow().height()));
+
+            updates->uploadTexture(
+                texture0.get(),
+                QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, subres) }));
         }
         static QRhiTexture::Format toTextureFormat(TextureType type)
         {
@@ -124,37 +154,28 @@ public:
             case TextureType::UInt8: return QRhiTexture::RGBA8;
             case TextureType::Half: return QRhiTexture::RGBA16F;
             case TextureType::Float: return QRhiTexture::RGBA32F;
-            default: return QRhiTexture::RGBA16F;
+            case TextureType::Unknown:
+            case TextureType::Nv12:
+            default:
+                return QRhiTexture::RGBA16F;
             }
         }
         static TextureType toTextureType(const core::ImageBuffer& image)
         {
             if (!image.isValid())
-                return RenderState::TextureType::Unknown;
-            {
-                const auto packing = image.packing();
-                const auto subsampling = image.subsampling();
-                const int planes = image.planeCount();
+                return TextureType::Unknown;
 
-                const int packingRaw = static_cast<int>(packing);
-                const int subsamplingRaw = static_cast<int>(subsampling);
-
-                const int biPlanarRaw = static_cast<int>(core::ImageBuffer::Packing::BiPlanar);
-                const int cs420Raw = static_cast<int>(core::ImageBuffer::Subsampling::CS420);
-
-                const bool isNv12 = (packing == core::ImageBuffer::Packing::BiPlanar) && (planes == 2)
-                                    && (subsampling == core::ImageBuffer::Subsampling::CS420);
-            }
-            if (image.packing() == core::ImageBuffer::Packing::BiPlanar && image.planeCount() == 2
+            if (image.packing() == core::ImageBuffer::Packing::BiPlanar
+                && image.planeCount() == 2
                 && image.subsampling() == core::ImageBuffer::Subsampling::CS420) {
-                return RenderState::TextureType::Nv12;
+                return TextureType::Nv12;
             }
-            const auto type = image.imageFormat().type();
-            switch (type) {
-            case core::ImageFormat::Type::UInt8: return RenderState::TextureType::UInt8;
-            case core::ImageFormat::Type::Half: return RenderState::TextureType::Half;
-            case core::ImageFormat::Type::Float: return RenderState::TextureType::Float;
-            default: return RenderState::TextureType::Unknown;
+
+            switch (image.imageFormat().type()) {
+            case core::ImageFormat::Type::UInt8: return TextureType::UInt8;
+            case core::ImageFormat::Type::Half: return TextureType::Half;
+            case core::ImageFormat::Type::Float: return TextureType::Float;
+            default: return TextureType::Unknown;
             }
         }
     };
@@ -279,7 +300,9 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
 void
 RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QRhiResourceUpdateBatch* updates)
 {
-    if (!updates)
+    Q_UNUSED(context)
+
+    if (!updates || !d.renderTexture || !d.deviceRhi)
         return;
 
     struct Global {
@@ -295,57 +318,79 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
     }
 
     const QSize targetSize = d.renderTexture->pixelSize();
+
     for (int i = 0; i < d.imageLayers.size(); ++i) {
         RenderState& renderState = d.renderStates[size_t(i)];
         const ImageLayer& imageLayer = d.imageLayers[i];
         const core::ImageBuffer image = imageLayer.image();
 
-        render::ImageEffect imageEffect = imageLayer.imageEffect();
+        if (!image.isValid()) {
+            renderState.imageData.reset();
+            renderState.imageData0.reset();
+            renderState.imageData1.reset();
+            renderState.texture0.reset();
+            renderState.texture1.reset();
+            renderState.effectBuffer.reset();
+            renderState.globalBuffer.reset();
+            renderState.shaderBindings.reset();
+            renderState.pipeline.reset();
+            renderState.textureType = RenderState::TextureType::Unknown;
+            continue;
+        }
 
-        ShaderDefinition effectDefinition;
+        const ImageEffect imageEffect = imageLayer.imageEffect();
         const bool hasEffect = imageEffect.isValid();
 
+        ShaderDefinition effectDefinition;
         if (hasEffect)
             effectDefinition = imageEffect.shaderDefinition();
-
-        if (!image.isValid())
-            continue; // todo: assert
-        
-        if (!image.isAllocated())
-            continue; // todo: assert
 
         const QSize texSize(image.dataWindow().width(), image.dataWindow().height());
 
         const RenderState::TextureType newType = RenderState::toTextureType(image);
         const bool typeChanged = renderState.textureType != newType;
+
+        const bool imageLayoutChanged =
+            typeChanged
+            || renderState.imageData.packing() != image.packing()
+            || renderState.imageData.subsampling() != image.subsampling()
+            || renderState.imageData.imageFormat() != image.imageFormat()
+            || renderState.imageData.channels() != image.channels()
+            || renderState.imageData.dataWindow() != image.dataWindow()
+            || renderState.imageData.displayWindow() != image.displayWindow();
+
+        const bool imageContentChanged =
+            !renderState.imageData.isValid()
+            || !image.isAllocated()
+            || !renderState.imageData.isAllocated()
+            || renderState.imageData.data() != image.data();
+
+        const bool imageChanged = imageLayoutChanged || imageContentChanged;
+
         renderState.textureType = newType;
- 
-        const bool imageChanged =
-            renderState.imageData.packing() != image.packing() ||
-            renderState.imageData.subsampling() != image.subsampling() ||
-            renderState.imageData.imageFormat() != image.imageFormat() ||
-            renderState.imageData.channels() != image.channels() ||
-            renderState.imageData.dataWindow() != image.dataWindow() ||
-            renderState.imageData.displayWindow() != image.displayWindow() ||
-            (renderState.imageData.isAllocated() && image.isAllocated() &&
-             renderState.imageData.data() != image.data());
 
         if (!renderState.prepareUpload(image)) {
-            qDebug() << "image data is not valid for layer" << i;
+            qWarning() << "renderengine: failed to prepare upload for image layer" << i;
             continue;
         }
 
-        if (typeChanged || !renderState.texture0) {
+        const bool needsTextures =
+            !renderState.texture0
+            || imageLayoutChanged
+            || (renderState.textureType == RenderState::TextureType::Nv12 && !renderState.texture1);
+
+        if (needsTextures) {
             if (!renderState.initTextures(image, d.deviceRhi)) {
-                qDebug() << "failed to create textures for layer" << i;
+                qWarning() << "renderengine: failed to initialize textures for layer" << i;
                 continue;
             }
+
             renderState.shaderBindings.reset();
             renderState.pipeline.reset();
         }
 
-        if (imageChanged || typeChanged) {
-            renderState.uploadTextures(image, updates);
+        if (imageChanged || needsTextures) {
+            renderState.uploadTextures(updates);
         }
 
         if (!renderState.globalBuffer) {
@@ -353,9 +398,11 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
                 d.deviceRhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, sizeof(Global)));
 
             if (!renderState.globalBuffer->create()) {
-                qDebug() << "failed to create global buffer for layer" << i;
+                qWarning() << "renderengine: failed to create global buffer for layer" << i;
+                renderState.globalBuffer.reset();
                 continue;
             }
+
             renderState.shaderBindings.reset();
             renderState.pipeline.reset();
         }
@@ -374,36 +421,46 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         Global global;
         global.mvp = mvp;
         global.resolution = QVector2D(texSize.width(), texSize.height());
-        global.time = float(0.0f);
+        global.time = 0.0f;
         global.pad0 = 0.0f;
 
         updates->updateDynamicBuffer(renderState.globalBuffer.get(), 0, sizeof(Global), &global);
 
         if (hasEffect) {
             const auto& params = effectDefinition.descriptor().parameters;
-            const qsizetype size = params.size() * 16;
-            const bool recreate = !renderState.effectBuffer || renderState.effectBuffer->size() != size;
+            const qsizetype effectBufferSize = params.size() * 16;
+            const bool recreateEffectBuffer =
+                !renderState.effectBuffer
+                || renderState.effectBuffer->size() != effectBufferSize;
 
-            if (recreate) {
+            if (recreateEffectBuffer) {
                 renderState.effectBuffer.reset(
-                    d.deviceRhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, static_cast<quint32>(size)));
+                    d.deviceRhi->newBuffer(QRhiBuffer::Dynamic,
+                                           QRhiBuffer::UniformBuffer,
+                                           static_cast<quint32>(effectBufferSize)));
 
                 if (!renderState.effectBuffer->create()) {
-                    qDebug() << "failed to create parameter buffer for layer" << i;
+                    qWarning() << "renderengine: failed to create parameter buffer for layer" << i;
+                    renderState.effectBuffer.reset();
                     continue;
                 }
 
                 renderState.shaderBindings.reset();
                 renderState.pipeline.reset();
             }
-            QByteArray paramData(size, 0);
+
+            QByteArray paramData(effectBufferSize, 0);
             for (int p = 0; p < params.size(); ++p) {
                 const float value = params[p].defaultValue.toFloat();
                 memcpy(paramData.data() + p * 16, &value, sizeof(float));
             }
 
-            updates->updateDynamicBuffer(renderState.effectBuffer.get(), 0, static_cast<quint32>(paramData.size()),
-                                         paramData.constData());
+            if (renderState.effectBuffer) {
+                updates->updateDynamicBuffer(renderState.effectBuffer.get(),
+                                             0,
+                                             static_cast<quint32>(paramData.size()),
+                                             paramData.constData());
+            }
         }
         else if (renderState.effectBuffer) {
             renderState.effectBuffer.reset();
@@ -414,32 +471,44 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         if (!renderState.shaderBindings) {
             QVector<QRhiShaderResourceBinding> bindings;
 
-            bindings << QRhiShaderResourceBinding::uniformBuffer(0,
-                                                                 QRhiShaderResourceBinding::VertexStage
-                                                                     | QRhiShaderResourceBinding::FragmentStage,
-                                                                 renderState.globalBuffer.get());
+            bindings << QRhiShaderResourceBinding::uniformBuffer(
+                0,
+                QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
+                renderState.globalBuffer.get());
 
             if (renderState.textureType == RenderState::TextureType::Nv12) {
-                bindings << QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
-                                                                      renderState.texture0.get(), d.sampler.get());
+                bindings << QRhiShaderResourceBinding::sampledTexture(
+                    1,
+                    QRhiShaderResourceBinding::FragmentStage,
+                    renderState.texture0.get(),
+                    d.sampler.get());
 
-                bindings << QRhiShaderResourceBinding::sampledTexture(2, QRhiShaderResourceBinding::FragmentStage,
-                                                                      renderState.texture1.get(), d.sampler.get());
+                bindings << QRhiShaderResourceBinding::sampledTexture(
+                    2,
+                    QRhiShaderResourceBinding::FragmentStage,
+                    renderState.texture1.get(),
+                    d.sampler.get());
             }
             else {
-                bindings << QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
-                                                                      renderState.texture0.get(), d.sampler.get());
+                bindings << QRhiShaderResourceBinding::sampledTexture(
+                    1,
+                    QRhiShaderResourceBinding::FragmentStage,
+                    renderState.texture0.get(),
+                    d.sampler.get());
             }
 
             if (renderState.effectBuffer) {
-                bindings << QRhiShaderResourceBinding::uniformBuffer(3, QRhiShaderResourceBinding::FragmentStage,
-                                                                     renderState.effectBuffer.get());
+                bindings << QRhiShaderResourceBinding::uniformBuffer(
+                    3,
+                    QRhiShaderResourceBinding::FragmentStage,
+                    renderState.effectBuffer.get());
             }
+
             renderState.shaderBindings.reset(d.deviceRhi->newShaderResourceBindings());
             renderState.shaderBindings->setBindings(bindings.begin(), bindings.end());
 
             if (!renderState.shaderBindings->create()) {
-                qDebug() << "failed to create shader bindings for layer" << i;
+                qWarning() << "renderengine: failed to create shader bindings for layer" << i;
                 renderState.shaderBindings.reset();
                 continue;
             }
@@ -449,49 +518,57 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
             renderState.pipeline.reset(d.deviceRhi->newGraphicsPipeline());
             renderState.pipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
 
-            QFile layerFile(":/flipmansdk/glsl/layer.glsl");
-            if (!layerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                qDebug() << "could not open layer glsl";
+            const QString layerSource = loadShader("layer");
+            if (layerSource.isEmpty()) {
+                qWarning() << "renderengine: could not load layer shader";
+                renderState.pipeline.reset();
                 continue;
             }
 
-            render::ShaderParser shaderParser;
-            render::ShaderContract shaderContract;
-            QString idtCode =
+            ShaderParser shaderParser;
+            ShaderContract shaderContract;
+
+            const QString idtCode =
                 R"(vec4 idt(vec4 c)
 {
-    // simple log-like expansion
     return pow(max(c, vec4(0.0)), vec4(2.2));
 })";
-            render::ShaderDefinition idtDefinition = shaderParser.parse(idtCode);
+
+            const ShaderDefinition idtDefinition = shaderParser.parse(idtCode);
             if (!shaderParser.isValid()) {
-                qDebug() << "failed to parse idt code: " << shaderParser.error().message();
-                return false;
+                qWarning() << "renderengine: failed to parse idt shader:" << shaderParser.error().message();
+                renderState.pipeline.reset();
+                continue;
             }
 
-            render::ShaderContract::Type idtType = render::ShaderContract::Type::Idt;
+            const ShaderContract::Type idtType = ShaderContract::Type::Idt;
             if (!shaderContract.validate(idtType, idtDefinition.functions())) {
-                qDebug() << "idt code is not a valid " << shaderContract.name(idtType) << " shader";
-                return false;
+                qWarning() << "renderengine: idt shader does not satisfy"
+                           << shaderContract.name(idtType);
+                renderState.pipeline.reset();
+                continue;
             }
 
-            QString odtCode =
+            const QString odtCode =
                 R"(vec4 odt(vec4 c)
 {
     c = max(c, vec4(0.0));
     return pow(c, vec4(1.0 / 2.2));
 })";
 
-            render::ShaderDefinition odtDefinition = shaderParser.parse(odtCode);
+            const ShaderDefinition odtDefinition = shaderParser.parse(odtCode);
             if (!shaderParser.isValid()) {
-                qDebug() << "failed to parse odt code: " << shaderParser.error().message();
-                return false;
+                qWarning() << "renderengine: failed to parse odt shader:" << shaderParser.error().message();
+                renderState.pipeline.reset();
+                continue;
             }
 
-            render::ShaderContract::Type odtType = render::ShaderContract::Type::Odt;
+            const ShaderContract::Type odtType = ShaderContract::Type::Odt;
             if (!shaderContract.validate(odtType, odtDefinition.functions())) {
-                qDebug() << "idt code is not a valid " << shaderContract.name(odtType) << " shader";
-                return false;
+                qWarning() << "renderengine: odt shader does not satisfy"
+                           << shaderContract.name(odtType);
+                renderState.pipeline.reset();
+                continue;
             }
 
             QString texUniformBlock;
@@ -500,16 +577,16 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
             if (renderState.textureType == RenderState::TextureType::Nv12) {
                 texUniformBlock =
                     R"(
-    layout(binding = 1) uniform sampler2D tex0;
-    layout(binding = 2) uniform sampler2D tex1;
+layout(binding = 1) uniform sampler2D tex0;
+layout(binding = 2) uniform sampler2D tex1;
 )";
 
                 texCall =
                     R"(
-    float y = texture(tex0, uv).r;
-    vec2 uvv = texture(tex1, uv).rg;
-    vec3 rgb = nv12ToRgb(y, uvv);
-    vec4 color = vec4(rgb, 1.0);
+float y = texture(tex0, uv).r;
+vec2 uvv = texture(tex1, uv).rg;
+vec3 rgb = nv12ToRgb(y, uvv);
+vec4 color = vec4(rgb, 1.0);
 )";
             }
             else {
@@ -517,8 +594,7 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
                 texCall = R"(vec4 color = texture(tex, uv);)";
             }
 
-            QByteArray layerShader = layerFile.readAll();
-            render::ShaderParser::Options options;
+            ShaderParser::Options options;
             options.injections.set("texUniform", texUniformBlock);
             options.injections.set("texCall", texCall);
             options.injections.set("idtCode", idtDefinition.shaderCode());
@@ -527,7 +603,7 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
             options.injections.set("odtCall", shaderContract.call(odtType));
 
             if (hasEffect) {
-                render::ShaderContract::Type effectType = render::ShaderContract::Type::Effect;
+                const ShaderContract::Type effectType = ShaderContract::Type::Effect;
                 options.injections.set("effectUniform", effectDefinition.uniformBlock(3));
                 options.injections.set("effectCode", effectDefinition.shaderCode());
                 options.injections.set("effectCall", shaderContract.call(effectType));
@@ -538,42 +614,31 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
                 options.injections.set("effectCall", QString());
             }
 
-            render::ShaderParser layerParser;
-            render::ShaderDefinition layerDefinition = layerParser.parse(layerShader, options);
+            ShaderParser layerParser;
+            const ShaderDefinition layerDefinition = layerParser.parse(layerSource, options);
             if (!layerParser.isValid()) {
-                qDebug() << "failed to parse viewer code: " << layerParser.error();
-                return false;
+                qWarning() << "renderengine: failed to parse layer shader:" << layerParser.error().message();
+                renderState.pipeline.reset();
+                continue;
             }
 
-            render::ShaderCompiler compiler;
-            render::ShaderCompiler::Options opts;
-            opts.glslVersion = 440;
-            opts.generateSpirv = true;
-            opts.generateMsl = true;
-            opts.generateHlsl = true;
-            opts.optimize = true;
-
-            QShader fragmentShader = compiler.compile(layerDefinition.shaderCode(), QShader::FragmentStage, opts);
+            const QShader fragmentShader = compileShader(layerDefinition.shaderCode(), QShader::FragmentStage);
             if (!fragmentShader.isValid()) {
-                qDebug() << "fragment shader compilation failed: " << compiler.error().message();
-                return false;
+                qWarning() << "renderengine: fragment shader compilation failed:" << d.error.message();
+                renderState.pipeline.reset();
+                continue;
             }
 
-            QFile transformFile(":/flipmansdk/glsl/transform.glsl");
-            if (!transformFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                qDebug() << "could not open viewer glsl";
-                return false;
-            }
-
-            QString transformCode = transformFile.readAll();
-            QShader transformShader = compiler.compile(transformCode, QShader::VertexStage, opts);
-            if (!transformShader.isValid()) {
-                qDebug() << "vertex shader compilation failed: " << compiler.error().message();
-                return false;
+            const QShader vertexShader = compileShader(loadShader("transform"), QShader::VertexStage);
+            if (!vertexShader.isValid()) {
+                qWarning() << "renderengine: vertex shader compilation failed:" << d.error.message();
+                renderState.pipeline.reset();
+                continue;
             }
 
             renderState.pipeline->setShaderStages(
-                { { QRhiShaderStage::Vertex, transformShader }, { QRhiShaderStage::Fragment, fragmentShader } });
+                { { QRhiShaderStage::Vertex, vertexShader },
+                  { QRhiShaderStage::Fragment, fragmentShader } });
 
             renderState.pipeline->setVertexInputLayout(d.quadLayout);
 
@@ -589,7 +654,7 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
             renderState.pipeline->setRenderPassDescriptor(d.renderPassDescriptor.get());
 
             if (!renderState.pipeline->create()) {
-                qDebug() << "failed to create pipeline for layer" << i;
+                qWarning() << "renderengine: failed to create pipeline for layer" << i;
                 renderState.pipeline.reset();
                 continue;
             }
@@ -598,7 +663,6 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         renderState.imageData = image;
     }
 }
-
 
 void
 RenderEnginePrivate::updateBlit(const RenderEngine::Context& context, QRhiResourceUpdateBatch* updates)
@@ -718,8 +782,6 @@ RenderEnginePrivate::renderBlit(const RenderEngine::Context& context, QRhiComman
 
     const QSize widgetSize = context.size;
     const QSize textureSize = d.renderTexture->pixelSize();
-
-    QRectF vp = aspectFit(textureSize, widgetSize);
 
     commandBuffer->setViewport({ 0, 0, float(widgetSize.width()), float(widgetSize.height()) });
 
