@@ -117,36 +117,47 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
     if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         || pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
 
-        image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::UInt8), 1);
+        const OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
+        const size_t cvPlanes = CVPixelBufferGetPlaneCount(pixelBuffer);
+
+        image = core::ImageBuffer(
+            dataWindow,
+            displayWindow,
+            core::ImageFormat(core::ImageFormat::UInt8),
+            1);
+
         image.setPacking(core::ImageBuffer::Packing::BiPlanar);
         image.setSubsampling(core::ImageBuffer::Subsampling::CS420);
+        image.allocate();
 
-        quint8* dstY = image.planeData(0);
+        quint8* dstY  = image.planeData(0);
         quint8* dstUV = image.planeData(1);
 
-        const quint8* srcY = static_cast<const quint8*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
+        const quint8* srcY  = static_cast<const quint8*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 0));
         const quint8* srcUV = static_cast<const quint8*>(CVPixelBufferGetBaseAddressOfPlane(pixelBuffer, 1));
 
-        const size_t srcStrideY = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
+        const size_t srcStrideY  = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 0);
         const size_t srcStrideUV = CVPixelBufferGetBytesPerRowOfPlane(pixelBuffer, 1);
 
-        const size_t dstStrideY = image.planeStride(0);
+        const size_t dstStrideY  = image.planeStride(0);
         const size_t dstStrideUV = image.planeStride(1);
 
         const QSize uvSize = image.planeSize(1);
-
+        
         for (int y = 0; y < height; ++y) {
+            const size_t bytes = std::min(dstStrideY, srcStrideY);
+
             memcpy(dstY + size_t(y) * dstStrideY,
                    srcY + size_t(y) * srcStrideY,
-                   std::min(dstStrideY, srcStrideY));
+                   bytes);
         }
-
         for (int y = 0; y < uvSize.height(); ++y) {
+            const size_t bytes = std::min(dstStrideUV, srcStrideUV);
+
             memcpy(dstUV + size_t(y) * dstStrideUV,
                    srcUV + size_t(y) * srcStrideUV,
-                   std::min(dstStrideUV, srcStrideUV));
+                   bytes);
         }
-
         return true;
     }
 
@@ -191,12 +202,6 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
                         QString("unsupported CVPixelBuffer format: %1").arg(pixelFormatName(pixelFormat)));
     return false;
 }
-
-
-
-
-
-
 
 void
 QuicktimeReaderPrivate::loadAsset()
@@ -556,6 +561,8 @@ QuicktimeReaderPrivate::skip()
 av::Time
 QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
 {
+    // todo: fix all return types
+    
     Q_ASSERT(isOpen() || d.reader.status != AVAssetReaderStatusReading);
     
     av::Time time = timerange.start();
@@ -570,12 +577,12 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
     if (!d.reader) {
         d.error = core::Error(info().name, QString("failed to recreate AVAssetReader: %1").arg(QString::fromNSString(error.localizedDescription)));
         qWarning() << "warning: " << d.error.message();
-        return;
+        return {};
     }
     if (!d.videoTrack) {
         d.error = core::Error(info().name, "no video track found in asset");
         qWarning() << "warning: " << d.error.message();
-        return;
+        return {};
     }
 
     d.videoOutput = [[AVAssetReaderTrackOutput alloc]
@@ -590,7 +597,7 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
     if (!d.videoOutput) {
         d.error = core::Error(info().name, "unable to create AVAssetReaderTrackOutput");
         qWarning() << "warning: " << d.error.message();
-        return;
+        return {};
     }
     [d.reader addOutput:d.videoOutput];
     d.timeStamp = time;
@@ -598,7 +605,7 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
     if (![d.reader startReading]) {
         d.error = core::Error(info().name, "failed to start reading after seeking");
         qWarning() << "warning: " << d.error.message();
-        return;
+        return {};
     }
     return d.timeStamp;
 }

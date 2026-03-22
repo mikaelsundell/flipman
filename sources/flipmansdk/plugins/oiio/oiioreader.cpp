@@ -179,9 +179,11 @@ OIIOReaderPrivate::read()
     QRect dataWindow(0, 0, width, height);
     QRect displayWindow = dataWindow;
 
-    const int srcChannels = spec.nchannels;
-    core::ImageBuffer image(dataWindow, displayWindow, format, srcChannels);
-    bool ok = d.input->read_scanlines(0, 0, 0, height, 0, 0, srcChannels, baseType, image.data(), OIIO::AutoStride,
+    const int channels = spec.nchannels;
+    core::ImageBuffer image(dataWindow, displayWindow, format, channels);
+    image.allocate();
+    
+    bool ok = d.input->read_scanlines(0, 0, 0, height, 0, 0, channels, baseType, image.data(), OIIO::AutoStride,
                                       OIIO::AutoStride);
 
     if (!ok) {
@@ -191,11 +193,8 @@ OIIOReaderPrivate::read()
     }
 
     d.image = core::ImageBuffer::convert(image, 4);
-
-    av::Time current = d.timeStamp;
     d.timeStamp.setTicks(d.timeStamp.ticks() + d.timeStamp.tpf());
-
-    return current;
+    return d.timeStamp;
 }
 
 av::Time

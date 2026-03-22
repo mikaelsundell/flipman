@@ -110,7 +110,6 @@ QuicktimeWriter::setFps(const av::Fps& fps)
 void
 QuicktimeWriter::setTimeRange(const av::TimeRange& timeRange)
 {
-    return true;
 }
 
 bool

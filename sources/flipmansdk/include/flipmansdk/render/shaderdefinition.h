@@ -7,6 +7,8 @@
 #include <flipmansdk/flipmansdk.h>
 
 #include <flipmansdk/core/error.h>
+#include <flipmansdk/render/shaderdescriptor.h>
+#include <flipmansdk/render/shaderfunction.h>
 
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
@@ -31,40 +33,6 @@ class ShaderDefinitionPrivate;
 class FLIPMANSDK_EXPORT ShaderDefinition {
 public:
     /**
-     * @struct ShaderParameter
-     * @brief Describes a parameter declared via @param.
-     */
-    struct ShaderParameter {
-        enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4 };
-        QString name;
-        Type type = Type::Float;
-        QVariant defaultValue;
-        QVariant minValue;
-        QVariant maxValue;
-        QString label;
-        QString group;
-    };
-
-    /**
-     * @struct ShaderDescriptor
-     * @brief Container of shader parameters.
-     */
-    struct ShaderDescriptor {
-        QVector<ShaderParameter> parameters;
-
-        /**
-         * @brief Returns index of parameter by name.
-         */
-        int indexOf(const QString& name) const;
-
-        /**
-         * @brief Returns true if parameter exists.
-         */
-        bool contains(const QString& name) const { return indexOf(name) >= 0; }
-    };
-
-public:
-    /**
      * @brief Constructs an empty ShaderDefinition.
      */
     ShaderDefinition();
@@ -80,41 +48,6 @@ public:
      */
     ~ShaderDefinition();
 
-    /** @name Code Fragments */
-    ///@{
-
-    /**
-     * @brief Returns generated uniform block code.
-     */
-    QString uniformBlock() const;
-
-    /**
-     * @brief Sets uniform block code.
-     */
-    void setUniformBlock(const QString& code);
-
-    /**
-     * @brief Returns processed shader code.
-     */
-    QString shaderCode() const;
-
-    /**
-     * @brief Sets processed shader code.
-     */
-    void setShaderCode(const QString& shaderCode);
-
-    /**
-     * @brief Returns effect apply snippet.
-     */
-    QString applyCode() const;
-
-    /**
-     * @brief Sets effect apply snippet.
-     */
-    void setApplyCode(const QString& code);
-
-    ///@}
-
     /** @name Descriptor */
     ///@{
 
@@ -127,6 +60,52 @@ public:
      * @brief Sets parameter descriptor.
      */
     void setDescriptor(const ShaderDescriptor& descriptor);
+
+    ///@}
+
+    /**
+     * @brief Returns parsed shader functions.
+     *
+     * Contains function signatures discovered during shader parsing.
+     */
+    QVector<ShaderFunction> functions() const;
+
+    /**
+     * @brief Sets parsed shader functions.
+     *
+     * Called by ShaderParser after extracting function signatures.
+     */
+    void setFunctions(const QVector<ShaderFunction>& functions);
+
+    /** @name Code Fragments */
+    ///@{
+
+    /**
+     * @brief Returns the generated uniform block for shader parameters.
+     *
+     * Generates a std140 uniform block from the ShaderDescriptor and binds it
+     * to the specified @p binding index. The block name can be customized using
+     * @p uniformName.
+     *
+     * The returned string contains only the GLSL uniform block declaration and
+     * does not include any shader source code.
+     */
+    QString uniformBlock(int binding = 0, const QString& uniformName = "Params") const;
+
+    /**
+     * @brief Returns the stored GLSL shader source code.
+     *
+     * Contains the user-defined shader functions that will be injected into the
+     * final shader during composition.
+     */
+    QString shaderCode() const;
+
+    /**
+     * @brief Sets shader function code.
+     *
+     * Defines the GLSL code block injected into the final shader.
+     */
+    void setShaderCode(const QString& shaderCode);
 
     ///@}
 

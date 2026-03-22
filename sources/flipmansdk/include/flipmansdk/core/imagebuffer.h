@@ -57,7 +57,15 @@ public:
      * @brief Destroys the ImageBuffer.
      */
     ~ImageBuffer();
-
+    
+    /**
+     * @brief Allocates memory for the current image configuration.
+     *
+     * Must be called after setting format, packing, and subsampling,
+     * and before accessing pixel data. Reallocates if already allocated.
+     */
+    void allocate();
+    
     /** @name Windows */
     ///@{
 
@@ -181,6 +189,13 @@ public:
      */
     ImageBuffer detach();
 
+    /**
+     * @brief Returns true if backing memory is allocated.
+     *
+     * Required before accessing pixel data.
+     */
+    bool isAllocated() const;
+    
     /**
      * @brief Returns true if valid.
      */

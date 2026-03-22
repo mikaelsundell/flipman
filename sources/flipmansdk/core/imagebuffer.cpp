@@ -229,7 +229,6 @@ ImageBuffer::ImageBuffer(const QRect& datawindow, const QRect& displaywindow, co
     p->d.displayWindow = displaywindow;
     p->d.channels = channels;
     p->d.format = format;
-    p->alloc();
 }
 
 ImageBuffer::ImageBuffer(const ImageBuffer& other)
@@ -237,6 +236,13 @@ ImageBuffer::ImageBuffer(const ImageBuffer& other)
 {}
 
 ImageBuffer::~ImageBuffer() {}
+
+void
+ImageBuffer::allocate()
+{
+    detach();
+    p->alloc();
+}
 
 ImageFormat
 ImageBuffer::imageFormat() const
@@ -288,7 +294,9 @@ ImageBuffer::size() const
 
 ImageBuffer::Packing
 ImageBuffer::packing() const
-{}
+{
+    return p->d.packing;
+}
 
 void
 ImageBuffer::setPacking(Packing packing)
@@ -296,9 +304,9 @@ ImageBuffer::setPacking(Packing packing)
     if (p->d.packing != packing) {
         detach();
         p->d.packing = packing;
-        if (packing == Packing::Interleaved) {
+        if (packing == Packing::Interleaved)
             p->d.subsampling = Subsampling::None;
-        }
+        p->d.data.clear();
     }
 }
 
@@ -315,18 +323,21 @@ ImageBuffer::setSubsampling(Subsampling s)
     if (p->d.subsampling != s) {
         detach();
         p->d.subsampling = s;
+        p->d.data.clear();
     }
 }
 
 quint8*
 ImageBuffer::data() const
 {
+    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
     return reinterpret_cast<quint8*>(p->d.data.data());
 }
 
 quint8*
 ImageBuffer::data(const QPoint& pos) const
 {
+    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
     Q_ASSERT(p->d.packing == Packing::Interleaved);
     QPoint pixel = pos - p->d.dataWindow.topLeft();
     size_t offset = size_t(pixel.y()) * strideSize() + size_t(pixel.x()) * pixelSize();
@@ -350,7 +361,6 @@ size_t
 ImageBuffer::planeStride(int plane) const
 {
     Q_ASSERT(plane >= 0 && plane < planeCount());
-
     const int width = p->d.dataWindow.width();
 
     switch (p->d.packing) {
@@ -376,8 +386,7 @@ ImageBuffer::planeStride(int plane) const
 QSize
 ImageBuffer::planeSize(int plane) const
 {
-    Q_ASSERT(plane >= 0 && plane < planeCount() && "ImageBuffer::planeSize: plane index out of range.");
-
+    Q_ASSERT(plane >= 0 && plane < planeCount() && "planeSize: plane index out of range.");
     const int width = p->d.dataWindow.width();
     const int height = p->d.dataWindow.height();
 
@@ -416,11 +425,23 @@ ImageBuffer::planeSize(int plane) const
     return QSize();
 }
 
+size_t
+ImageBuffer::planeByteSize(int plane) const
+{
+    Q_ASSERT(plane >= 0 && plane < planeCount() && "Iplane index out of range.");
+    const QSize size = planeSize(plane);
+    const size_t stride = planeStride(plane);
+
+    return size_t(size.height()) * stride;
+}
+
 quint8*
 ImageBuffer::planeData(int plane) const
 {
+    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
+
     Q_ASSERT(plane >= 0 && plane < planeCount()
-             && "ImageBuffer::planeData/planeStride: plane index out of range. "
+             && "planeData/planeStride: plane index out of range. "
                 "Valid range is [0, planeCount()).");
 
     quint8* base = reinterpret_cast<quint8*>(p->d.data.data());
@@ -454,6 +475,12 @@ ImageBuffer::detach()
         p->d.data = QByteArray(p->d.data);
     }
     return *this;
+}
+
+bool
+ImageBuffer::isAllocated() const
+{
+    return !p->d.data.isEmpty();
 }
 
 bool
@@ -554,7 +581,8 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
     const int height = imageBuffer.dataWindow().height();
 
     ImageBuffer dst(imageBuffer.dataWindow(), imageBuffer.displayWindow(), imageBuffer.imageFormat(), channels);
-
+    dst.allocate();
+    
     const int srcChannels = imageBuffer.channels();
     const auto type = imageBuffer.imageFormat().type();
 

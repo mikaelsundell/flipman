@@ -5,19 +5,20 @@
 
 namespace flipman::sdk::render {
 
+using ShaderParameterType = ShaderDescriptor::ShaderParameter::Type;
+
 class ShaderDefinitionPrivate : public QSharedData {
 public:
     ShaderDefinitionPrivate();
     ~ShaderDefinitionPrivate();
+    QString parameterType(ShaderParameterType type) const;
 
 public:
     struct Data {
-        QString sourceCode;
         QString shaderCode;
-        QString uniformBlock;
-        QString applyCode;
         QStringList includes;
-        ShaderDefinition::ShaderDescriptor descriptor;
+        ShaderDescriptor descriptor;
+        QVector<ShaderFunction> functions;
         core::Error error;
     };
     Data d;
@@ -26,6 +27,20 @@ public:
 ShaderDefinitionPrivate::ShaderDefinitionPrivate() {}
 
 ShaderDefinitionPrivate::~ShaderDefinitionPrivate() {}
+
+QString
+ShaderDefinitionPrivate::parameterType(ShaderParameterType type) const
+{
+    switch (type) {
+    case ShaderParameterType::Float: return "float";
+    case ShaderParameterType::Int: return "int";
+    case ShaderParameterType::Bool: return "bool";
+    case ShaderParameterType::Vec2: return "vec2";
+    case ShaderParameterType::Vec3: return "vec3";
+    case ShaderParameterType::Vec4: return "vec4";
+    }
+    return "float";
+}
 
 ShaderDefinition::ShaderDefinition()
     : p(new ShaderDefinitionPrivate)
@@ -45,46 +60,7 @@ ShaderDefinition::operator=(const ShaderDefinition& other)
     return *this;
 }
 
-QString
-ShaderDefinition::uniformBlock() const
-{
-    return p->d.uniformBlock;
-}
-
-void
-ShaderDefinition::setUniformBlock(const QString& code)
-{
-    p.detach();
-    p->d.uniformBlock = code;
-}
-
-QString
-ShaderDefinition::shaderCode() const
-{
-    return p->d.shaderCode;
-}
-
-void
-ShaderDefinition::setShaderCode(const QString& shaderCode)
-{
-    p.detach();
-    p->d.shaderCode = shaderCode;
-}
-
-QString
-ShaderDefinition::applyCode() const
-{
-    return p->d.applyCode;
-}
-
-void
-ShaderDefinition::setApplyCode(const QString& code)
-{
-    p.detach();
-    p->d.applyCode = code;
-}
-
-const ShaderDefinition::ShaderDescriptor&
+const ShaderDescriptor&
 ShaderDefinition::descriptor() const
 {
     return p->d.descriptor;
@@ -97,6 +73,48 @@ ShaderDefinition::setDescriptor(const ShaderDescriptor& descriptor)
     p->d.descriptor = descriptor;
 }
 
+QVector<ShaderFunction>
+ShaderDefinition::functions() const
+{
+    return p->d.functions;
+}
+
+void
+ShaderDefinition::setFunctions(const QVector<ShaderFunction>& functions)
+{
+    p.detach();
+    p->d.functions = functions;
+}
+
+QString
+ShaderDefinition::uniformBlock(int binding, const QString& uniformName) const
+{
+    QString code;
+    QTextStream stream(&code);
+    if (!p->d.descriptor.parameters.isEmpty()) {
+        stream << "layout(std140, binding = " << binding << ") uniform " << uniformName << "\n{\n";
+        for (const auto& param : p->d.descriptor.parameters)
+            stream << "    " << p->parameterType(param.type) << " " << param.name << ";\n";
+        stream << "};";
+    }
+    return code;
+}
+
+QString
+ShaderDefinition::shaderCode() const
+{
+    return p->d.shaderCode;
+}
+
+void
+ShaderDefinition::setShaderCode(const QString& shaderCode)
+{
+    if (p->d.shaderCode != shaderCode) {
+        p.detach();
+        p->d.shaderCode = shaderCode;
+    }
+}
+
 core::Error
 ShaderDefinition::error() const
 {
@@ -107,16 +125,6 @@ bool
 ShaderDefinition::isValid() const
 {
     return p->d.error.isValid();
-}
-
-int
-ShaderDefinition::ShaderDescriptor::indexOf(const QString& name) const
-{
-    for (int i = 0; i < parameters.size(); ++i) {
-        if (parameters[i].name == name)
-            return i;
-    }
-    return -1;
 }
 
 }  // namespace flipman::sdk::render

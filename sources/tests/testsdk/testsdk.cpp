@@ -33,8 +33,9 @@
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
 #include <flipmansdk/render/shadercompiler.h>
-#include <flipmansdk/render/shadercomposer.h>
+#include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderdefinition.h>
+#include <flipmansdk/render/shaderparser.h>
 
 #include <QApplication>
 #include <QDebug>
@@ -122,7 +123,7 @@ testClip()
     QString filename = "timecode export 29 97 04-05-03_10.mov";
 
     av::Media media;
-    core::File file = QString("%1/quicktime/%2").arg(dataPath).arg(filename);
+    core::File file(QString("%1/quicktime/%2").arg(dataPath).arg(filename));
     if (!file.exists()) {
         core::logOut() << "file does not exist: " << file << Qt::endl;
         return false;
@@ -604,7 +605,7 @@ testImageNV12()
     core::DispatchGroup group;
     for (const QString& filename : filenames) {
         group.async([filename, &ok]() {
-            sdk::core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+            sdk::core::File file(QString("%1/%2").arg(dataPath).arg(filename));
             if (!file.exists()) {
                 core::logErr() << "file does not exist: " << file << Qt::endl;
                 ok = false;
@@ -635,7 +636,7 @@ testImageNV12()
                 }
             }
 
-            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr");
+            sdk::core::File output(QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr"));
             QDir outDir(output.dirName());
             if (!outDir.exists()) {
                 if (!outDir.mkpath(".")) {
@@ -762,7 +763,7 @@ testImageAverage()
 
         core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
         QString output = "8kdci long 23.976_00087172.exr";
-        core::File outputFile = QString("%1/testImageAverage/%2").arg(testPath).arg(output);
+        core::File outputFile(QString("%1/testImageAverage/%2").arg(testPath).arg(output));
 
         QDir outDir(outputFile.dirName());
 
@@ -815,7 +816,7 @@ testImageThreaded()
 
     const QList<core::File> files = core::File::listDir(QString("%1/exr8k").arg(dataPath));
 
-    const int threads = std::min(1, QThread::idealThreadCount());
+    const int threads = std::min(4, QThread::idealThreadCount());
 
     std::atomic<bool> ok { true };
 
@@ -927,7 +928,7 @@ testImageThreaded()
                     av::Timer convertTimer;
                     convertTimer.start();
 
-                    core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
+                    //core::ImageBuffer converted = core::ImageBuffer::convert(image, 4);
 
                     convertTimer.stop();
 
@@ -1010,7 +1011,7 @@ testMedia()
     core::DispatchGroup group;
     for (const QString& filename : filenames) {
         group.async([filename, &ok]() {
-            sdk::core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+            sdk::core::File file(QString("%1/%2").arg(dataPath).arg(filename));
             if (!file.exists()) {
                 core::logErr() << "file does not exist: " << file << Qt::endl;
                 ok = false;
@@ -1041,7 +1042,7 @@ testMedia()
                 }
             }
 
-            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr");
+            sdk::core::File output(QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr"));
             sdk::av::MediaProcessor mediaProcessor;
 
             QObject::connect(
@@ -1083,7 +1084,7 @@ testRender()
     core::DispatchGroup group;
     for (const QString& filename : filenames) {
         group.async([filename, &ok]() {
-            sdk::core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+            sdk::core::File file(QString("%1/%2").arg(dataPath).arg(filename));
             if (!file.exists()) {
                 core::logErr() << "file does not exist: " << file << Qt::endl;
                 ok = false;
@@ -1121,7 +1122,7 @@ testRender()
                 }
             }
 
-            sdk::core::File output = QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr");
+            sdk::core::File output(QString("%1/%2%3").arg(imagePath).arg(file.baseName()).arg(".#####.exr"));
             QDir outDir(output.dirName());
             if (!outDir.exists()) {
                 if (!outDir.mkpath(".")) {
@@ -1204,7 +1205,7 @@ testRender()
 
                 if (diffCount > 0) {
                     core::logErr() << "render mismatch detected, differing components:" << diffCount << Qt::endl;
-                    sdk::core::File diffFile = QString("%1/%2_diff.exr").arg(imagePath).arg(file.baseName());
+                    sdk::core::File diffFile(QString("%1/%2_diff.exr").arg(imagePath).arg(file.baseName()));
 
                     if (writer && writer->open(diffFile)) {
                         writer->setTimeRange(range);
@@ -1225,45 +1226,30 @@ testShader()
     core::logOut() << "test media" << Qt::endl;
 
     QString filename = "fx/gaussian.fx";
-    core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+    core::File file(QString("%1/%2").arg(dataPath).arg(filename));
     if (!file.exists()) {
         core::logOut() << "file does not exist: " << file << Qt::endl;
         return false;
     }
-
-    render::ShaderComposer effectComposer;
-    render::ShaderDefinition shaderDefinition = effectComposer.fromFile(file);
-    if (!effectComposer.isValid()) {
-        core::logErr() << "failed to interpret effect code: " << effectComposer.error().message() << Qt::endl;
+    render::ShaderContract shaderContract;
+    render::ShaderParser shaderParser;
+    render::ShaderDefinition effectDefinition = shaderParser.parse(file);
+    if (!shaderParser.isValid()) {
+        core::logErr() << "failed to parse effect code: " << shaderParser.error().message() << Qt::endl;
         return false;
     }
 
-    if (!shaderDefinition.isValid()) {
+    if (!effectDefinition.isValid()) {
         core::logErr() << "shader definition is not valid" << Qt::endl;
         return false;
     }
 
-    if (shaderDefinition.shaderCode().isEmpty()) {
-        core::logErr() << "shaderCode is empty" << Qt::endl;
+    if (!effectDefinition.functions().size()) {
+        core::logErr() << "shader functions are empty" << Qt::endl;
         return false;
     }
 
-    if (shaderDefinition.uniformBlock().isEmpty()) {
-        core::logErr() << "uniformBlock is empty (expected parameters?)" << Qt::endl;
-        return false;
-    }
-
-    if (shaderDefinition.applyCode().isEmpty()) {
-        core::logErr() << "applyCode is empty" << Qt::endl;
-        return false;
-    }
-
-    if (shaderDefinition.shaderCode().contains("@param") || shaderDefinition.shaderCode().contains("@include")) {
-        core::logErr() << "directives not stripped from shaderCode" << Qt::endl;
-        return false;
-    }
-
-    const auto& params = shaderDefinition.descriptor().parameters;
+    const auto& params = effectDefinition.descriptor().parameters;
     if (params.isEmpty()) {
         core::logErr() << "no parameters detected in descriptor" << Qt::endl;
         return false;
@@ -1273,7 +1259,7 @@ testShader()
     for (const auto& p : params) {
         if (p.name == "radius") {
             foundRadius = true;
-            if (p.type != render::ShaderDefinition::ShaderParameter::Type::Float) {
+            if (p.type != render::ShaderDescriptor::ShaderParameter::Type::Float) {
                 core::logErr() << "radius type mismatch" << Qt::endl;
                 return false;
             }
@@ -1289,105 +1275,132 @@ testShader()
         return false;
     }
 
+    if (effectDefinition.shaderCode().isEmpty()) {
+        core::logErr() << "shaderCode is empty" << Qt::endl;
+        return false;
+    }
+
     for (const auto& p : params) {
-        if (!shaderDefinition.uniformBlock().contains(p.name)) {
-            core::logErr() << "uniformBlock missing parameter:" << p.name << Qt::endl;
+        if (!effectDefinition.uniformBlock().contains(p.name)) {
+            core::logErr() << "uniform missing parameter:" << p.name << Qt::endl;
             return false;
         }
     }
 
-    if (!shaderDefinition.shaderCode().contains("effect(")) {
-        core::logErr() << "effect function missing in shaderCode" << Qt::endl;
+    render::ShaderContract::Type effectType = render::ShaderContract::Type::Effect;
+    if (!shaderContract.validate(effectType, effectDefinition.functions())) {
+        core::logErr() << "effect code is not a valid" << shaderContract.name(effectType) << "shader" << Qt::endl;
         return false;
     }
 
-    core::logOut() << "shader code: " << shaderDefinition.shaderCode() << Qt::endl;
+    core::logOut() << "shader code:\n" << effectDefinition.shaderCode() << Qt::endl;
 
-    QFile viewerFile(":/flipmansdk/glsl/viewer.glsl");
-    if (!viewerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        core::logErr() << "could not open viewer glsl" << Qt::endl;
+    QFile layerFile(":/flipmansdk/glsl/layer.glsl");
+    if (!layerFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        core::logErr() << "could not open layer glsl" << Qt::endl;
         return false;
     }
 
-    QByteArray viewerShader = viewerFile.readAll();
-
-    QString idtCode = R"(vec3 idt(vec3 c)
+    QString idtCode = R"(vec4 idt(vec4 c)
 {
     // simple log-like expansion
-    return pow(max(c, vec3(0.0)), vec3(2.2));
+    return pow(max(c, vec4(0.0)), vec4(2.2));
 })";
+    render::ShaderDefinition idtDefinition = shaderParser.parse(idtCode);
+    if (!shaderParser.isValid()) {
+        core::logErr() << "failed to parse idt code: " << shaderParser.error().message() << Qt::endl;
+        return false;
+    }
+
+    render::ShaderContract::Type idtType = render::ShaderContract::Type::Idt;
+    if (!shaderContract.validate(idtType, idtDefinition.functions())) {
+        core::logErr() << "idt code is not a valid " << shaderContract.name(idtType) << " shader" << Qt::endl;
+        return false;
+    }
 
     QString odtCode =
-        R"(vec3 odt(vec3 c)
+        R"(vec4 odt(vec4 c)
 {
-    c = max(c, vec3(0.0));
-    return pow(c, vec3(1.0 / 2.2));
+    c = max(c, vec4(0.0));
+    return pow(c, vec4(1.0 / 2.2));
 })";
-
-    render::ShaderComposer::Options options;
-    options.injections.set("effectUniforms", shaderDefinition.uniformBlock());
-    options.injections.set("effectCode", shaderDefinition.shaderCode());
-    options.injections.set("effectApply", shaderDefinition.applyCode());
-    options.injections.set("idtCode", idtCode);
-    options.injections.set("odtCode", odtCode);
-    options.injections.set("idtApply", "color.rgb = idt(color.rgb);");
-    options.injections.set("odtApply", "color.rgb = odt(color.rgb);");
-
-    render::ShaderComposer viewerComposer;
-    render::ShaderDefinition viewerDefinition = viewerComposer.fromSource(viewerShader, options);
-    if (!viewerComposer.isValid()) {
-        core::logErr() << "failed to interpret viewer code: " << viewerComposer.error() << Qt::endl;
+    render::ShaderDefinition odtDefinition = shaderParser.parse(odtCode);
+    if (!shaderParser.isValid()) {
+        core::logErr() << "failed to parse odt code: " << shaderParser.error().message() << Qt::endl;
         return false;
     }
 
-    if (viewerDefinition.shaderCode().isEmpty()) {
-        core::logErr() << "viewerDefinition shaderCode empty" << Qt::endl;
+    render::ShaderContract::Type odtType = render::ShaderContract::Type::Odt;
+    if (!shaderContract.validate(odtType, odtDefinition.functions())) {
+        core::logErr() << "idt code is not a valid " << shaderContract.name(odtType) << " shader" << Qt::endl;
         return false;
     }
 
-    const QString viewerCode = viewerDefinition.shaderCode();
-    if (viewerCode.isEmpty()) {
-        core::logErr() << "viewer shaderCode is empty" << Qt::endl;
+    QString texUniformBlock = R"(layout(binding = 1) uniform sampler2D tex;)";
+    QString texCall = R"(vec4 color = texture(tex, uv);)";
+
+    QByteArray layerShader = layerFile.readAll();
+    render::ShaderParser::Options options;
+    options.injections.set("texUniform", texUniformBlock);
+    options.injections.set("effectUniform", effectDefinition.uniformBlock(2));
+    options.injections.set("texCall", texCall);
+    options.injections.set("effectCode", effectDefinition.shaderCode());
+    options.injections.set("idtCode", idtDefinition.shaderCode());
+    options.injections.set("odtCode", odtDefinition.shaderCode());
+    options.injections.set("effectCall", shaderContract.call(effectType));
+    options.injections.set("idtCall", shaderContract.call(idtType));
+    options.injections.set("odtCall", shaderContract.call(odtType));
+
+    render::ShaderParser layerParser;
+    render::ShaderDefinition viewerDefinition = layerParser.parse(layerShader, options);
+    if (!layerParser.isValid()) {
+        core::logErr() << "failed to parse viewer code: " << layerParser.error() << Qt::endl;
         return false;
     }
 
-    if (viewerCode.contains("@")) {
-        core::logErr() << "viewer shader still contains unresolved tokens" << Qt::endl;
+    if (!viewerDefinition.isValid()) {
+        core::logErr() << "shader definition is not valid" << Qt::endl;
         return false;
     }
 
+    if (!viewerDefinition.functions().size()) {
+        core::logErr() << "shader functions are empty" << Qt::endl;
+        return false;
+    }
+
+    QString viewerCode = viewerDefinition.shaderCode();
     if (!viewerCode.contains("vec4 effect(")) {
         core::logErr() << "effect() function missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("vec3 idt(")) {
+    if (!viewerCode.contains("vec4 idt(")) {
         core::logErr() << "idt() function missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("vec3 odt(")) {
+    if (!viewerCode.contains("vec4 odt(")) {
         core::logErr() << "odt() function missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("color.rgb = idt(color.rgb);")) {
-        core::logErr() << "idtApply missing in viewer shader" << Qt::endl;
+    if (!viewerCode.contains("color = idt(color);")) {
+        core::logErr() << "idt call missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("color = effect(color, vUV);")) {
-        core::logErr() << "effectApply missing in viewer shader" << Qt::endl;
+    if (!viewerCode.contains("color = effect(color, uv);")) {
+        core::logErr() << "effect call missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("color.rgb = odt(color.rgb);")) {
-        core::logErr() << "odtApply missing in viewer shader" << Qt::endl;
+    if (!viewerCode.contains("color = odt(color);")) {
+        core::logErr() << "odt call missing in viewer shader" << Qt::endl;
         return false;
     }
 
-    if (!viewerCode.contains("uniform EffectParams")) {
-        core::logErr() << "EffectParams uniform block missing" << Qt::endl;
+    if (!viewerCode.contains("uniform Params")) {
+        core::logErr() << "Params uniform block missing" << Qt::endl;
         return false;
     }
 
@@ -1453,7 +1466,7 @@ testShader()
     QShaderDescription::UniformBlock effectBlock;
 
     for (const auto& block : shaderDescription.uniformBlocks()) {
-        if (block.blockName == "EffectParams") {
+        if (block.blockName == "Params") {
             foundEffectParams = true;
             effectBlock = block;
             break;
@@ -1484,7 +1497,6 @@ testShader()
         core::logErr() << "vertex shader compilation failed: " << compiler.error().message() << Qt::endl;
         return false;
     }
-
     return true;
 }
 
@@ -1877,7 +1889,7 @@ testPluginFx()
     core::logOut() << "test plugin fx" << Qt::endl;
 
     QString filename = "fx/warm.fx";
-    core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+    core::File file(QString("%1/%2").arg(dataPath).arg(filename));
 
     if (!file.exists()) {
         core::logErr() << "file does not exist: " << file << Qt::endl;
@@ -1926,12 +1938,6 @@ testPluginFx()
             return;
         }
 
-        if (shaderDefinition.applyCode().isEmpty()) {
-            core::logErr() << "applyCode is empty" << Qt::endl;
-            ok = false;
-            return;
-        }
-
         if (shaderDefinition.shaderCode().contains("@param") || shaderDefinition.shaderCode().contains("@include")) {
             core::logErr() << "directives not stripped from shaderCode" << Qt::endl;
             ok = false;
@@ -1949,7 +1955,7 @@ testPluginFx()
         for (const auto& p : params) {
             if (p.name == "warm") {
                 foundWarm = true;
-                if (p.type != render::ShaderDefinition::ShaderParameter::Type::Float) {
+                if (p.type != render::ShaderDescriptor::ShaderParameter::Type::Float) {
                     core::logErr() << "radius type mismatch" << Qt::endl;
                     ok = false;
                     return;
@@ -1976,14 +1982,19 @@ testPluginFx()
             }
         }
 
-        if (!shaderDefinition.shaderCode().contains("effect(")) {
-            core::logErr() << "effect function missing in shaderCode" << Qt::endl;
+        render::ShaderContract shaderContract;
+        render::ShaderContract::Type effectType = render::ShaderContract::Type::Effect;
+        if (!shaderContract.validate(effectType, shaderDefinition.functions())) {
+            core::logErr() << "effect code is not a valid" << shaderContract.name(effectType) << "shader" << Qt::endl;
             ok = false;
             return;
         }
+
+        core::logOut() << "shader code:\n" << shaderDefinition.shaderCode() << Qt::endl;
     });
     group.wait();
     return ok.load();
+    return true;
 }
 
 bool
@@ -1991,7 +2002,7 @@ testPluginContainer()
 {
     core::logOut() << "test plugin container" << Qt::endl;
     QString filename = "quicktime/23 967 fps 24 fps timecode.mp4";
-    core::File file = QString("%1/%2").arg(dataPath).arg(filename);
+    core::File file(QString("%1/%2").arg(dataPath).arg(filename));
     if (!file.exists()) {
         core::logErr() << "file does not exist: " << file << Qt::endl;
         return false;
@@ -2052,7 +2063,7 @@ testPluginContainer()
             }
         }
 
-        core::File output = core::Environment::resourcePath(QString("%1/testPlugins/image.#####.exr").arg(testPath));
+        core::File output(core::Environment::resourcePath(QString("%1/testPlugins/image.#####.exr").arg(testPath)));
 
         QDir outDir(output.dirName());
         if (!outDir.exists()) {
@@ -2106,7 +2117,7 @@ testPluginImage()
 {
     core::logOut() << "test plugin image" << Qt::endl;
     QString filename = "test.00086400.exr";
-    core::File file = QString("%1/exr/%2").arg(dataPath).arg(filename);
+    core::File file(QString("%1/exr/%2").arg(dataPath).arg(filename));
     if (!file.exists()) {
         core::logErr() << "file does not exist: " << file << Qt::endl;
         return false;
@@ -2146,7 +2157,7 @@ testPluginImage()
         }
 
         QString output = "test.00086400.exr";
-        core::File outputFile = QString("%1/testPluginImage/%2").arg(testPath).arg(output);
+        core::File outputFile(QString("%1/testPluginImage/%2").arg(testPath).arg(output));
         QDir outDir(outputFile.dirName());
         if (!outDir.exists()) {
             if (!outDir.mkpath(".")) {
@@ -2189,8 +2200,8 @@ bool
 testPluginRegistry()
 {
     core::logOut() << "test plugin registry" << Qt::endl;
-    sdk::core::File file = QString("%1/quicktime/24fps.mov").arg(dataPath);
 
+    sdk::core::File file(QString("%1/quicktime/24fps.mov").arg(dataPath));
     if (!file.exists()) {
         core::logErr() << "file does not exist: " << file.filePath() << Qt::endl;
         return false;

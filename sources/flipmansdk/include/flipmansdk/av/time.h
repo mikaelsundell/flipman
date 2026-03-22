@@ -32,7 +32,7 @@ public:
     /**
      * @brief Constructs Time from ticks and timescale.
      */
-    Time(qint64 ticks, qint32 timeScale, const Fps& fps);
+    explicit Time(qint64 ticks, qint32 timeScale, const Fps& fps);
 
     /**
      * @brief Constructs Time from other with new ticks.

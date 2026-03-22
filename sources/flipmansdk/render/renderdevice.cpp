@@ -5,6 +5,7 @@
 #include <flipmansdk/render/renderdevice.h>
 
 namespace flipman::sdk::render {
+
 class RenderDevicePrivate {
 public:
     bool create(RenderDevice::Backend backend, const QSize& size, RenderDevice::RenderTargetFormat renderTargetFormat);

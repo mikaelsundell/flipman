@@ -32,7 +32,7 @@ public:
     /**
      * @brief Constructs a File from a path.
      */
-    File(const QString& file);
+    explicit File(const QString& file);
 
     /**
      * @brief Constructs a File from QFileInfo.
