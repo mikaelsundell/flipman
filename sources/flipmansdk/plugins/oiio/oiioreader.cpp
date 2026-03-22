@@ -182,7 +182,7 @@ OIIOReaderPrivate::read()
     const int channels = spec.nchannels;
     core::ImageBuffer image(dataWindow, displayWindow, format, channels);
     image.allocate();
-    
+
     bool ok = d.input->read_scanlines(0, 0, 0, height, 0, 0, channels, baseType, image.data(), OIIO::AutoStride,
                                       OIIO::AutoStride);
 

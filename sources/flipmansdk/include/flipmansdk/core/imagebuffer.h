@@ -57,7 +57,7 @@ public:
      * @brief Destroys the ImageBuffer.
      */
     ~ImageBuffer();
-    
+
     /**
      * @brief Allocates memory for the current image configuration.
      *
@@ -65,7 +65,7 @@ public:
      * and before accessing pixel data. Reallocates if already allocated.
      */
     void allocate();
-    
+
     /** @name Windows */
     ///@{
 
@@ -195,7 +195,7 @@ public:
      * Required before accessing pixel data.
      */
     bool isAllocated() const;
-    
+
     /**
      * @brief Returns true if valid.
      */

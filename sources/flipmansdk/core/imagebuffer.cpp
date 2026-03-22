@@ -582,7 +582,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
 
     ImageBuffer dst(imageBuffer.dataWindow(), imageBuffer.displayWindow(), imageBuffer.imageFormat(), channels);
     dst.allocate();
-    
+
     const int srcChannels = imageBuffer.channels();
     const auto type = imageBuffer.imageFormat().type();
 
