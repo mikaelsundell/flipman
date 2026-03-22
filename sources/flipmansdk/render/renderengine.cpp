@@ -18,8 +18,8 @@
 #include <QCryptographicHash>
 #include <QHash>
 
-#define RENDERENGINE_STATS 1
-#define RENDERENGINE_TRACE 0
+//#define RENDERENGINE_STATS 0
+//#define RENDERENGINE_TRACE 0
 
 #if defined(RENDERENGINE_STATS)
 #    define RE_STATS_ENABLED 1
@@ -55,6 +55,7 @@ public:
     bool initResources(const RenderEngine::Context& context);
     void updateRenderStates(const RenderEngine::Context&, QRhiResourceUpdateBatch* updates);
     void updateBlit(const RenderEngine::Context&, QRhiResourceUpdateBatch*);
+    bool updateBlitResources(const RenderEngine::Context& context);
     void freeResources();
     void render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer);
     void renderScene(const RenderEngine::Context&, QRhiCommandBuffer*);
@@ -91,7 +92,6 @@ public:
             imageData1.reset();
             effectParameterData.clear();
         }
-
         bool initTextures(const core::ImageBuffer& image, QRhi* rhi)
         {
             if (!rhi || !image.isValid())
@@ -144,7 +144,6 @@ public:
             }
             return imageData0.isValid();
         }
-
         quint64 uploadTextures(QRhiResourceUpdateBatch* updates)
         {
             if (!updates || !texture0)
@@ -152,7 +151,8 @@ public:
 
             if (textureType == TextureType::Nv12) {
                 if (!texture1 || !imageData0.isValid() || !imageData1.isValid())
-                    return;
+                    return 0;
+
                 QRhiTextureSubresourceUploadDescription yUpload(imageData0.planeData(0),
                                                                 static_cast<quint32>(imageData0.planeByteSize(0)));
                 yUpload.setDataStride(static_cast<quint32>(imageData0.planeStride(0)));
@@ -169,16 +169,11 @@ public:
                 updates->uploadTexture(texture1.get(),
                                        QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, uvUpload) }));
 
-                const quint64 bytes = quint64(imageData0.planeByteSize(0)) + quint64(imageData1.planeByteSize(1));
-
-                updates->uploadTexture(texture1.get(),
-                                       QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, uvUpload) }));
-
-                return bytes;
+                return quint64(imageData0.planeByteSize(0)) + quint64(imageData1.planeByteSize(1));
             }
 
             if (!imageData0.isValid())
-                return;
+                return 0;
 
             QRhiTextureSubresourceUploadDescription subres(imageData0.data(),
                                                            static_cast<quint32>(imageData0.byteSize()));
@@ -188,12 +183,7 @@ public:
             updates->uploadTexture(texture0.get(),
                                    QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, subres) }));
 
-            const quint64 bytes = quint64(imageData0.byteSize());
-
-            updates->uploadTexture(texture0.get(),
-                                   QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, subres) }));
-
-            return bytes;
+            return quint64(imageData0.byteSize());
         }
         static QRhiTexture::Format toTextureFormat(TextureType type)
         {
@@ -300,20 +290,31 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
     d.deviceRhi = renderContext.rhi;
     d.deviceRenderPassDescriptor = renderContext.renderPassDescriptor;
     d.size = renderContext.size;
+
     d.quad = {
         // pos(x,y,z)      uv
         -1.f, -1.f, 0.f, 0.f, 0.f, 1.f, -1.f, 0.f, 1.f, 0.f, -1.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f, 0.f, 1.f, 1.f,
     };
+
     d.quadBuffer.reset(d.deviceRhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
                                               static_cast<quint32>(d.quad.size()) * sizeof(float)));
-    d.quadBuffer->create();
+    if (!d.quadBuffer || !d.quadBuffer->create()) {
+        d.error = core::Error("renderengine", "could not create quad buffer");
+        return false;
+    }
 
     d.mvpBuffer.reset(d.deviceRhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, sizeof(float) * 16));
-    d.mvpBuffer->create();
+    if (!d.mvpBuffer || !d.mvpBuffer->create()) {
+        d.error = core::Error("renderengine", "could not create mvp buffer");
+        return false;
+    }
 
     d.sampler.reset(d.deviceRhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
                                             QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
-    d.sampler->create();
+    if (!d.sampler || !d.sampler->create()) {
+        d.error = core::Error("renderengine", "could not create sampler");
+        return false;
+    }
 
     d.quadLayout.setBindings({ { 5 * sizeof(float) } });
     d.quadLayout.setAttributes({
@@ -323,7 +324,7 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
 
     d.renderTexture.reset(d.deviceRhi->newTexture(QRhiTexture::RGBA16F, d.resolution, 1,
                                                   QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
-    if (!d.renderTexture->create()) {
+    if (!d.renderTexture || !d.renderTexture->create()) {
         d.error = core::Error("renderengine", "could not create render texture");
         return false;
     }
@@ -332,47 +333,14 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
     d.renderTarget.reset(d.deviceRhi->newTextureRenderTarget(textureRenderTargetDesc));
     d.renderPassDescriptor.reset(d.renderTarget->newCompatibleRenderPassDescriptor());
     d.renderTarget->setRenderPassDescriptor(d.renderPassDescriptor.get());
-    if (!d.renderTarget->create()) {
+
+    if (!d.renderTarget || !d.renderTarget->create()) {
         d.error = core::Error("renderengine", "could not create render target");
         return false;
     }
 
-    d.blitShaderBindings.reset(d.deviceRhi->newShaderResourceBindings());
-    d.blitShaderBindings->setBindings({
-        QRhiShaderResourceBinding::uniformBuffer(
-            0, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage, d.mvpBuffer.get()),
-        QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage, d.renderTexture.get(),
-                                                  d.sampler.get()),
-    });
-    if (!d.blitShaderBindings->create()) {
-        d.error = core::Error("renderengine", "could not create blit shader bindings");
+    if (!updateBlitResources(renderContext))
         return false;
-    }
-
-    d.blitPipeline.reset(d.deviceRhi->newGraphicsPipeline());
-    d.blitPipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
-
-    QShader vertexShader = compileShader(loadShader("transform"), QShader::VertexStage);
-    if (!vertexShader.isValid()) {
-        d.error = core::Error("renderengine", "could not compile transform shader");
-        return false;
-    }
-
-    QShader fragmentShader = compileShader(loadShader("blit"), QShader::FragmentStage);
-    if (!fragmentShader.isValid()) {
-        d.error = core::Error("renderengine", "could not compile blit shader");
-        return false;
-    }
-
-    d.blitPipeline->setShaderStages(
-        { { QRhiShaderStage::Vertex, vertexShader }, { QRhiShaderStage::Fragment, fragmentShader } });
-    d.blitPipeline->setVertexInputLayout(d.quadLayout);
-    d.blitPipeline->setShaderResourceBindings(d.blitShaderBindings.get());
-    d.blitPipeline->setRenderPassDescriptor(d.deviceRenderPassDescriptor);
-    if (!d.blitPipeline->create()) {
-        d.error = core::Error("renderengine", "could not create blit pipeline");
-        return false;
-    }
 
     d.renderStates.clear();
     d.quadBufferUploaded = false;
@@ -727,6 +695,64 @@ RenderEnginePrivate::updateBlit(const RenderEngine::Context& context, QRhiResour
     QMatrix4x4 finalMatrix = context.view * matrix;
 
     updates->updateDynamicBuffer(d.mvpBuffer.get(), 0, 64, finalMatrix.constData());
+}
+
+bool
+RenderEnginePrivate::updateBlitResources(const RenderEngine::Context& context)
+{
+    if (!context.isValid() || !d.deviceRhi || !d.mvpBuffer || !d.sampler || !d.renderTexture)
+        return false;
+
+    d.deviceRenderPassDescriptor = context.renderPassDescriptor;
+    d.size = context.size;
+
+    d.blitPipeline.reset();
+    d.blitShaderBindings.reset();
+
+    d.blitShaderBindings.reset(d.deviceRhi->newShaderResourceBindings());
+    d.blitShaderBindings->setBindings({
+        QRhiShaderResourceBinding::uniformBuffer(
+            0, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage, d.mvpBuffer.get()),
+        QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage, d.renderTexture.get(),
+                                                  d.sampler.get()),
+    });
+
+    if (!d.blitShaderBindings->create()) {
+        d.error = core::Error("renderengine", "could not create blit shader bindings");
+        d.blitShaderBindings.reset();
+        return false;
+    }
+
+    d.blitPipeline.reset(d.deviceRhi->newGraphicsPipeline());
+    d.blitPipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
+
+    const QShader vertexShader = compileShader(loadShader("transform"), QShader::VertexStage);
+    if (!vertexShader.isValid()) {
+        d.error = core::Error("renderengine", "could not compile transform shader");
+        d.blitPipeline.reset();
+        return false;
+    }
+
+    const QShader fragmentShader = compileShader(loadShader("blit"), QShader::FragmentStage);
+    if (!fragmentShader.isValid()) {
+        d.error = core::Error("renderengine", "could not compile blit shader");
+        d.blitPipeline.reset();
+        return false;
+    }
+
+    d.blitPipeline->setShaderStages(
+        { { QRhiShaderStage::Vertex, vertexShader }, { QRhiShaderStage::Fragment, fragmentShader } });
+    d.blitPipeline->setVertexInputLayout(d.quadLayout);
+    d.blitPipeline->setShaderResourceBindings(d.blitShaderBindings.get());
+    d.blitPipeline->setRenderPassDescriptor(d.deviceRenderPassDescriptor);
+
+    if (!d.blitPipeline->create()) {
+        d.error = core::Error("renderengine", "could not create blit pipeline");
+        d.blitPipeline.reset();
+        return false;
+    }
+
+    return true;
 }
 
 void
@@ -1199,13 +1225,18 @@ RenderEngine::initialize(const Context& context)
     if (!context.isValid())
         return false;
 
-    const bool contextChanged = p->d.deviceRhi != context.rhi
-                                || p->d.deviceRenderPassDescriptor != context.renderPassDescriptor
-                                || p->d.size != context.size;
+    const bool deviceChanged = p->d.deviceRhi != context.rhi;
 
-    if (!p->d.valid || contextChanged) {
+    const bool blitContextChanged = p->d.deviceRenderPassDescriptor != context.renderPassDescriptor
+                                    || p->d.size != context.size;
+
+    if (!p->d.valid || deviceChanged) {
         p->freeResources();
         return p->initResources(context);
+    }
+
+    if (blitContextChanged) {
+        return p->updateBlitResources(context);
     }
 
     return true;
