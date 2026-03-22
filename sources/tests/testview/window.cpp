@@ -46,28 +46,25 @@ WindowPrivate::init()
     d.inputFile = args.at(1);
 
     const QString dataPath = sdk::core::Environment::resourcePath("../../../data");
-
-    //const QString filename = "square export 23.976 512x512.mov";
-    //sdk::core::File file = QString("%1/quicktime/%2").arg(sdk::core::Environment::resourcePath(dataPath)).arg(filename);
-
+#if (0)
+    // rgb
     const QString filename = "23.967.00086400.exr";
-    sdk::core::File file = QString("%1/exr/%2").arg(dataPath).arg(filename);
+    sdk::core::File file(QString("%1/exr/%2").arg(dataPath).arg(filename));
+#else
+    // nv12
+    const QString filename = "square export 23.976 512x512.mov";
+    sdk::core::File file(QString("%1/quicktime/%2").arg(sdk::core::Environment::resourcePath(dataPath)).arg(filename));
+#endif
 
-
-    if (!file.exists())
-        qFatal("file does not exist");
+    Q_ASSERT_X(file.exists(), "RenderEngine::loadFile", "file does not exist");
 
     sdk::av::Media media;
-    if (!media.open(file) || !media.waitForOpened())
-        qFatal("could not open media");
-
-    if (!media.isValid())
-        qFatal("error open media");
+    Q_ASSERT(media.open(file) && media.waitForOpened() && "could not open media");
+    Q_ASSERT(media.isValid() && "error open media");
 
     media.read();
     sdk::core::ImageBuffer image = media.image();
-    if (!image.isValid())
-        qFatal("image not valid");
+    Q_ASSERT(image.isValid() && "image not valid");
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -133,24 +130,17 @@ WindowPrivate::init()
     imageLayer.setImage(image);
 
     QString shader = "fx/warm.fx";
-    sdk::core::File shaderFile = QString("%1/%2").arg(dataPath).arg(shader);
-    if (!shaderFile.exists())
-        qFatal("fx file does not exist");
+    sdk::core::File shaderFile(QString("%1/%2").arg(dataPath).arg(shader));
+    Q_ASSERT(shaderFile.exists() && "fx file does not exist");
 
     QScopedPointer<sdk::plugins::ImageEffectReader> reader(
         sdk::core::pluginRegistry()->getPlugin<sdk::plugins::ImageEffectReader>(shaderFile.extension()));
 
-    if (!reader)
-        qFatal("no reader for fx extension");
-
-    if (!reader->open(shaderFile))
-        qFatal("could not open reader for fx");
+    Q_ASSERT(reader && "no reader for fx extension");
+    Q_ASSERT(reader->open(shaderFile) && "could not open reader for fx");
 
     sdk::render::ImageEffect imageEffect = reader->imageEffect();
-    if (!imageEffect.isValid())
-        qFatal("image effect is not valid");
-
-    qDebug().noquote() << "shaderCode: " << imageEffect.shaderDefinition().shaderCode();
+    Q_ASSERT(imageEffect.isValid() && "image effect is not valid");
 
     imageLayer.setImageEffect(imageEffect);
     d.viewer->setImageLayers({ imageLayer });

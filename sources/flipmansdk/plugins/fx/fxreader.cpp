@@ -5,7 +5,7 @@
 #include <flipmansdk/plugins/fx/fxreader.h>
 
 #include <flipmansdk/render/imageeffect.h>
-#include <flipmansdk/render/shadercomposer.h>
+#include <flipmansdk/render/shaderparser.h>
 
 namespace flipman::sdk::plugins {
 
@@ -29,10 +29,10 @@ FxReaderPrivate::open(const core::File& file, const FxReader::Options& options)
         d.error = core::Error(info().name, "failed to open file");
         return false;
     }
-    render::ShaderComposer shaderComposer;
-    render::ShaderDefinition shaderDefinition = shaderComposer.fromFile(file);
-    if (!shaderComposer.isValid()) {
-        d.error = shaderComposer.error();
+    render::ShaderParser shaderParser;
+    render::ShaderDefinition shaderDefinition = shaderParser.parse(file);
+    if (!shaderParser.isValid()) {
+        d.error = shaderParser.error();
         return false;
     }
     d.imageEffect = render::ImageEffect();

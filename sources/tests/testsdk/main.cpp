@@ -30,11 +30,11 @@ run()
 {
     const bool runContainers = false;
     const bool runTypes = false;
-    const bool runImage = true;
+    const bool runImage = false;
     const bool runMedia = false;
     const bool runTimer = false;
     const bool runPlugin = false;
-    const bool runRender = false;
+    const bool runRender = true;
     const bool runShader = false;
     const bool runTimeLine = false;
 

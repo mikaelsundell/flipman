@@ -11,7 +11,6 @@ function(generate_export_header TARGET_NAME)
     endif()
     string(TOUPPER "${TARGET_NAME}" TARGET_UPPER)
     set(EXPORT_MACRO "${TARGET_UPPER}_EXPORT")
-    
     generate_export_header(${TARGET_NAME}
         BASE_NAME ${TARGET_NAME}
         EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/${FILENAME}"
@@ -22,7 +21,6 @@ function(generate_export_header TARGET_NAME)
         VISIBILITY_INLINES_HIDDEN 1
         OBJCXX_VISIBILITY_PRESET hidden
     )
-
     target_include_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
     message(STATUS "Generated export header for ${TARGET_NAME}: ${EXPORT_MACRO} (${FILENAME})")
 endfunction()
