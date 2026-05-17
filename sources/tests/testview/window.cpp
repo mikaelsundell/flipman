@@ -39,41 +39,31 @@ namespace flipman {
 class WindowPrivate : public QObject {
 public:
     WindowPrivate();
-
     void init();
+    void update();
 
-    QWidget* createParameterPanel(QWidget* parent = nullptr);
-    QWidget* createParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param,
-                                   QWidget* parent = nullptr);
-
-    QWidget* createFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
-                            QWidget* parent = nullptr);
-
-    QWidget* createIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
-                          QWidget* parent = nullptr);
-
-    QWidget* createVec2Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                              const QVector2D& value, double minValue, double maxValue, QWidget* parent = nullptr);
-
-    QWidget* createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                              const QVector3D& value, double minValue, double maxValue, QWidget* parent = nullptr);
-
-    QWidget* createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                              const QVector4D& value, double minValue, double maxValue, QWidget* parent = nullptr);
-
-    QDoubleSpinBox* createDoubleSpinBox(double value, double minValue, double maxValue, QWidget* parent = nullptr);
-    QSpinBox* createIntSpinBox(int value, int minValue, int maxValue, QWidget* parent = nullptr);
-    QSlider* createFloatSlider(double value, double minValue, double maxValue, QWidget* parent = nullptr);
-    QSlider* createIntSlider(int value, int minValue, int maxValue, QWidget* parent = nullptr);
-
+public:
+    QWidget* addParameterPanel(QWidget* parent = nullptr);
+    QWidget* addParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param, QWidget* parent = nullptr);
+    QWidget* addFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
+                         QWidget* parent = nullptr);
+    QWidget* addIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
+                       QWidget* parent = nullptr);
+    QWidget* addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                           const QVector2D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+    QWidget* addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                           const QVector3D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+    QWidget* addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                           const QVector4D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+    QDoubleSpinBox* addDoubleSpinBox(double value, double minValue, double maxValue, QWidget* parent = nullptr);
+    QSpinBox* addIntSpinBox(int value, int minValue, int maxValue, QWidget* parent = nullptr);
+    QSlider* addFloatSlider(double value, double minValue, double maxValue, QWidget* parent = nullptr);
+    QSlider* addIntSlider(int value, int minValue, int maxValue, QWidget* parent = nullptr);
     void setVec2Component(const QString& name, int component, double value);
     void setVec3Component(const QString& name, int component, double value);
     void setVec4Component(const QString& name, int component, double value);
-
     void setParameterValue(const QString& name, const QVariant& value);
     QVariant parameterValue(const sdk::render::ShaderDescriptor::ShaderParameter& param) const;
-    void updateViewer();
-
     struct Data {
         QString inputFile;
         QPointer<Window> window;
@@ -92,7 +82,7 @@ WindowPrivate::parameterValue(const sdk::render::ShaderDescriptor::ShaderParamet
 }
 
 QSlider*
-WindowPrivate::createFloatSlider(double value, double minValue, double maxValue, QWidget* parent)
+WindowPrivate::addFloatSlider(double value, double minValue, double maxValue, QWidget* parent)
 {
     QSlider* slider = new QSlider(Qt::Horizontal, parent);
     slider->setRange(0, 1000);
@@ -104,7 +94,7 @@ WindowPrivate::createFloatSlider(double value, double minValue, double maxValue,
 }
 
 QSlider*
-WindowPrivate::createIntSlider(int value, int minValue, int maxValue, QWidget* parent)
+WindowPrivate::addIntSlider(int value, int minValue, int maxValue, QWidget* parent)
 {
     QSlider* slider = new QSlider(Qt::Horizontal, parent);
     slider->setRange(minValue, maxValue);
@@ -113,7 +103,7 @@ WindowPrivate::createIntSlider(int value, int minValue, int maxValue, QWidget* p
 }
 
 QDoubleSpinBox*
-WindowPrivate::createDoubleSpinBox(double value, double minValue, double maxValue, QWidget* parent)
+WindowPrivate::addDoubleSpinBox(double value, double minValue, double maxValue, QWidget* parent)
 {
     QDoubleSpinBox* spin = new QDoubleSpinBox(parent);
     spin->setDecimals(3);
@@ -126,7 +116,7 @@ WindowPrivate::createDoubleSpinBox(double value, double minValue, double maxValu
 }
 
 QSpinBox*
-WindowPrivate::createIntSpinBox(int value, int minValue, int maxValue, QWidget* parent)
+WindowPrivate::addIntSpinBox(int value, int minValue, int maxValue, QWidget* parent)
 {
     QSpinBox* spin = new QSpinBox(parent);
     spin->setRange(minValue, maxValue);
@@ -137,8 +127,8 @@ WindowPrivate::createIntSpinBox(int value, int minValue, int maxValue, QWidget* 
 }
 
 QWidget*
-WindowPrivate::createFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
-                              QWidget* parent)
+WindowPrivate::addFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
+                           QWidget* parent)
 {
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
@@ -148,10 +138,10 @@ WindowPrivate::createFloatRow(const QString& label, const QString& name, double 
     QLabel* title = new QLabel(label, row);
     title->setFixedWidth(80);
 
-    QSlider* slider = createFloatSlider(value, minValue, maxValue, row);
+    QSlider* slider = addFloatSlider(value, minValue, maxValue, row);
     slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-    QDoubleSpinBox* spin = createDoubleSpinBox(value, minValue, maxValue, row);
+    QDoubleSpinBox* spin = addDoubleSpinBox(value, minValue, maxValue, row);
     spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     layout->addWidget(title);
@@ -181,8 +171,8 @@ WindowPrivate::createFloatRow(const QString& label, const QString& name, double 
 }
 
 QWidget*
-WindowPrivate::createIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
-                            QWidget* parent)
+WindowPrivate::addIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
+                         QWidget* parent)
 {
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
@@ -192,8 +182,8 @@ WindowPrivate::createIntRow(const QString& label, const QString& name, int value
     QLabel* title = new QLabel(label, row);
     title->setMinimumWidth(80);
 
-    QSlider* slider = createIntSlider(value, minValue, maxValue, row);
-    QSpinBox* spin = createIntSpinBox(value, minValue, maxValue, row);
+    QSlider* slider = addIntSlider(value, minValue, maxValue, row);
+    QSpinBox* spin = addIntSpinBox(value, minValue, maxValue, row);
 
     layout->addWidget(title);
     layout->addWidget(slider, 1);
@@ -215,8 +205,8 @@ WindowPrivate::createIntRow(const QString& label, const QString& name, int value
 }
 
 QWidget*
-WindowPrivate::createVec2Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                                const QVector2D& value, double minValue, double maxValue, QWidget* parent)
+WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                             const QVector2D& value, double minValue, double maxValue, QWidget* parent)
 {
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
@@ -240,8 +230,8 @@ WindowPrivate::createVec2Widget(const sdk::render::ShaderDescriptor::ShaderParam
     xLayout->setSpacing(10);
     QLabel* xLabel = new QLabel("X", xRow);
     xLabel->setMinimumWidth(80);
-    xSlider = createFloatSlider(value.x(), minValue, maxValue, xRow);
-    xSpin = createDoubleSpinBox(value.x(), minValue, maxValue, xRow);
+    xSlider = addFloatSlider(value.x(), minValue, maxValue, xRow);
+    xSpin = addDoubleSpinBox(value.x(), minValue, maxValue, xRow);
     xLayout->addWidget(xLabel);
     xLayout->addWidget(xSlider, 1);
     xLayout->addWidget(xSpin);
@@ -252,8 +242,8 @@ WindowPrivate::createVec2Widget(const sdk::render::ShaderDescriptor::ShaderParam
     yLayout->setSpacing(10);
     QLabel* yLabel = new QLabel("Y", yRow);
     yLabel->setMinimumWidth(80);
-    ySlider = createFloatSlider(value.y(), minValue, maxValue, yRow);
-    ySpin = createDoubleSpinBox(value.y(), minValue, maxValue, yRow);
+    ySlider = addFloatSlider(value.y(), minValue, maxValue, yRow);
+    ySpin = addDoubleSpinBox(value.y(), minValue, maxValue, yRow);
     yLayout->addWidget(yLabel);
     yLayout->addWidget(ySlider, 1);
     yLayout->addWidget(ySpin);
@@ -303,8 +293,8 @@ WindowPrivate::createVec2Widget(const sdk::render::ShaderDescriptor::ShaderParam
 }
 
 QWidget*
-WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                                const QVector3D& value, double minValue, double maxValue, QWidget* parent)
+WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                             const QVector3D& value, double minValue, double maxValue, QWidget* parent)
 {
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
@@ -333,8 +323,8 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
 
         QLabel* label = new QLabel(name, row);
         label->setMinimumWidth(80);
-        slider = createFloatSlider(v, minValue, maxValue, row);
-        spin = createDoubleSpinBox(v, minValue, maxValue, row);
+        slider = addFloatSlider(v, minValue, maxValue, row);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
 
         rowLayout->addWidget(label);
         rowLayout->addWidget(slider, 1);
@@ -350,7 +340,7 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
         setParameterValue(name, QVariant::fromValue(
                                     QVector3D(float(xSpin->value()), float(ySpin->value()), float(zSpin->value()))));
     };
-
+    
     connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -358,7 +348,6 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
         xSpin->setValue(v);
         updateValue();
     });
-
     connect(ySlider, &QSlider::valueChanged, this, [ySpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -366,7 +355,6 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
         ySpin->setValue(v);
         updateValue();
     });
-
     connect(zSlider, &QSlider::valueChanged, this, [zSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -374,7 +362,6 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
         zSpin->setValue(v);
         updateValue();
     });
-
     connect(xSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [xSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -383,7 +370,6 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 xSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     connect(ySpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [ySlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -392,7 +378,6 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 ySlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     connect(zSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [zSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -401,13 +386,12 @@ WindowPrivate::createVec3Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 zSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     return widget;
 }
 
 QWidget*
-WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
-                                const QVector4D& value, double minValue, double maxValue, QWidget* parent)
+WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
+                             const QVector4D& value, double minValue, double maxValue, QWidget* parent)
 {
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
@@ -438,8 +422,8 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
 
         QLabel* label = new QLabel(name, row);
         label->setMinimumWidth(80);
-        slider = createFloatSlider(v, minValue, maxValue, row);
-        spin = createDoubleSpinBox(v, minValue, maxValue, row);
+        slider = addFloatSlider(v, minValue, maxValue, row);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
 
         rowLayout->addWidget(label);
         rowLayout->addWidget(slider, 1);
@@ -464,7 +448,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
         xSpin->setValue(v);
         updateValue();
     });
-
     connect(ySlider, &QSlider::valueChanged, this, [ySpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -472,7 +455,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
         ySpin->setValue(v);
         updateValue();
     });
-
     connect(zSlider, &QSlider::valueChanged, this, [zSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -480,7 +462,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
         zSpin->setValue(v);
         updateValue();
     });
-
     connect(wSlider, &QSlider::valueChanged, this, [wSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
@@ -488,7 +469,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
         wSpin->setValue(v);
         updateValue();
     });
-
     connect(xSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [xSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -497,7 +477,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 xSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     connect(ySpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [ySlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -506,7 +485,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 ySlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     connect(zSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [zSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -515,7 +493,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 zSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     connect(wSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [wSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
@@ -524,7 +501,6 @@ WindowPrivate::createVec4Widget(const sdk::render::ShaderDescriptor::ShaderParam
                 wSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
-
     return widget;
 }
 
@@ -554,7 +530,7 @@ WindowPrivate::setVec2Component(const QString& name, int component, double value
     d.imageLayer.setImageEffect(imageEffect);
 
     qDebug() << "ui: setVec2Component" << name << v;
-    updateViewer();
+    update();
 }
 
 void
@@ -585,7 +561,7 @@ WindowPrivate::setVec3Component(const QString& name, int component, double value
     d.imageLayer.setImageEffect(imageEffect);
 
     qDebug() << "ui: setVec3Component" << name << v;
-    updateViewer();
+    update();
 }
 
 void
@@ -618,7 +594,7 @@ WindowPrivate::setVec4Component(const QString& name, int component, double value
     d.imageLayer.setImageEffect(imageEffect);
 
     qDebug() << "ui: setVec4Component" << name << v;
-    updateViewer();
+    update();
 }
 
 void
@@ -640,42 +616,33 @@ WindowPrivate::setParameterValue(const QString& name, const QVariant& value)
     imageEffect.setShaderDefinition(definition);
     d.imageLayer.setImageEffect(imageEffect);
 
-    updateViewer();
-}
-
-void
-WindowPrivate::updateViewer()
-{
-    if (!d.viewer)
-        return;
-
-    d.viewer->setImageLayers({ d.imageLayer });
-    d.viewer->update();
+    update();
 }
 
 QWidget*
-WindowPrivate::createParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param, QWidget* parent)
+WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param, QWidget* parent)
 {
     using ShaderParameter = sdk::render::ShaderDescriptor::ShaderParameter;
 
     const QVariant value = parameterValue(param);
     const QString label = !param.label.isEmpty() ? param.label : param.name;
 
+    qDebug() << "parameter value: " << param.value;
+    qDebug() << "parameter defaultValue: " << param.defaultValue;
+
     switch (param.type) {
     case ShaderParameter::Type::Float: {
         const double current = value.toDouble();
         const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
         const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
-        return createFloatRow(label, param.name, current, minValue, maxValue, parent);
+        return addFloatRow(label, param.name, current, minValue, maxValue, parent);
     }
-
     case ShaderParameter::Type::Int: {
         const int current = value.toInt();
         const int minValue = param.minValue.isValid() ? param.minValue.toInt() : 0;
         const int maxValue = param.maxValue.isValid() ? param.maxValue.toInt() : 100;
-        return createIntRow(label, param.name, current, minValue, maxValue, parent);
+        return addIntRow(label, param.name, current, minValue, maxValue, parent);
     }
-
     case ShaderParameter::Type::Bool: {
         QWidget* row = new QWidget(parent);
         QHBoxLayout* layout = new QHBoxLayout(row);
@@ -694,29 +661,25 @@ WindowPrivate::createParameterWidget(const sdk::render::ShaderDescriptor::Shader
 
         connect(box, &QCheckBox::toggled, this,
                 [this, name = param.name](bool checked) { setParameterValue(name, checked); });
-
         return row;
     }
-
     case ShaderParameter::Type::Vec2: {
         const QVector2D current = value.value<QVector2D>();
         const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
         const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
-        return createVec2Widget(param, label, current, minValue, maxValue, parent);
+        return addVec2Widget(param, label, current, minValue, maxValue, parent);
     }
-
     case ShaderParameter::Type::Vec3: {
         const QVector3D current = value.value<QVector3D>();
         const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
         const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
-        return createVec3Widget(param, label, current, minValue, maxValue, parent);
+        return addVec3Widget(param, label, current, minValue, maxValue, parent);
     }
-
     case ShaderParameter::Type::Vec4: {
         const QVector4D current = value.value<QVector4D>();
         const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
         const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
-        return createVec4Widget(param, label, current, minValue, maxValue, parent);
+        return addVec4Widget(param, label, current, minValue, maxValue, parent);
     }
     }
 
@@ -724,7 +687,7 @@ WindowPrivate::createParameterWidget(const sdk::render::ShaderDescriptor::Shader
 }
 
 QWidget*
-WindowPrivate::createParameterPanel(QWidget* parent)
+WindowPrivate::addParameterPanel(QWidget* parent)
 {
     QWidget* panel = new QWidget(parent);
     panel->setMinimumWidth(320);
@@ -756,7 +719,9 @@ WindowPrivate::createParameterPanel(QWidget* parent)
     QMap<QString, QVBoxLayout*> groupLayouts;
 
     for (const auto& param : parameters) {
-        QWidget* editor = createParameterWidget(param, content);
+        qDebug() << "param: " << param.name;
+
+        QWidget* editor = addParameterWidget(param, content);
         const QString groupName = param.group.trimmed();
 
         if (groupName.isEmpty()) {
@@ -774,14 +739,11 @@ WindowPrivate::createParameterPanel(QWidget* parent)
             groupLayouts.insert(groupName, boxLayout);
             contentLayout->addWidget(box);
         }
-
         groupLayouts[groupName]->addWidget(editor);
     }
-
     contentLayout->addStretch();
     scrollArea->setWidget(content);
     panelLayout->addWidget(scrollArea);
-
     return panel;
 }
 
@@ -902,7 +864,7 @@ WindowPrivate::init()
 
     leftLayout->addWidget(timelineSlider);
 
-    QWidget* parameterPanel = createParameterPanel(splitter);
+    QWidget* parameterPanel = addParameterPanel(splitter);
 
     splitter->addWidget(leftWidget);
     splitter->addWidget(parameterPanel);
@@ -945,6 +907,13 @@ WindowPrivate::init()
     d.window->setWindowTitle("testview");
     d.window->setCentralWidget(centralWidget);
     d.window->resize(1200, 700);
+}
+
+void
+WindowPrivate::update()
+{
+    d.viewer->setImageLayers({ d.imageLayer });
+    d.viewer->update();
 }
 
 Window::Window(QWidget* parent)

@@ -4,4 +4,4 @@
 
 #pragma once
 
-#include <flipmanexport.h>
+#include <flipmansdk/flipmanexport.h>

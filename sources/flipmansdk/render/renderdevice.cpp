@@ -249,9 +249,9 @@ RenderDevice::readback() const
     QRect displayWindow = dataWindow;
 
     core::ImageBuffer buffer(dataWindow, displayWindow, format, channels);
+    buffer.allocate();
 
     std::memcpy(buffer.data(), result.data.constData(), buffer.byteSize());
-
     return buffer;
 }
 
