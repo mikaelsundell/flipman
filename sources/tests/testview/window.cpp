@@ -224,69 +224,70 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QSlider* xSlider = nullptr;
     QSlider* ySlider = nullptr;
 
-    QWidget* xRow = new QWidget(widget);
-    QHBoxLayout* xLayout = new QHBoxLayout(xRow);
-    xLayout->setContentsMargins(0, 0, 0, 0);
-    xLayout->setSpacing(10);
-    QLabel* xLabel = new QLabel("X", xRow);
-    xLabel->setMinimumWidth(80);
-    xSlider = addFloatSlider(value.x(), minValue, maxValue, xRow);
-    xSpin = addDoubleSpinBox(value.x(), minValue, maxValue, xRow);
-    xLayout->addWidget(xLabel);
-    xLayout->addWidget(xSlider, 1);
-    xLayout->addWidget(xSpin);
+    auto createComponentRow = [this, widget, minValue, maxValue](const QString& name, double v, QSlider*& slider,
+                                                                 QDoubleSpinBox*& spin) {
+        QWidget* row = new QWidget(widget);
+        QHBoxLayout* rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(10);
 
-    QWidget* yRow = new QWidget(widget);
-    QHBoxLayout* yLayout = new QHBoxLayout(yRow);
-    yLayout->setContentsMargins(0, 0, 0, 0);
-    yLayout->setSpacing(10);
-    QLabel* yLabel = new QLabel("Y", yRow);
-    yLabel->setMinimumWidth(80);
-    ySlider = addFloatSlider(value.y(), minValue, maxValue, yRow);
-    ySpin = addDoubleSpinBox(value.y(), minValue, maxValue, yRow);
-    yLayout->addWidget(yLabel);
-    yLayout->addWidget(ySlider, 1);
-    yLayout->addWidget(ySpin);
+        QLabel* label = new QLabel(name, row);
+        label->setMinimumWidth(80);
 
-    layout->addWidget(xRow);
-    layout->addWidget(yRow);
+        slider = addFloatSlider(v, minValue, maxValue, row);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
 
-    auto updateValue = [this, name = param.name, xSpin, ySpin]() {
-        setParameterValue(name, QVariant::fromValue(QVector2D(float(xSpin->value()), float(ySpin->value()))));
+        rowLayout->addWidget(label);
+        rowLayout->addWidget(slider, 1);
+        rowLayout->addWidget(spin);
+
+        return row;
     };
 
-    connect(xSlider, &QSlider::valueChanged, this, [this, name = param.name, xSpin, minValue, maxValue](int s) {
+    layout->addWidget(createComponentRow("X", value.x(), xSlider, xSpin));
+    layout->addWidget(createComponentRow("Y", value.y(), ySlider, ySpin));
+
+    auto updateValue = [this, name = param.name, xSpin, ySpin]() {
+        const QVector2D value(float(xSpin->value()), float(ySpin->value()));
+        setParameterValue(name, QVariant::fromValue(value));
+    };
+
+    connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+        
         QSignalBlocker blocker(xSpin);
         xSpin->setValue(v);
-        setVec2Component(name, 0, v);
+        updateValue();
     });
 
-    connect(ySlider, &QSlider::valueChanged, this, [this, name = param.name, ySpin, minValue, maxValue](int s) {
+    connect(ySlider, &QSlider::valueChanged, this, [ySpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(ySpin);
         ySpin->setValue(v);
-        setVec2Component(name, 1, v);
+        updateValue();
     });
 
     connect(xSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-            [this, name = param.name, xSlider, minValue, maxValue](double v) {
+            [xSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(xSlider);
                 xSlider->setValue(std::clamp(s, 0, 1000));
-                setVec2Component(name, 0, v);
+                updateValue();
             });
 
     connect(ySpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-            [this, name = param.name, ySlider, minValue, maxValue](double v) {
+            [ySlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(ySlider);
                 ySlider->setValue(std::clamp(s, 0, 1000));
-                setVec2Component(name, 1, v);
+                updateValue();
             });
 
     return widget;
@@ -323,12 +324,14 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
 
         QLabel* label = new QLabel(name, row);
         label->setMinimumWidth(80);
+
         slider = addFloatSlider(v, minValue, maxValue, row);
         spin = addDoubleSpinBox(v, minValue, maxValue, row);
 
         rowLayout->addWidget(label);
         rowLayout->addWidget(slider, 1);
         rowLayout->addWidget(spin);
+
         return row;
     };
 
@@ -337,55 +340,67 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     layout->addWidget(createComponentRow("Z", value.z(), zSlider, zSpin));
 
     auto updateValue = [this, name = param.name, xSpin, ySpin, zSpin]() {
-        setParameterValue(name, QVariant::fromValue(
-                                    QVector3D(float(xSpin->value()), float(ySpin->value()), float(zSpin->value()))));
+        const QVector3D value(float(xSpin->value()), float(ySpin->value()), float(zSpin->value()));
+        setParameterValue(name, QVariant::fromValue(value));
     };
-    
+
     connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(xSpin);
         xSpin->setValue(v);
         updateValue();
     });
+
     connect(ySlider, &QSlider::valueChanged, this, [ySpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(ySpin);
         ySpin->setValue(v);
         updateValue();
     });
+
     connect(zSlider, &QSlider::valueChanged, this, [zSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(zSpin);
         zSpin->setValue(v);
         updateValue();
     });
+
     connect(xSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [xSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(xSlider);
                 xSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     connect(ySpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [ySlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(ySlider);
                 ySlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     connect(zSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [zSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(zSlider);
                 zSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     return widget;
 }
 
@@ -437,8 +452,12 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     layout->addWidget(createComponentRow("W", value.w(), wSlider, wSpin));
 
     auto updateValue = [this, name = param.name, xSpin, ySpin, zSpin, wSpin]() {
-        setParameterValue(name, QVariant::fromValue(QVector4D(float(xSpin->value()), float(ySpin->value()),
-                                                              float(zSpin->value()), float(wSpin->value()))));
+        const QVector4D value(
+            float(xSpin->value()),
+            float(ySpin->value()),
+            float(zSpin->value()),
+            float(wSpin->value()));
+        setParameterValue(name, QVariant::fromValue(value));
     };
 
     connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
@@ -528,8 +547,6 @@ WindowPrivate::setVec2Component(const QString& name, int component, double value
     definition.setDescriptor(descriptor);
     imageEffect.setShaderDefinition(definition);
     d.imageLayer.setImageEffect(imageEffect);
-
-    qDebug() << "ui: setVec2Component" << name << v;
     update();
 }
 
@@ -559,8 +576,6 @@ WindowPrivate::setVec3Component(const QString& name, int component, double value
     definition.setDescriptor(descriptor);
     imageEffect.setShaderDefinition(definition);
     d.imageLayer.setImageEffect(imageEffect);
-
-    qDebug() << "ui: setVec3Component" << name << v;
     update();
 }
 
@@ -592,25 +607,19 @@ WindowPrivate::setVec4Component(const QString& name, int component, double value
     definition.setDescriptor(descriptor);
     imageEffect.setShaderDefinition(definition);
     d.imageLayer.setImageEffect(imageEffect);
-
-    qDebug() << "ui: setVec4Component" << name << v;
     update();
 }
 
 void
 WindowPrivate::setParameterValue(const QString& name, const QVariant& value)
 {
-    qDebug() << "ui: setParameterValue" << name << value;
     sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
     sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
     sdk::render::ShaderDescriptor descriptor = definition.descriptor();
-
     const int index = descriptor.indexOf(name);
     if (index < 0) {
-        qWarning() << "ui: parameter not found:" << name;
-        return;
+        qFatal() << "parameter not found:" << name;
     }
-
     descriptor.parameters[index].value = value;
     definition.setDescriptor(descriptor);
     imageEffect.setShaderDefinition(definition);
@@ -627,22 +636,39 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
     const QVariant value = parameterValue(param);
     const QString label = !param.label.isEmpty() ? param.label : param.name;
 
-    qDebug() << "parameter value: " << param.value;
-    qDebug() << "parameter defaultValue: " << param.defaultValue;
+    auto fixRange = [](double& minValue, double& maxValue) {
+        if (minValue > maxValue)
+            std::swap(minValue, maxValue);
+
+        if (qAbs(maxValue - minValue) < 1e-12) {
+            minValue = -1.0;
+            maxValue = 1.0;
+        }
+    };
 
     switch (param.type) {
     case ShaderParameter::Type::Float: {
         const double current = value.toDouble();
-        const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
-        const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
+        double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        fixRange(minValue, maxValue);
+
         return addFloatRow(label, param.name, current, minValue, maxValue, parent);
     }
+
     case ShaderParameter::Type::Int: {
         const int current = value.toInt();
-        const int minValue = param.minValue.isValid() ? param.minValue.toInt() : 0;
-        const int maxValue = param.maxValue.isValid() ? param.maxValue.toInt() : 100;
+        int minValue = param.minValue.isValid() ? param.minValue.toInt() : 0;
+        int maxValue = param.maxValue.isValid() ? param.maxValue.toInt() : 100;
+
+        if (minValue == maxValue) {
+            minValue = 0;
+            maxValue = 100;
+        }
+
         return addIntRow(label, param.name, current, minValue, maxValue, parent);
     }
+
     case ShaderParameter::Type::Bool: {
         QWidget* row = new QWidget(parent);
         QHBoxLayout* layout = new QHBoxLayout(row);
@@ -660,29 +686,36 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         layout->addWidget(box);
 
         connect(box, &QCheckBox::toggled, this,
-                [this, name = param.name](bool checked) { setParameterValue(name, checked); });
+                [this, name = param.name](bool checked) {
+                    setParameterValue(name, checked);
+                });
+
         return row;
     }
     case ShaderParameter::Type::Vec2: {
         const QVector2D current = value.value<QVector2D>();
-        const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
-        const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+
+        double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
+        double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        fixRange(minValue, maxValue);
         return addVec2Widget(param, label, current, minValue, maxValue, parent);
     }
     case ShaderParameter::Type::Vec3: {
         const QVector3D current = value.value<QVector3D>();
-        const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
-        const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
+        double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        fixRange(minValue, maxValue);
         return addVec3Widget(param, label, current, minValue, maxValue, parent);
     }
     case ShaderParameter::Type::Vec4: {
         const QVector4D current = value.value<QVector4D>();
-        const double minValue = param.minValue.isValid() ? param.minValue.toDouble() : 0.0;
-        const double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+
+        double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
+        double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
+        fixRange(minValue, maxValue);
         return addVec4Widget(param, label, current, minValue, maxValue, parent);
     }
     }
-
     return new QWidget(parent);
 }
 
@@ -719,16 +752,12 @@ WindowPrivate::addParameterPanel(QWidget* parent)
     QMap<QString, QVBoxLayout*> groupLayouts;
 
     for (const auto& param : parameters) {
-        qDebug() << "param: " << param.name;
-
         QWidget* editor = addParameterWidget(param, content);
         const QString groupName = param.group.trimmed();
-
         if (groupName.isEmpty()) {
             contentLayout->addWidget(editor);
             continue;
         }
-
         if (!groupBoxes.contains(groupName)) {
             QGroupBox* box = new QGroupBox(groupName, content);
             QVBoxLayout* boxLayout = new QVBoxLayout(box);

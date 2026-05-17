@@ -11,6 +11,9 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QTextStream>
+#include <QVector2D>
+#include <QVector3D>
+#include <QVector4D>
 
 namespace flipman::sdk::render {
 
@@ -57,18 +60,76 @@ bool
 ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::ShaderParameter& parameter)
 {
     QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-    if (tokens.size() < 3) {
+    if (tokens.size() < 4) {
         d.error = core::Error("shaderparser", "invalid @param declaration: " + line);
         return false;
     }
-    parameter.name = tokens[2];
+
     parameter.type = toParamType(tokens[1]);
-    if (tokens.size() >= 4)
-        parameter.defaultValue = tokens[3];
-    if (tokens.size() >= 5)
-        parameter.minValue = tokens[4];
-    if (tokens.size() >= 6)
-        parameter.maxValue = tokens[5];
+    parameter.name = tokens[2];
+
+    auto parseDouble = [&](int index, double fallback = 0.0) {
+        if (index >= tokens.size())
+            return fallback;
+        bool ok = false;
+        const double value = tokens[index].toDouble(&ok);
+        return ok ? value : fallback;
+    };
+
+    switch (parameter.type) {
+    case ParamType::Float:
+        parameter.defaultValue = parseDouble(3);
+        if (tokens.size() >= 5)
+            parameter.minValue = parseDouble(4);
+        if (tokens.size() >= 6)
+            parameter.maxValue = parseDouble(5);
+        break;
+
+    case ParamType::Int:
+        parameter.defaultValue = tokens[3].toInt();
+        if (tokens.size() >= 5)
+            parameter.minValue = tokens[4].toInt();
+        if (tokens.size() >= 6)
+            parameter.maxValue = tokens[5].toInt();
+        break;
+
+    case ParamType::Bool:
+        parameter.defaultValue = (tokens[3].compare("true", Qt::CaseInsensitive) == 0 || tokens[3] == "1");
+        break;
+
+    case ParamType::Vec2:
+        if (tokens.size() < 7) {
+            d.error = core::Error("shaderparser", "invalid vec2 @param declaration: " + line);
+            return false;
+        }
+        parameter.defaultValue = QVariant::fromValue(QVector2D(float(parseDouble(3)), float(parseDouble(4))));
+        parameter.minValue = parseDouble(5);
+        parameter.maxValue = parseDouble(6);
+        break;
+
+    case ParamType::Vec3:
+        if (tokens.size() < 8) {
+            d.error = core::Error("shaderparser", "invalid vec3 @param declaration: " + line);
+            return false;
+        }
+        parameter.defaultValue = QVariant::fromValue(QVector3D(float(parseDouble(3)), float(parseDouble(4)),
+                                                              float(parseDouble(5))));
+        parameter.minValue = parseDouble(6);
+        parameter.maxValue = parseDouble(7);
+        break;
+
+    case ParamType::Vec4:
+        if (tokens.size() < 9) {
+            d.error = core::Error("shaderparser", "invalid vec4 @param declaration: " + line);
+            return false;
+        }
+        parameter.defaultValue = QVariant::fromValue(QVector4D(float(parseDouble(3)), float(parseDouble(4)),
+                                                              float(parseDouble(5)), float(parseDouble(6))));
+        parameter.minValue = parseDouble(7);
+        parameter.maxValue = parseDouble(8);
+        break;
+    }
+
     return true;
 }
 
