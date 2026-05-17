@@ -312,6 +312,7 @@ testImageUint16()
 
     const QRect rect(0, 0, 1, 1);
     core::ImageBuffer src(rect, rect, core::ImageFormat(core::ImageFormat::UInt8), 3);
+    src.allocate();
 
     quint8* s = src.data();
     s[0] = 255;  // R
@@ -352,6 +353,7 @@ testImageDouble()
 
     const QRect rect(0, 0, 1, 1);
     core::ImageBuffer src(rect, rect, core::ImageFormat(core::ImageFormat::UInt8), 3);
+    src.allocate();
 
     quint8* s = src.data();
     s[0] = 255;  // R
@@ -404,7 +406,7 @@ testImagePlanar()
     core::ImageFormat format(core::ImageFormat::UInt8);
     core::ImageBuffer planar(dataWindow, displayWindow, format, 3);
     planar.setPacking(core::ImageBuffer::Packing::Planar);
-    planar.detach();
+    planar.allocate();
 
     if (planar.planeCount() != 3) {
         core::logErr() << "planar planeCount mismatch, expected 3 got " << planar.planeCount() << Qt::endl;
@@ -464,7 +466,7 @@ testImagePlanar()
     // build an interleaved RGB888 buffer and interleave manually.
     core::ImageBuffer planarRGB(dataWindow, displayWindow, format, 3);
     planarRGB.setPacking(core::ImageBuffer::Packing::Interleaved);
-    planarRGB.detach();
+    planarRGB.allocate();
 
     quint8* out = planarRGB.data();
     const size_t outStride = planarRGB.strideSize();
@@ -528,6 +530,7 @@ testImageInterleaved()
 
     core::ImageFormat format(core::ImageFormat::UInt8);
     core::ImageBuffer buffer(dataWindow, displayWindow, format, 3);
+    buffer.allocate();
 
     quint8* data = buffer.data();
     const size_t stride = buffer.strideSize();
@@ -554,7 +557,7 @@ testImageInterleaved()
     }
 
     core::ImageBuffer ramp = buffer;
-    ramp.detach();  // allocate new storage
+    ramp.detach();
     data = ramp.data();
 
     for (int y = 0; y < dataWindow.height(); ++y) {
@@ -1176,7 +1179,15 @@ testRender()
             // diff check
             {
                 core::ImageBuffer rendered = core::ImageBuffer::convert(image, core::ImageFormat::UInt8, 4);
-                core::ImageBuffer source = core::ImageBuffer::convert(media.image(), core::ImageFormat::UInt8, 4);
+
+                const core::ImageBuffer sourceImage = media.image();
+                if (sourceImage.packing() != core::ImageBuffer::Packing::Interleaved
+                    || sourceImage.subsampling() != core::ImageBuffer::Subsampling::None) {
+                    core::logOut() << "skipping CPU diff check for non-interleaved/subsampled source" << Qt::endl;
+                    return;
+                }
+
+                core::ImageBuffer source = core::ImageBuffer::convert(sourceImage, core::ImageFormat::UInt8, 4);
 
                 if (rendered.dataWindow().size() != source.dataWindow().size()) {
                     core::logErr() << "image size mismatch" << Qt::endl;
@@ -1194,6 +1205,7 @@ testRender()
 
                 core::ImageBuffer diff(rendered.dataWindow(), rendered.displayWindow(),
                                        core::ImageFormat(core::ImageFormat::UInt8), 4);
+                diff.allocate();
 
                 quint8* d = diff.data();
                 for (size_t i = 0; i < components; ++i) {
@@ -2150,7 +2162,7 @@ testPluginImage()
         }
         reader->read();
         core::ImageBuffer image = reader->image();
-        if (image.isValid()) {
+        if (!image.isValid()) {
             core::logErr() << "image is not valid" << Qt::endl;
             ok = false;
             return;

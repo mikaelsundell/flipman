@@ -16,7 +16,9 @@
 #include <QMatrix4x4>
 
 #include <QCryptographicHash>
+#include <QDir>
 #include <QHash>
+#include <QTextStream>
 
 #undef RENDERENGINE_STATS
 #undef RENDERENGINE_TRACE
@@ -213,6 +215,10 @@ public:
             }
         }
     };
+    int alignTo(int value, int alignment);
+    int std140BaseAlignment(ShaderDescriptor::ShaderParameter::Type type);
+    int std140Size(ShaderDescriptor::ShaderParameter::Type type);
+    int std140BufferSize(const QList<ShaderDescriptor::ShaderParameter>& params, QVector<int>* offsets);
     QByteArray shaderHash(const QString& text) const;
     QString buildLayerShaderKey(RenderState::TextureType textureType, const ShaderDefinition* effectDefinition) const;
     QString buildLayerShaderSource(RenderState::TextureType textureType, const ShaderDefinition* effectDefinition);
@@ -393,11 +399,10 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         }
 
         const ImageEffect imageEffect = imageLayer.imageEffect();
-        const bool hasEffect = imageEffect.isValid();
+        const ShaderDefinition effectDefinition = imageEffect.shaderDefinition();
 
-        ShaderDefinition effectDefinition;
-        if (hasEffect)
-            effectDefinition = imageEffect.shaderDefinition();
+        const bool hasEffect = imageEffect.isValid() && effectDefinition.isValid()
+                               && !effectDefinition.shaderCode().isEmpty();
 
         const QSize texSize(image.dataWindow().width(), image.dataWindow().height());
 
@@ -502,9 +507,19 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
 
         if (hasEffect) {
             const auto& params = effectDefinition.descriptor().parameters;
-            const qsizetype effectBufferSize = params.size() * 16;
+
+
+            //const qsizetype effectBufferSize = params.size() * 16;
+            //const bool recreateEffectBuffer = !renderState.effectBuffer
+            //                                  || renderState.effectBuffer->size() != effectBufferSize;
+
+
+            QVector<int> paramOffsets;
+            const qsizetype effectBufferSize = std140BufferSize(params, &paramOffsets);
             const bool recreateEffectBuffer = !renderState.effectBuffer
                                               || renderState.effectBuffer->size() != effectBufferSize;
+
+
 
             if (recreateEffectBuffer) {
                 RE_TRACE() << "renderengine: frame" << frameIndex << "layer" << i << "creating effect buffer size"
@@ -529,18 +544,41 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
                 renderState.pipeline.reset();
             }
 
+            //QByteArray paramData(effectBufferSize, 0);
+            //for (int p = 0; p < params.size(); ++p) {
+            //    parameterValue(paramData.data() + p * 16, params[p]);
+            //}
+
             QByteArray paramData(effectBufferSize, 0);
             for (int p = 0; p < params.size(); ++p) {
-                parameterValue(paramData.data() + p * 16, params[p]);
+                parameterValue(paramData.data() + paramOffsets[p], params[p]);
             }
+
+            // DEBUG: verify packing
+            /*qDebug() << "---- std140 layout ----";*/
+            for (int p = 0; p < params.size(); ++p) {
+                const auto& param = params[p];
+                const int offset = paramOffsets[p];
+
+                /*qDebug() << "param" << p
+                         << param.name
+                         << "type" << int(param.type)
+                         << "offset" << offset
+                         << "value"
+                         << (param.value.isValid() ? param.value : param.defaultValue);*/
+            }
+            //qDebug() << "buffer size:" << effectBufferSize;
 
             if (renderState.effectBuffer && renderState.effectParameterData != paramData) {
                 RE_TRACE() << "renderengine: frame" << frameIndex << "layer" << i << "updating effect buffer";
 
-                qDebug() << "renderengine: effect parameters changed for layer" << i;
+                //qDebug() << "renderengine: effect parameters changed for layer" << i;
                 for (int p = 0; p < params.size(); ++p) {
-                    qDebug() << "  param" << p << params[p].name << "type" << int(params[p].type) << "value"
-                             << (params[p].value.isValid() ? params[p].value : params[p].defaultValue);
+                    ShaderDescriptor::ShaderParameter sp = params[p];
+
+
+                    //qDebug() << "  param" << p << params[p].name << "type" << int(params[p].type) << "value"
+                    //         << (params[p].value.isValid() ? params[p].value : params[p].defaultValue);
                 }
 
                 updates->updateDynamicBuffer(renderState.effectBuffer.get(), 0, static_cast<quint32>(paramData.size()),
@@ -906,8 +944,6 @@ RenderEnginePrivate::renderBlit(const RenderEngine::Context& context, QRhiComman
 void
 RenderEnginePrivate::parameterValue(char* dst, const ShaderDescriptor::ShaderParameter& param)
 {
-    memset(dst, 0, 16);
-
     const QVariant value = param.value.isValid() ? param.value : param.defaultValue;
 
     switch (param.type) {
@@ -994,21 +1030,30 @@ RenderEnginePrivate::compileShader(const QString& source, QShader::Stage stage)
 
     const QRhi::Implementation impl = d.deviceRhi->backend();
     const QByteArray hash = QCryptographicHash::hash(source.toUtf8(), QCryptographicHash::Sha1).toHex();
-    const QString cacheKey = QString("%1:%2:%3").arg(int(impl)).arg(int(stage)).arg(QString::fromLatin1(hash));
+    const QString key = QString("%1:%2:%3").arg(int(impl)).arg(int(stage)).arg(QString::fromLatin1(hash));
 
-    const auto it = d.shaderCache.constFind(cacheKey);
+#if RE_TRACE_ENABLED
+    const QString stageName = stage == QShader::VertexStage     ? "vertex"
+                              : stage == QShader::FragmentStage ? "fragment"
+                                                                : "shader";
+    qDebug().noquote() << "stage:" << stageName << "\n"
+                       << "key:" << key << "\n"
+                       << source << "\n";
+#endif
+
+    const auto it = d.shaderCache.constFind(key);
     if (it != d.shaderCache.constEnd()) {
 #if RE_STATS_ENABLED
         ++d.stats.shaderCacheHits;
 #endif
-        RE_TRACE() << "renderengine: shader cache hit:" << cacheKey;
+        RE_TRACE() << "renderengine: shader cache hit:" << key;
         return it.value();
     }
 
 #if RE_STATS_ENABLED
     ++d.stats.shaderCacheMisses;
 #endif
-    RE_TRACE() << "renderengine: shader cache miss:" << cacheKey;
+    RE_TRACE() << "renderengine: shader cache miss:" << key;
 
     render::ShaderCompiler compiler;
     render::ShaderCompiler::Options opts;
@@ -1043,7 +1088,7 @@ RenderEnginePrivate::compileShader(const QString& source, QShader::Stage stage)
         return QShader();
     }
 
-    d.shaderCache.insert(cacheKey, shader);
+    d.shaderCache.insert(key, shader);
     return shader;
 }
 
@@ -1066,6 +1111,59 @@ RenderEnginePrivate::aspectFit(const QSize& src, const QSize& dst)
     const float x = (dst.width() - w) * 0.5f;
     const float y = (dst.height() - h) * 0.5f;
     return QRectF(x, y, w, h);
+}
+
+int
+RenderEnginePrivate::alignTo(int value, int alignment)
+{
+    return (value + alignment - 1) / alignment * alignment;
+}
+
+int
+RenderEnginePrivate::std140BaseAlignment(ShaderDescriptor::ShaderParameter::Type type)
+{
+    using Type = ShaderDescriptor::ShaderParameter::Type;
+    switch (type) {
+    case Type::Float:
+    case Type::Int:
+    case Type::Bool: return 4;
+    case Type::Vec2: return 8;
+    case Type::Vec3:
+    case Type::Vec4: return 16;
+    }
+    return 16;
+}
+
+int
+RenderEnginePrivate::std140Size(ShaderDescriptor::ShaderParameter::Type type)
+{
+    using Type = ShaderDescriptor::ShaderParameter::Type;
+    switch (type) {
+    case Type::Float:
+    case Type::Int:
+    case Type::Bool: return 4;
+    case Type::Vec2: return 8;
+    case Type::Vec3: return 12;  // occupies 16-byte stride in struct layout
+    case Type::Vec4: return 16;
+    }
+
+    return 16;
+}
+
+int
+RenderEnginePrivate::std140BufferSize(const QList<ShaderDescriptor::ShaderParameter>& params, QVector<int>* offsets)
+{
+    offsets->clear();
+    int offset = 0;
+    for (const auto& param : params) {
+        const int alignment = std140BaseAlignment(param.type);
+        offset = alignTo(offset, alignment);
+        offsets->push_back(offset);
+        // in a struct, vec3 has 16-byte stride
+        const int advance = (param.type == ShaderDescriptor::ShaderParameter::Type::Vec3) ? 16 : std140Size(param.type);
+        offset += advance;
+    }
+    return alignTo(offset, 16);
 }
 
 QByteArray

@@ -537,6 +537,8 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
     }
 
     ImageBuffer copy(imagebuffer.dataWindow(), imagebuffer.displayWindow(), type, channels);
+    copy.allocate();
+
     const quint8* src = imagebuffer.data();
     quint8* dst = copy.data();
 

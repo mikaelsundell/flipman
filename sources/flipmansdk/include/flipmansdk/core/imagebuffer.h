@@ -44,9 +44,12 @@ public:
     ImageBuffer();
 
     /**
-     * @brief Constructs a buffer with dimensions and format.
+     * Creates an image buffer descriptor.
+     *
+     * Pixel storage is not allocated by the constructor. Call allocate()
+     * after setting packing/subsampling and before calling data() or planeData().
      */
-    explicit ImageBuffer(const QRect& datawindow, const QRect& displaywindow, const ImageFormat& format, int channels);
+    explicit ImageBuffer(const QRect& dataWindow, const QRect& displayWindow, const ImageFormat& format, int channels);
 
     /**
      * @brief Copy constructor.

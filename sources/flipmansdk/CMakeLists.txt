@@ -130,7 +130,7 @@ target_include_directories(${sdk_name}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-generate_export_header(${sdk_name} 
+configure_export_header(${sdk_name}
     BASE_NAME FLIPMANSDK
     EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/flipmanexport.h"
 )
