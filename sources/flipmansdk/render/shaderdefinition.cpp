@@ -38,6 +38,7 @@ ShaderDefinitionPrivate::parameterType(ShaderParameterType type) const
     case ShaderParameterType::Vec2: return "vec2";
     case ShaderParameterType::Vec3: return "vec3";
     case ShaderParameterType::Vec4: return "vec4";
+    case ShaderParameterType::Lut: break;
     }
     return "float";
 }
@@ -91,10 +92,21 @@ ShaderDefinition::uniformBlock(int binding, const QString& uniformName) const
 {
     QString code;
     QTextStream stream(&code);
-    if (!p->d.descriptor.parameters.isEmpty()) {
+    bool hasUniforms = false;
+    for (const auto& param : p->d.descriptor.parameters) {
+        if (param.type != ShaderParameterType::Lut) {
+            hasUniforms = true;
+            break;
+        }
+    }
+    if (hasUniforms) {
         stream << "layout(std140, binding = " << binding << ") uniform " << uniformName << "\n{\n";
-        for (const auto& param : p->d.descriptor.parameters)
+        for (const auto& param : p->d.descriptor.parameters) {
+            if (param.type == ShaderParameterType::Lut)
+                continue;
+
             stream << "    " << p->parameterType(param.type) << " " << param.name << ";\n";
+        }
         stream << "};";
     }
     return code;

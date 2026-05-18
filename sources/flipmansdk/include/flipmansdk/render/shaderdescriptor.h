@@ -36,7 +36,7 @@ public:
      * @brief Describes a parameter declared via @param.
      */
     struct ShaderParameter {
-        enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4 };
+        enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4, Lut };
 
         QString name;
         Type type = Type::Float;

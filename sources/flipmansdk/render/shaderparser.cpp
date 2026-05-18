@@ -52,7 +52,8 @@ ShaderParserPrivate::toParamType(const QString& t) const
         return ParamType::Vec3;
     if (t == "vec4")
         return ParamType::Vec4;
-
+    if (t == "lut")
+        return ParamType::Lut;
     return ParamType::Float;
 }
 
@@ -130,7 +131,8 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
             case ParamType::Bool: option.value = parseBool(valueText); break;
             case ParamType::Vec2:
             case ParamType::Vec3:
-            case ParamType::Vec4: break;
+            case ParamType::Vec4:
+            case ParamType::Lut: break;
             }
 
             parameter.options.append(option);
@@ -197,6 +199,14 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
             QVector4D(float(parseDouble(3)), float(parseDouble(4)), float(parseDouble(5)), float(parseDouble(6))));
         parameter.minValue = parseDouble(7);
         parameter.maxValue = parseDouble(8);
+        break;
+    case ParamType::Lut:
+        parameter.defaultValue = tokens[3];
+        if (parameter.defaultValue.toString().startsWith('"') && parameter.defaultValue.toString().endsWith('"')) {
+            QString filename = parameter.defaultValue.toString();
+            filename = filename.mid(1, filename.size() - 2);
+            parameter.defaultValue = filename;
+        }
         break;
     }
     return true;
