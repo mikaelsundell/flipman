@@ -143,6 +143,9 @@ Viewer::initialize(QRhiCommandBuffer*)
 void
 Viewer::render(QRhiCommandBuffer* commandBuffer)
 {
+    qInfo() << "default format color space:" << QSurfaceFormat::defaultFormat().colorSpace();
+
+
     p->render(commandBuffer);
 }
 

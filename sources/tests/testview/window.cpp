@@ -16,7 +16,9 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDir>
 #include <QDoubleSpinBox>
+#include <QFileInfo>
 #include <QFrame>
 #include <QGroupBox>
 #include <QLabel>
@@ -47,20 +49,22 @@ public:
     QWidget* addParameterPanel(QWidget* parent = nullptr);
     QWidget* addParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param, QWidget* parent = nullptr);
 
-    QWidget* addComboRow(const QString& label,
-                         const QString& name,
-                         const QVariant& value,
+    QWidget* addComboRow(const QString& label, const QString& name, const QVariant& value,
                          const QVector<sdk::render::ShaderDescriptor::ShaderOption>& options,
                          QWidget* parent = nullptr);
 
     QWidget* addFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
                          QWidget* parent = nullptr);
+
     QWidget* addIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
                        QWidget* parent = nullptr);
+
     QWidget* addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
                            const QVector2D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+
     QWidget* addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
                            const QVector3D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+
     QWidget* addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
                            const QVector4D& value, double minValue, double maxValue, QWidget* parent = nullptr);
 
@@ -68,6 +72,10 @@ public:
     QSpinBox* addIntSpinBox(int value, int minValue, int maxValue, QWidget* parent = nullptr);
     QSlider* addFloatSlider(double value, double minValue, double maxValue, QWidget* parent = nullptr);
     QSlider* addIntSlider(int value, int minValue, int maxValue, QWidget* parent = nullptr);
+
+    QStringList fxShaders() const;
+    bool loadShader(const QString& shader);
+    void rebuildParameterPanel();
 
     void setParameterValue(const QString& name, const QVariant& value);
     QVariant parameterValue(const sdk::render::ShaderDescriptor::ShaderParameter& param) const;
@@ -77,10 +85,16 @@ public:
 
     struct Data {
         QString inputFile;
+        QString dataPath;
+        QString currentShader;
+
         QPointer<Window> window;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
+        QPointer<QSplitter> splitter;
+        QPointer<QWidget> parameterPanel;
+
         sdk::av::Media media;
         sdk::av::TimeRange timeRange;
         sdk::render::ImageLayer imageLayer;
@@ -95,6 +109,72 @@ QVariant
 WindowPrivate::parameterValue(const sdk::render::ShaderDescriptor::ShaderParameter& param) const
 {
     return param.value.isValid() ? param.value : param.defaultValue;
+}
+
+QStringList
+WindowPrivate::fxShaders() const
+{
+    QDir dir(QString("%1/fx").arg(d.dataPath));
+
+    QStringList files = dir.entryList({ "*.fx" }, QDir::Files, QDir::Name);
+    for (QString& file : files)
+        file = QString("fx/%1").arg(file);
+
+    return files;
+}
+
+bool
+WindowPrivate::loadShader(const QString& shader)
+{
+    sdk::core::File shaderFile(QString("%1/%2").arg(d.dataPath).arg(shader));
+
+    if (!shaderFile.exists()) {
+        qWarning() << "fx file does not exist:" << QString("%1/%2").arg(d.dataPath).arg(shader);
+        return false;
+    }
+
+    QScopedPointer<sdk::plugins::ImageEffectReader> reader(
+        sdk::core::pluginRegistry()->getPlugin<sdk::plugins::ImageEffectReader>(shaderFile.extension()));
+
+    if (!reader) {
+        qWarning() << "no reader for fx extension:" << shaderFile.extension();
+        return false;
+    }
+
+    if (!reader->open(shaderFile)) {
+        qWarning() << "could not open reader for fx:" << QString("%1/%2").arg(d.dataPath).arg(shader);
+        return false;
+    }
+
+    sdk::render::ImageEffect imageEffect = reader->imageEffect();
+    if (!imageEffect.isValid()) {
+        qWarning() << "image effect is not valid:" << QString("%1/%2").arg(d.dataPath).arg(shader);
+        return false;
+    }
+
+    d.imageLayer.setImageEffect(imageEffect);
+    d.currentShader = shader;
+
+    update();
+    return true;
+}
+
+void
+WindowPrivate::rebuildParameterPanel()
+{
+    if (!d.splitter)
+        return;
+
+    if (d.parameterPanel) {
+        d.parameterPanel->deleteLater();
+        d.parameterPanel = nullptr;
+    }
+
+    d.parameterPanel = addParameterPanel(d.splitter);
+    d.splitter->addWidget(d.parameterPanel);
+    d.splitter->setStretchFactor(0, 1);
+    d.splitter->setStretchFactor(1, 0);
+    d.splitter->setSizes({ 900, 320 });
 }
 
 QSlider*
@@ -144,11 +224,8 @@ WindowPrivate::addIntSpinBox(int value, int minValue, int maxValue, QWidget* par
 }
 
 QWidget*
-WindowPrivate::addComboRow(const QString& label,
-                           const QString& name,
-                           const QVariant& value,
-                           const QVector<sdk::render::ShaderDescriptor::ShaderOption>& options,
-                           QWidget* parent)
+WindowPrivate::addComboRow(const QString& label, const QString& name, const QVariant& value,
+                           const QVector<sdk::render::ShaderDescriptor::ShaderOption>& options, QWidget* parent)
 {
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
@@ -516,9 +593,7 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     layout->addWidget(createComponentRow("W", value.w(), wSlider, wSpin));
 
     auto updateValue = [this, name = param.name, xSpin, ySpin, zSpin, wSpin]() {
-        const QVector4D value(float(xSpin->value()),
-                              float(ySpin->value()),
-                              float(zSpin->value()),
+        const QVector4D value(float(xSpin->value()), float(ySpin->value()), float(zSpin->value()),
                               float(wSpin->value()));
         setParameterValue(name, QVariant::fromValue(value));
     };
@@ -686,9 +761,8 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         layout->addStretch();
         layout->addWidget(box);
 
-        connect(box, &QCheckBox::toggled, this, [this, name = param.name](bool checked) {
-            setParameterValue(name, checked);
-        });
+        connect(box, &QCheckBox::toggled, this,
+                [this, name = param.name](bool checked) { setParameterValue(name, checked); });
 
         return row;
     }
@@ -790,21 +864,20 @@ void
 WindowPrivate::init()
 {
     const QStringList args = QCoreApplication::arguments();
-    if (args.size() < 2)
-        qFatal("No input file provided in arguments.");
+    if (args.size() > 1) {
+        d.inputFile = args.at(1);
+    }
+    d.dataPath = sdk::core::Environment::resourcePath("../../../data");
 
-    const QString dataPath = sdk::core::Environment::resourcePath("../../../data");
-
-    d.inputFile = args.at(1);
     sdk::core::File file(d.inputFile);
 
     if (!file.exists()) {
 #if (1)
         const QString filename = "23.967.00086400.exr";
-        file = sdk::core::File(QString("%1/exr/%2").arg(dataPath).arg(filename));
+        file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
 #else
         const QString filename = "square export 23.976 512x512.mov";
-        file = sdk::core::File(QString("%1/quicktime/%2").arg(dataPath).arg(filename));
+        file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
 #endif
     }
 
@@ -822,29 +895,20 @@ WindowPrivate::init()
 
     sdk::render::ImageLayer imageLayer;
     imageLayer.setImage(image);
-
-    const QString shader = "fx/logc.fx";
-    sdk::core::File shaderFile(QString("%1/%2").arg(dataPath).arg(shader));
-    Q_ASSERT(shaderFile.exists() && "fx file does not exist");
-
-    QScopedPointer<sdk::plugins::ImageEffectReader> reader(
-        sdk::core::pluginRegistry()->getPlugin<sdk::plugins::ImageEffectReader>(shaderFile.extension()));
-
-    Q_ASSERT(reader && "no reader for fx extension");
-    Q_ASSERT(reader->open(shaderFile) && "could not open reader for fx");
-
-    sdk::render::ImageEffect imageEffect = reader->imageEffect();
-    Q_ASSERT(imageEffect.isValid() && "image effect is not valid");
-
-    imageLayer.setImageEffect(imageEffect);
     d.imageLayer = imageLayer;
+
+    const QStringList shaders = fxShaders();
+    Q_ASSERT(!shaders.isEmpty() && "no fx shaders found");
+
+    const QString defaultShader = shaders.contains("fx/logc.fx") ? QString("fx/logc.fx") : shaders.first();
+    Q_ASSERT(loadShader(defaultShader) && "could not load fx shader");
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
 
-    QSplitter* splitter = new QSplitter(Qt::Horizontal, centralWidget);
+    d.splitter = new QSplitter(Qt::Horizontal, centralWidget);
 
-    QWidget* leftWidget = new QWidget(splitter);
+    QWidget* leftWidget = new QWidget(d.splitter);
     QVBoxLayout* leftLayout = new QVBoxLayout(leftWidget);
     leftLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -868,6 +932,20 @@ WindowPrivate::init()
     QPushButton* z100Button = new QPushButton("100%");
     z100Button->setShortcut(QKeySequence(Qt::Key_4));
 
+    QLabel* shaderLabel = new QLabel("Shader", controlsWidget);
+
+    QComboBox* shaderCombo = new QComboBox(controlsWidget);
+    shaderCombo->setMinimumWidth(180);
+
+    for (const QString& shader : shaders) {
+        const QString label = QFileInfo(shader).baseName();
+        shaderCombo->addItem(label, shader);
+    }
+
+    const int shaderIndex = shaderCombo->findData(d.currentShader);
+    if (shaderIndex >= 0)
+        shaderCombo->setCurrentIndex(shaderIndex);
+
     QLabel* zoomLabel = new QLabel("100%");
     zoomLabel->setMinimumWidth(60);
     zoomLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -877,6 +955,9 @@ WindowPrivate::init()
     controlsLayout->addWidget(z50Button);
     controlsLayout->addWidget(z75Button);
     controlsLayout->addWidget(z100Button);
+    controlsLayout->addSpacing(16);
+    controlsLayout->addWidget(shaderLabel);
+    controlsLayout->addWidget(shaderCombo);
     controlsLayout->addStretch();
     controlsLayout->addWidget(zoomLabel);
 
@@ -926,15 +1007,15 @@ WindowPrivate::init()
     leftLayout->addWidget(timelineWidget);
     updateTimelineLabel();
 
-    QWidget* parameterPanel = addParameterPanel(splitter);
+    d.parameterPanel = addParameterPanel(d.splitter);
 
-    splitter->addWidget(leftWidget);
-    splitter->addWidget(parameterPanel);
-    splitter->setStretchFactor(0, 1);
-    splitter->setStretchFactor(1, 0);
-    splitter->setSizes({ 900, 320 });
+    d.splitter->addWidget(leftWidget);
+    d.splitter->addWidget(d.parameterPanel);
+    d.splitter->setStretchFactor(0, 1);
+    d.splitter->setStretchFactor(1, 0);
+    d.splitter->setSizes({ 900, 320 });
 
-    mainLayout->addWidget(splitter);
+    mainLayout->addWidget(d.splitter);
 
     connect(fitButton, &QPushButton::clicked, this, [this]() {
         if (d.viewer)
@@ -961,14 +1042,26 @@ WindowPrivate::init()
             d.viewer->setZoom(1.0f);
     });
 
+    connect(shaderCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, shaderCombo](int index) {
+        if (index < 0)
+            return;
+
+        const QString shader = shaderCombo->itemData(index).toString();
+        if (shader.isEmpty() || shader == d.currentShader)
+            return;
+
+        if (!loadShader(shader))
+            return;
+
+        rebuildParameterPanel();
+    });
+
     connect(d.viewer, &sdk::widgets::Viewer::zoomChanged, zoomLabel, [zoomLabel](float zoom) {
         const int percent = int(std::round(zoom * 100.0f));
         zoomLabel->setText(QString("%1%").arg(percent));
     });
 
-    connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) {
-        seekFrame(frame);
-    });
+    connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) { seekFrame(frame); });
 
     d.window->setWindowTitle("testview");
     d.window->setCentralWidget(centralWidget);

@@ -33,6 +33,7 @@ FxReaderPrivate::open(const core::File& file, const FxReader::Options& options)
     render::ShaderDefinition shaderDefinition = shaderParser.parse(file);
     if (!shaderParser.isValid()) {
         d.error = shaderParser.error();
+        qWarning() << "warning: " << d.error.message();
         return false;
     }
     d.imageEffect = render::ImageEffect();
