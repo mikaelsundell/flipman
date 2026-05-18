@@ -14,6 +14,7 @@
 
 #include <QBoxLayout>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QCoreApplication>
 #include <QDoubleSpinBox>
 #include <QFrame>
@@ -45,6 +46,13 @@ public:
 public:
     QWidget* addParameterPanel(QWidget* parent = nullptr);
     QWidget* addParameterWidget(const sdk::render::ShaderDescriptor::ShaderParameter& param, QWidget* parent = nullptr);
+
+    QWidget* addComboRow(const QString& label,
+                         const QString& name,
+                         const QVariant& value,
+                         const QVector<sdk::render::ShaderDescriptor::ShaderOption>& options,
+                         QWidget* parent = nullptr);
+
     QWidget* addFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
                          QWidget* parent = nullptr);
     QWidget* addIntRow(const QString& label, const QString& name, int value, int minValue, int maxValue,
@@ -55,21 +63,29 @@ public:
                            const QVector3D& value, double minValue, double maxValue, QWidget* parent = nullptr);
     QWidget* addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParameter& param, const QString& label,
                            const QVector4D& value, double minValue, double maxValue, QWidget* parent = nullptr);
+
     QDoubleSpinBox* addDoubleSpinBox(double value, double minValue, double maxValue, QWidget* parent = nullptr);
     QSpinBox* addIntSpinBox(int value, int minValue, int maxValue, QWidget* parent = nullptr);
     QSlider* addFloatSlider(double value, double minValue, double maxValue, QWidget* parent = nullptr);
     QSlider* addIntSlider(int value, int minValue, int maxValue, QWidget* parent = nullptr);
-    void setVec2Component(const QString& name, int component, double value);
-    void setVec3Component(const QString& name, int component, double value);
-    void setVec4Component(const QString& name, int component, double value);
+
     void setParameterValue(const QString& name, const QVariant& value);
     QVariant parameterValue(const sdk::render::ShaderDescriptor::ShaderParameter& param) const;
+
+    void seekFrame(int frame);
+    void updateTimelineLabel();
+
     struct Data {
         QString inputFile;
         QPointer<Window> window;
         QPointer<sdk::widgets::Viewer> viewer;
+        QPointer<QSlider> timelineSlider;
+        QPointer<QLabel> timelineLabel;
+        sdk::av::Media media;
+        sdk::av::TimeRange timeRange;
         sdk::render::ImageLayer imageLayer;
     };
+
     Data d;
 };
 
@@ -90,6 +106,7 @@ WindowPrivate::addFloatSlider(double value, double minValue, double maxValue, QW
     const double range = maxValue - minValue;
     const int sliderValue = range > 0.0 ? int(((value - minValue) / range) * 1000.0) : 0;
     slider->setValue(std::clamp(sliderValue, 0, 1000));
+
     return slider;
 }
 
@@ -127,6 +144,51 @@ WindowPrivate::addIntSpinBox(int value, int minValue, int maxValue, QWidget* par
 }
 
 QWidget*
+WindowPrivate::addComboRow(const QString& label,
+                           const QString& name,
+                           const QVariant& value,
+                           const QVector<sdk::render::ShaderDescriptor::ShaderOption>& options,
+                           QWidget* parent)
+{
+    QWidget* row = new QWidget(parent);
+    QHBoxLayout* layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(10);
+
+    QLabel* title = new QLabel(label, row);
+    title->setMinimumWidth(120);
+
+    QComboBox* combo = new QComboBox(row);
+    combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+    int currentIndex = 0;
+
+    for (int i = 0; i < options.size(); ++i) {
+        const auto& option = options[i];
+        const QString optionLabel = option.label.isEmpty() ? option.value.toString() : option.label;
+
+        combo->addItem(optionLabel, option.value);
+
+        if (option.value == value || option.value.toString() == value.toString())
+            currentIndex = i;
+    }
+
+    combo->setCurrentIndex(currentIndex);
+
+    layout->addWidget(title);
+    layout->addWidget(combo, 1);
+
+    connect(combo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, name, combo](int index) {
+        if (index < 0)
+            return;
+
+        setParameterValue(name, combo->itemData(index));
+    });
+
+    return row;
+}
+
+QWidget*
 WindowPrivate::addFloatRow(const QString& label, const QString& name, double value, double minValue, double maxValue,
                            QWidget* parent)
 {
@@ -148,7 +210,7 @@ WindowPrivate::addFloatRow(const QString& label, const QString& name, double val
     layout->addWidget(slider, 1);
     layout->addWidget(spin);
 
-    connect(slider, &QSlider::valueChanged, this, [this, name, slider, spin, minValue, maxValue](int s) {
+    connect(slider, &QSlider::valueChanged, this, [this, name, spin, minValue, maxValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
 
@@ -255,7 +317,7 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
-        
+
         QSignalBlocker blocker(xSpin);
         xSpin->setValue(v);
         updateValue();
@@ -437,12 +499,14 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
 
         QLabel* label = new QLabel(name, row);
         label->setMinimumWidth(80);
+
         slider = addFloatSlider(v, minValue, maxValue, row);
         spin = addDoubleSpinBox(v, minValue, maxValue, row);
 
         rowLayout->addWidget(label);
         rowLayout->addWidget(slider, 1);
         rowLayout->addWidget(spin);
+
         return row;
     };
 
@@ -452,162 +516,90 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     layout->addWidget(createComponentRow("W", value.w(), wSlider, wSpin));
 
     auto updateValue = [this, name = param.name, xSpin, ySpin, zSpin, wSpin]() {
-        const QVector4D value(
-            float(xSpin->value()),
-            float(ySpin->value()),
-            float(zSpin->value()),
-            float(wSpin->value()));
+        const QVector4D value(float(xSpin->value()),
+                              float(ySpin->value()),
+                              float(zSpin->value()),
+                              float(wSpin->value()));
         setParameterValue(name, QVariant::fromValue(value));
     };
 
     connect(xSlider, &QSlider::valueChanged, this, [xSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(xSpin);
         xSpin->setValue(v);
         updateValue();
     });
+
     connect(ySlider, &QSlider::valueChanged, this, [ySpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(ySpin);
         ySpin->setValue(v);
         updateValue();
     });
+
     connect(zSlider, &QSlider::valueChanged, this, [zSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(zSpin);
         zSpin->setValue(v);
         updateValue();
     });
+
     connect(wSlider, &QSlider::valueChanged, this, [wSpin, minValue, maxValue, updateValue](int s) {
         const double t = double(s) / 1000.0;
         const double v = minValue + (maxValue - minValue) * t;
+
         QSignalBlocker blocker(wSpin);
         wSpin->setValue(v);
         updateValue();
     });
+
     connect(xSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [xSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(xSlider);
                 xSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     connect(ySpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [ySlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(ySlider);
                 ySlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     connect(zSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [zSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(zSlider);
                 zSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     connect(wSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
             [wSlider, minValue, maxValue, updateValue](double v) {
                 const double range = maxValue - minValue;
                 const int s = range > 0.0 ? int(((v - minValue) / range) * 1000.0) : 0;
+
                 QSignalBlocker blocker(wSlider);
                 wSlider->setValue(std::clamp(s, 0, 1000));
                 updateValue();
             });
+
     return widget;
-}
-
-void
-WindowPrivate::setVec2Component(const QString& name, int component, double value)
-{
-    sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
-    sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
-    sdk::render::ShaderDescriptor descriptor = definition.descriptor();
-
-    const int index = descriptor.indexOf(name);
-    if (index < 0)
-        return;
-
-    QVector2D v = descriptor.parameters[index].value.isValid()
-                      ? descriptor.parameters[index].value.value<QVector2D>()
-                      : descriptor.parameters[index].defaultValue.value<QVector2D>();
-
-    if (component == 0)
-        v.setX(float(value));
-    else if (component == 1)
-        v.setY(float(value));
-
-    descriptor.parameters[index].value = QVariant::fromValue(v);
-    definition.setDescriptor(descriptor);
-    imageEffect.setShaderDefinition(definition);
-    d.imageLayer.setImageEffect(imageEffect);
-    update();
-}
-
-void
-WindowPrivate::setVec3Component(const QString& name, int component, double value)
-{
-    sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
-    sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
-    sdk::render::ShaderDescriptor descriptor = definition.descriptor();
-
-    const int index = descriptor.indexOf(name);
-    if (index < 0)
-        return;
-
-    QVector3D v = descriptor.parameters[index].value.isValid()
-                      ? descriptor.parameters[index].value.value<QVector3D>()
-                      : descriptor.parameters[index].defaultValue.value<QVector3D>();
-
-    if (component == 0)
-        v.setX(float(value));
-    else if (component == 1)
-        v.setY(float(value));
-    else if (component == 2)
-        v.setZ(float(value));
-
-    descriptor.parameters[index].value = QVariant::fromValue(v);
-    definition.setDescriptor(descriptor);
-    imageEffect.setShaderDefinition(definition);
-    d.imageLayer.setImageEffect(imageEffect);
-    update();
-}
-
-void
-WindowPrivate::setVec4Component(const QString& name, int component, double value)
-{
-    sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
-    sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
-    sdk::render::ShaderDescriptor descriptor = definition.descriptor();
-
-    const int index = descriptor.indexOf(name);
-    if (index < 0)
-        return;
-
-    QVector4D v = descriptor.parameters[index].value.isValid()
-                      ? descriptor.parameters[index].value.value<QVector4D>()
-                      : descriptor.parameters[index].defaultValue.value<QVector4D>();
-
-    if (component == 0)
-        v.setX(float(value));
-    else if (component == 1)
-        v.setY(float(value));
-    else if (component == 2)
-        v.setZ(float(value));
-    else if (component == 3)
-        v.setW(float(value));
-
-    descriptor.parameters[index].value = QVariant::fromValue(v);
-    definition.setDescriptor(descriptor);
-    imageEffect.setShaderDefinition(definition);
-    d.imageLayer.setImageEffect(imageEffect);
-    update();
 }
 
 void
@@ -616,10 +608,13 @@ WindowPrivate::setParameterValue(const QString& name, const QVariant& value)
     sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
     sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
     sdk::render::ShaderDescriptor descriptor = definition.descriptor();
+
     const int index = descriptor.indexOf(name);
     if (index < 0) {
-        qFatal() << "parameter not found:" << name;
+        qWarning() << "parameter not found:" << name;
+        return;
     }
+
     descriptor.parameters[index].value = value;
     definition.setDescriptor(descriptor);
     imageEffect.setShaderDefinition(definition);
@@ -646,6 +641,9 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         }
     };
 
+    if (param.hasOptions())
+        return addComboRow(label, param.name, value, param.options, parent);
+
     switch (param.type) {
     case ShaderParameter::Type::Float: {
         const double current = value.toDouble();
@@ -660,6 +658,9 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         const int current = value.toInt();
         int minValue = param.minValue.isValid() ? param.minValue.toInt() : 0;
         int maxValue = param.maxValue.isValid() ? param.maxValue.toInt() : 100;
+
+        if (minValue > maxValue)
+            std::swap(minValue, maxValue);
 
         if (minValue == maxValue) {
             minValue = 0;
@@ -685,37 +686,41 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         layout->addStretch();
         layout->addWidget(box);
 
-        connect(box, &QCheckBox::toggled, this,
-                [this, name = param.name](bool checked) {
-                    setParameterValue(name, checked);
-                });
+        connect(box, &QCheckBox::toggled, this, [this, name = param.name](bool checked) {
+            setParameterValue(name, checked);
+        });
 
         return row;
     }
+
     case ShaderParameter::Type::Vec2: {
         const QVector2D current = value.value<QVector2D>();
-
         double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
         double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
         fixRange(minValue, maxValue);
+
         return addVec2Widget(param, label, current, minValue, maxValue, parent);
     }
+
     case ShaderParameter::Type::Vec3: {
         const QVector3D current = value.value<QVector3D>();
         double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
         double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
         fixRange(minValue, maxValue);
+
         return addVec3Widget(param, label, current, minValue, maxValue, parent);
     }
+
     case ShaderParameter::Type::Vec4: {
         const QVector4D current = value.value<QVector4D>();
-
         double minValue = param.minValue.isValid() ? param.minValue.toDouble() : -1.0;
         double maxValue = param.maxValue.isValid() ? param.maxValue.toDouble() : 1.0;
         fixRange(minValue, maxValue);
+
         return addVec4Widget(param, label, current, minValue, maxValue, parent);
     }
     }
+
     return new QWidget(parent);
 }
 
@@ -754,10 +759,12 @@ WindowPrivate::addParameterPanel(QWidget* parent)
     for (const auto& param : parameters) {
         QWidget* editor = addParameterWidget(param, content);
         const QString groupName = param.group.trimmed();
+
         if (groupName.isEmpty()) {
             contentLayout->addWidget(editor);
             continue;
         }
+
         if (!groupBoxes.contains(groupName)) {
             QGroupBox* box = new QGroupBox(groupName, content);
             QVBoxLayout* boxLayout = new QVBoxLayout(box);
@@ -768,11 +775,14 @@ WindowPrivate::addParameterPanel(QWidget* parent)
             groupLayouts.insert(groupName, boxLayout);
             contentLayout->addWidget(box);
         }
+
         groupLayouts[groupName]->addWidget(editor);
     }
+
     contentLayout->addStretch();
     scrollArea->setWidget(content);
     panelLayout->addWidget(scrollArea);
+
     return panel;
 }
 
@@ -783,33 +793,37 @@ WindowPrivate::init()
     if (args.size() < 2)
         qFatal("No input file provided in arguments.");
 
-    d.inputFile = args.at(1);
-
     const QString dataPath = sdk::core::Environment::resourcePath("../../../data");
-#if (0)
-    // rgb
-    const QString filename = "23.967.00086400.exr";
-    sdk::core::File file(QString("%1/exr/%2").arg(dataPath).arg(filename));
+
+    d.inputFile = args.at(1);
+    sdk::core::File file(d.inputFile);
+
+    if (!file.exists()) {
+#if (1)
+        const QString filename = "23.967.00086400.exr";
+        file = sdk::core::File(QString("%1/exr/%2").arg(dataPath).arg(filename));
 #else
-    // nv12
-    const QString filename = "square export 23.976 512x512.mov";
-    sdk::core::File file(QString("%1/quicktime/%2").arg(sdk::core::Environment::resourcePath(dataPath)).arg(filename));
+        const QString filename = "square export 23.976 512x512.mov";
+        file = sdk::core::File(QString("%1/quicktime/%2").arg(dataPath).arg(filename));
 #endif
+    }
 
     Q_ASSERT_X(file.exists(), "RenderEngine::loadFile", "file does not exist");
 
-    sdk::av::Media media;
-    Q_ASSERT(media.open(file) && media.waitForOpened() && "could not open media");
-    Q_ASSERT(media.isValid() && "error open media");
+    Q_ASSERT(d.media.open(file) && d.media.waitForOpened() && "could not open media");
+    Q_ASSERT(d.media.isValid() && "error open media");
 
-    media.read();
-    sdk::core::ImageBuffer image = media.image();
+    d.timeRange = d.media.timeRange();
+
+    d.media.read();
+
+    sdk::core::ImageBuffer image = d.media.image();
     Q_ASSERT(image.isValid() && "image not valid");
 
     sdk::render::ImageLayer imageLayer;
     imageLayer.setImage(image);
 
-    QString shader = "fx/debug.fx";
+    const QString shader = "fx/logc.fx";
     sdk::core::File shaderFile(QString("%1/%2").arg(dataPath).arg(shader));
     Q_ASSERT(shaderFile.exists() && "fx file does not exist");
 
@@ -865,6 +879,7 @@ WindowPrivate::init()
     controlsLayout->addWidget(z100Button);
     controlsLayout->addStretch();
     controlsLayout->addWidget(zoomLabel);
+
     leftLayout->addWidget(controlsWidget);
 
     QFrame* viewerFrame = new QFrame(leftWidget);
@@ -874,6 +889,7 @@ WindowPrivate::init()
                                "  border: 1px solid #3a3a3a;"
                                "  background: #1e1e1e;"
                                "}");
+
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);
 
@@ -885,13 +901,30 @@ WindowPrivate::init()
     frameLayout->addWidget(d.viewer);
     leftLayout->addWidget(viewerFrame);
 
-    QSlider* timelineSlider = new QSlider(Qt::Horizontal);
-    timelineSlider->setRange(0, 100);
-    timelineSlider->setValue(0);
-    timelineSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    timelineSlider->setFixedHeight(28);
+    QWidget* timelineWidget = new QWidget(leftWidget);
+    QHBoxLayout* timelineLayout = new QHBoxLayout(timelineWidget);
+    timelineLayout->setContentsMargins(0, 0, 0, 0);
+    timelineLayout->setSpacing(8);
 
-    leftLayout->addWidget(timelineSlider);
+    d.timelineSlider = new QSlider(Qt::Horizontal, timelineWidget);
+
+    const qint64 frameCount = d.timeRange.isValid() ? d.timeRange.duration().frames() : 1;
+    const int lastFrame = int(std::max<qint64>(0, frameCount - 1));
+
+    d.timelineSlider->setRange(0, lastFrame);
+    d.timelineSlider->setValue(0);
+    d.timelineSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    d.timelineSlider->setFixedHeight(28);
+
+    d.timelineLabel = new QLabel(timelineWidget);
+    d.timelineLabel->setMinimumWidth(140);
+    d.timelineLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+
+    timelineLayout->addWidget(d.timelineSlider, 1);
+    timelineLayout->addWidget(d.timelineLabel);
+
+    leftLayout->addWidget(timelineWidget);
+    updateTimelineLabel();
 
     QWidget* parameterPanel = addParameterPanel(splitter);
 
@@ -929,8 +962,12 @@ WindowPrivate::init()
     });
 
     connect(d.viewer, &sdk::widgets::Viewer::zoomChanged, zoomLabel, [zoomLabel](float zoom) {
-        int percent = int(std::round(zoom * 100.0f));
+        const int percent = int(std::round(zoom * 100.0f));
         zoomLabel->setText(QString("%1%").arg(percent));
+    });
+
+    connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) {
+        seekFrame(frame);
     });
 
     d.window->setWindowTitle("testview");
@@ -939,8 +976,64 @@ WindowPrivate::init()
 }
 
 void
+WindowPrivate::seekFrame(int frame)
+{
+    if (!d.media.isValid() || !d.timeRange.isValid())
+        return;
+
+    const sdk::av::Fps fps = d.media.fps();
+    const sdk::av::Time frameOffset = sdk::av::Time::fromFrames(frame, fps);
+    const sdk::av::Time target = d.timeRange.start() + frameOffset;
+    const sdk::av::Time duration = sdk::av::Time::fromFrames(1, fps);
+    const sdk::av::TimeRange range(target, duration);
+
+    const sdk::av::Time seekTime = d.media.seek(range);
+    if (!seekTime.isValid()) {
+        qWarning() << "seek failed:" << d.media.error();
+        return;
+    }
+
+    const sdk::av::Time readTime = d.media.read();
+    if (!readTime.isValid()) {
+        qWarning() << "read after seek failed:" << d.media.error();
+        return;
+    }
+
+    const sdk::core::ImageBuffer image = d.media.image();
+    if (!image.isValid()) {
+        qWarning() << "invalid image after seek:" << d.media.error();
+        return;
+    }
+
+    d.imageLayer.setImage(image);
+
+    updateTimelineLabel();
+    update();
+}
+
+void
+WindowPrivate::updateTimelineLabel()
+{
+    if (!d.timelineLabel)
+        return;
+
+    const int frame = d.timelineSlider ? d.timelineSlider->value() : 0;
+    const int total = d.timelineSlider ? d.timelineSlider->maximum() + 1 : 0;
+
+    if (d.media.isValid() && d.media.time().isValid()) {
+        d.timelineLabel->setText(QString("%1 / %2  %3").arg(frame + 1).arg(total).arg(d.media.time().toString()));
+    }
+    else {
+        d.timelineLabel->setText(QString("%1 / %2").arg(frame + 1).arg(total));
+    }
+}
+
+void
 WindowPrivate::update()
 {
+    if (!d.viewer)
+        return;
+
     d.viewer->setImageLayers({ d.imageLayer });
     d.viewer->update();
 }
