@@ -20,25 +20,37 @@ namespace flipman::sdk::render {
 class ShaderDescriptor {
 public:
     /**
+     * @struct ShaderOption
+     * @brief Describes one discrete UI option for a shader parameter.
+     *
+     * Used for parameters that should be represented as a combo box or
+     * another discrete selector instead of a continuous slider.
+     */
+    struct ShaderOption {
+        QString label;   ///< Display label shown in the UI.
+        QVariant value;  ///< Actual parameter value assigned when selected.
+    };
+
+    /**
      * @struct ShaderParameter
      * @brief Describes a parameter declared via @param.
      */
     struct ShaderParameter {
-        /**
-         * @brief Supported parameter types.
-         */
         enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4 };
 
-        QString name;             ///< Parameter name.
-        Type type = Type::Float;  ///< Parameter type.
+        QString name;
+        Type type = Type::Float;
 
-        QVariant value;         ///< Current value.
-        QVariant defaultValue;  ///< Default value.
-        QVariant minValue;      ///< Optional minimum value.
-        QVariant maxValue;      ///< Optional maximum value.
+        QVariant value;
+        QVariant defaultValue;
+        QVariant minValue;
+        QVariant maxValue;
+        QVector<ShaderOption> options;
 
-        QString label;  ///< Optional UI label.
-        QString group;  ///< Optional UI group.
+        QString label;
+        QString group;
+
+        bool hasOptions() const { return !options.isEmpty(); }
     };
 
 public:

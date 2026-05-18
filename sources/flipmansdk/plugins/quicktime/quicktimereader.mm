@@ -112,8 +112,6 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
     const QRect dataWindow(0, 0, width, height);
     const QRect displayWindow = dataWindow;
 
-    qDebug() << "QuicktimeReader pixel format:" << pixelFormatName(pixelFormat);
-
     if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         || pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
 

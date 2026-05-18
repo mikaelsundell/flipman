@@ -20,7 +20,7 @@
 
 @param float strength 0.5 0.0 2.0
 
-@include "common.fx"
+@include "common.h"
 
 vec4 effect(vec4 color, vec2 uv)
 {

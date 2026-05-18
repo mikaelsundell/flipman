@@ -48,7 +48,11 @@ void
 StylePrivate::init()
 {
     updateTheme(d.theme);
-    updateColorSpace(QColorSpace::SRgb);
+    //updateColorSpace(QColorSpace::SRgb);
+
+    updateColorSpace(QColorSpace(QColorSpace::Primaries::SRgb, QColorSpace::TransferFunction::Gamma, 2.4f));
+
+
     updateStylesheet();
 }
 

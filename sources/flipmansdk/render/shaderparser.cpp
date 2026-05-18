@@ -59,14 +59,44 @@ ShaderParserPrivate::toParamType(const QString& t) const
 bool
 ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::ShaderParameter& parameter)
 {
-    QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+    QStringList tokens;
+    QString token;
+    bool inBrace = false;
+    for (QChar c : line) {
+        if (c == '{') {
+            inBrace = true;
+            token += c;
+            continue;
+        }
+        if (c == '}') {
+            inBrace = false;
+            token += c;
+            continue;
+        }
+        if (c.isSpace() && !inBrace) {
+            if (!token.isEmpty()) {
+                tokens.append(token);
+                token.clear();
+            }
+            continue;
+        }
+        token += c;
+    }
+
+    if (!token.isEmpty())
+        tokens.append(token);
+
     if (tokens.size() < 4) {
         d.error = core::Error("shaderparser", "invalid @param declaration: " + line);
         return false;
     }
 
-    parameter.type = toParamType(tokens[1]);
-    parameter.name = tokens[2];
+    auto stripBraces = [](QString text) {
+        text = text.trimmed();
+        if (text.startsWith('{') && text.endsWith('}'))
+            return text.mid(1, text.size() - 2);
+        return text;
+    };
 
     auto parseDouble = [&](int index, double fallback = 0.0) {
         if (index >= tokens.size())
@@ -76,27 +106,69 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
         return ok ? value : fallback;
     };
 
+    auto parseBool = [](const QString& text) { return text.compare("true", Qt::CaseInsensitive) == 0 || text == "1"; };
+
+    auto parseOptions = [&](int valuesIndex, int labelsIndex) {
+        if (valuesIndex >= tokens.size() || !tokens[valuesIndex].startsWith("{"))
+            return;
+
+        const QStringList values = stripBraces(tokens[valuesIndex]).split(",", Qt::SkipEmptyParts);
+
+        QStringList labels;
+        if (labelsIndex < tokens.size() && tokens[labelsIndex].startsWith("{"))
+            labels = stripBraces(tokens[labelsIndex]).split(",", Qt::SkipEmptyParts);
+
+        for (int i = 0; i < values.size(); ++i) {
+            const QString valueText = values[i].trimmed();
+
+            ShaderDescriptor::ShaderOption option;
+            option.label = i < labels.size() ? labels[i].trimmed() : valueText;
+
+            switch (parameter.type) {
+            case ParamType::Float: option.value = valueText.toDouble(); break;
+            case ParamType::Int: option.value = valueText.toInt(); break;
+            case ParamType::Bool: option.value = parseBool(valueText); break;
+            case ParamType::Vec2:
+            case ParamType::Vec3:
+            case ParamType::Vec4: break;
+            }
+
+            parameter.options.append(option);
+        }
+    };
+    parameter.type = toParamType(tokens[1]);
+    parameter.name = tokens[2];
+
     switch (parameter.type) {
     case ParamType::Float:
         parameter.defaultValue = parseDouble(3);
-        if (tokens.size() >= 5)
-            parameter.minValue = parseDouble(4);
-        if (tokens.size() >= 6)
-            parameter.maxValue = parseDouble(5);
+        if (tokens.size() >= 5 && tokens[4].startsWith("{")) {
+            parseOptions(4, 5);
+        }
+        else {
+            if (tokens.size() >= 5)
+                parameter.minValue = parseDouble(4);
+            if (tokens.size() >= 6)
+                parameter.maxValue = parseDouble(5);
+        }
         break;
-
     case ParamType::Int:
         parameter.defaultValue = tokens[3].toInt();
-        if (tokens.size() >= 5)
-            parameter.minValue = tokens[4].toInt();
-        if (tokens.size() >= 6)
-            parameter.maxValue = tokens[5].toInt();
+        if (tokens.size() >= 5 && tokens[4].startsWith("{")) {
+            parseOptions(4, 5);
+        }
+        else {
+            if (tokens.size() >= 5)
+                parameter.minValue = tokens[4].toInt();
+            if (tokens.size() >= 6)
+                parameter.maxValue = tokens[5].toInt();
+        }
         break;
-
     case ParamType::Bool:
-        parameter.defaultValue = (tokens[3].compare("true", Qt::CaseInsensitive) == 0 || tokens[3] == "1");
+        parameter.defaultValue = parseBool(tokens[3]);
+        if (tokens.size() >= 5 && tokens[4].startsWith("{"))
+            parseOptions(4, 5);
         break;
-
     case ParamType::Vec2:
         if (tokens.size() < 7) {
             d.error = core::Error("shaderparser", "invalid vec2 @param declaration: " + line);
@@ -106,30 +178,27 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
         parameter.minValue = parseDouble(5);
         parameter.maxValue = parseDouble(6);
         break;
-
     case ParamType::Vec3:
         if (tokens.size() < 8) {
             d.error = core::Error("shaderparser", "invalid vec3 @param declaration: " + line);
             return false;
         }
-        parameter.defaultValue = QVariant::fromValue(QVector3D(float(parseDouble(3)), float(parseDouble(4)),
-                                                              float(parseDouble(5))));
+        parameter.defaultValue = QVariant::fromValue(
+            QVector3D(float(parseDouble(3)), float(parseDouble(4)), float(parseDouble(5))));
         parameter.minValue = parseDouble(6);
         parameter.maxValue = parseDouble(7);
         break;
-
     case ParamType::Vec4:
         if (tokens.size() < 9) {
             d.error = core::Error("shaderparser", "invalid vec4 @param declaration: " + line);
             return false;
         }
-        parameter.defaultValue = QVariant::fromValue(QVector4D(float(parseDouble(3)), float(parseDouble(4)),
-                                                              float(parseDouble(5)), float(parseDouble(6))));
+        parameter.defaultValue = QVariant::fromValue(
+            QVector4D(float(parseDouble(3)), float(parseDouble(4)), float(parseDouble(5)), float(parseDouble(6))));
         parameter.minValue = parseDouble(7);
         parameter.maxValue = parseDouble(8);
         break;
     }
-
     return true;
 }
 

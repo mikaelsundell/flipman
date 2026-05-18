@@ -1,32 +1,37 @@
 /*
  * Basic Gaussian Blur
  *
- * Applies a small 5-tap Gaussian blur to the source texture.
- * Intended as a minimal demonstration of Gaussian convolution.
+ * Applies a 5-tap horizontal Gaussian blur.
  *
  * Parameters:
  *   radius - blur radius in pixels
+ *   debugOffset - show only an offset sample to verify source sampling
  */
 
-@param float radius 1.0 0.0 10.0
+@param float radius 20.0 0.0 100.0
+@param bool debugOffset false
 
-@include "common.fx"
+@include "common.h"
 
 vec4 effect(vec4 color, vec2 uv)
 {
     vec2 texel = 1.0 / global.resolution;
+
+    if (debugOffset) {
+        return source(uv + texel * vec2(radius, 0.0));
+    }
+
     vec4 result = vec4(0.0);
 
-    // 5-tap gaussian kernel
     float w0 = 0.227027;
     float w1 = 0.316216;
     float w2 = 0.070270;
 
-    result += texture(tex, uv) * w0;
-    result += texture(tex, uv + texel * vec2(radius, 0.0)) * w1;
-    result += texture(tex, uv - texel * vec2(radius, 0.0)) * w1;
-    result += texture(tex, uv + texel * vec2(radius * 2.0, 0.0)) * w2;
-    result += texture(tex, uv - texel * vec2(radius * 2.0, 0.0)) * w2;
+    result += source(uv) * w0;
+    result += source(uv + texel * vec2(radius, 0.0)) * w1;
+    result += source(uv - texel * vec2(radius, 0.0)) * w1;
+    result += source(uv + texel * vec2(radius * 2.0, 0.0)) * w2;
+    result += source(uv - texel * vec2(radius * 2.0, 0.0)) * w2;
 
-    return result;
+    return vec4(result.rgb, color.a);
 }

@@ -71,11 +71,10 @@ layout(std140, binding = 0) uniform Global
     float pad0;
 } global;
 
-@texUniform
-@effectUniform
-
 @include "common.glsl"
 
+@texUniform
+@effectUniform
 @effectCode
 @idtCode
 @odtCode
