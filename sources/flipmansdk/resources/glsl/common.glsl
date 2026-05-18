@@ -25,7 +25,7 @@
  *   - Output RGB is linear relative to the YUV transform.
  */
 
-vec3 nv12ToRgb(float y, vec2 uv)
+vec3 _nv12ToRgb(float y, vec2 uv)
 {
     float Y = 1.16438356 * (y - 0.0625);
     float U = uv.x - 0.5;

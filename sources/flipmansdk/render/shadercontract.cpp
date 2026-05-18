@@ -43,7 +43,7 @@ QString
 ShaderContract::signature(Type type)
 {
     switch (type) {
-    case Type::Effect: return "vec4 effect(vec4 color, vec2 uv)";
+    case Type::Effect: return "vec4 effect(vec4 color, vec2 pixel, vec2 size)";
     case Type::Idt: return "vec4 idt(vec4 color)";
     case Type::Odt: return "vec4 odt(vec4 color)";
     }
@@ -54,7 +54,7 @@ QString
 ShaderContract::call(Type type)
 {
     switch (type) {
-    case Type::Effect: return "color = effect(color, uv);";
+    case Type::Effect: return "color = effect(color, pixel, size);";
     case Type::Idt: return "color = idt(color);";
     case Type::Odt: return "color = odt(color);";
     }
