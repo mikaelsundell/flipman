@@ -24,7 +24,7 @@
 #undef RENDERENGINE_STATS
 #undef RENDERENGINE_TRACE
 
-#define RENDERENGINE_TRACE 1
+//#define RENDERENGINE_TRACE 0
 
 #if defined(RENDERENGINE_STATS)
 #    define RE_STATS_ENABLED 1
@@ -59,7 +59,7 @@ public:
     RenderEnginePrivate();
     bool initResources(const RenderEngine::Context& context);
     void updateRenderStates(const RenderEngine::Context&, QRhiResourceUpdateBatch* updates);
-    void updateBlit(const RenderEngine::Context&, QRhiResourceUpdateBatch*);
+    void updateBlit(const RenderEngine::Context&, QRhiResourceUpdateBatch* updates);
     bool updateBlitResources(const RenderEngine::Context& context);
     void freeResources();
     void render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer);
@@ -71,6 +71,116 @@ public:
     QRectF aspectFit(const QSize& src, const QSize& dst);
 
 public:
+    struct RenderLut {
+        int size = 0;
+        QByteArray rgba32f;
+        static QByteArray identityLut(int size)
+        {
+            QByteArray data;
+            data.resize(size * size * size * 4 * int(sizeof(float)));
+            float* dst = reinterpret_cast<float*>(data.data());
+            for (int z = 0; z < size; ++z) {
+                for (int y = 0; y < size; ++y) {
+                    for (int x = 0; x < size; ++x) {
+                        *dst++ = float(x) / float(size - 1);
+                        *dst++ = float(y) / float(size - 1);
+                        *dst++ = float(z) / float(size - 1);
+                        *dst++ = 1.0f;
+                    }
+                }
+            }
+            return data;
+        }
+        static RenderLut loadLut(const QString& filename)
+        {
+            RenderLut result;
+            QFile file(filename);
+            if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                qWarning() << "renderengine: could not open LUT:" << filename;
+                return result;
+            }
+            
+            int lutSize = 0;
+            QVector<float> values;
+            
+            QTextStream stream(&file);
+            while (!stream.atEnd()) {
+                QString line = stream.readLine().trimmed();
+                
+                if (line.isEmpty() || line.startsWith("#"))
+                    continue;
+                
+                if (line.startsWith("TITLE"))
+                    continue;
+                
+                if (line.startsWith("LUT_3D_SIZE")) {
+                    const QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+                    if (tokens.size() >= 2)
+                        lutSize = tokens[1].toInt();
+                    continue;
+                }
+                
+                if (line.startsWith("DOMAIN_MIN") || line.startsWith("DOMAIN_MAX"))
+                    continue;
+                
+                const QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
+                if (tokens.size() < 3)
+                    continue;
+                
+                bool okR = false;
+                bool okG = false;
+                bool okB = false;
+                
+                const float r = tokens[0].toFloat(&okR);
+                const float g = tokens[1].toFloat(&okG);
+                const float b = tokens[2].toFloat(&okB);
+                
+                if (okR && okG && okB) {
+                    values.append(r);
+                    values.append(g);
+                    values.append(b);
+                }
+            }
+            
+            if (lutSize < 2) {
+                qWarning() << "renderengine: invalid LUT size:" << filename << lutSize;
+                return result;
+            }
+            
+            const int expectedTriplets = lutSize * lutSize * lutSize;
+            if (values.size() != expectedTriplets * 3) {
+                qWarning() << "renderengine: invalid LUT value count:"
+                << filename
+                << "expected" << expectedTriplets * 3
+                << "got" << values.size();
+                return result;
+            }
+            
+            result.size = lutSize;
+            result.rgba32f.resize(expectedTriplets * 4 * int(sizeof(float)));
+            
+            float* dst = reinterpret_cast<float*>(result.rgba32f.data());
+            const float* src = values.constData();
+            
+            for (int i = 0; i < expectedTriplets; ++i) {
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = *src++;
+                *dst++ = 1.0f;
+            }
+            
+            qDebug() << "renderengine: loaded LUT"
+            << filename
+            << "size" << result.size
+            << "bytes" << result.rgba32f.size();
+            
+            return result;
+        }
+        bool isValid() const
+        {
+            return size > 1 && !rgba32f.isEmpty();
+        }
+    };
     struct RenderState {
         enum class TextureType { Unknown, UInt8, Half, Float, Nv12 };
         TextureType textureType = TextureType::Unknown;
@@ -111,6 +221,22 @@ public:
             luts.clear();
             lutKey.clear();
         }
+        bool initLut(LutResource& lut, const RenderLut& data, QRhi* rhi)
+        {
+            if (!rhi || !data.isValid())
+                return false;
+
+            lut.size = data.size;
+            lut.texture.reset(rhi->newTexture(
+                QRhiTexture::RGBA32F,
+                lut.size,
+                lut.size,
+                lut.size,
+                1,
+                QRhiTexture::ThreeDimensional));
+
+            return lut.texture && lut.texture->create();
+        }
         bool initTextures(const core::ImageBuffer& image, QRhi* rhi)
         {
             if (!rhi || !image.isValid())
@@ -142,7 +268,7 @@ public:
             texture1.reset();
             return true;
         }
-        bool prepareUpload(const core::ImageBuffer& image)
+        bool prepareTextures(const core::ImageBuffer& image)
         {
             imageData0.reset();
             imageData1.reset();
@@ -203,6 +329,34 @@ public:
 
             return quint64(imageData0.byteSize());
         }
+        bool uploadLut(const LutResource& lut, const RenderLut& data, QRhiResourceUpdateBatch* updates)
+        {
+            if (!updates || !lut.texture || !data.isValid())
+                return false;
+
+            const int bytesPerPixel = 4 * int(sizeof(float));
+            const int rowBytes = lut.size * bytesPerPixel;
+            const int sliceBytes = lut.size * rowBytes;
+
+            QVector<QRhiTextureUploadEntry> entries;
+
+            for (int z = 0; z < lut.size; ++z) {
+                const char* slicePtr = data.rgba32f.constData() + z * sliceBytes;
+
+                QRhiTextureSubresourceUploadDescription desc(slicePtr, quint32(sliceBytes));
+                desc.setSourceSize(QSize(lut.size, lut.size));
+                desc.setDataStride(quint32(rowBytes));
+
+                entries.append(QRhiTextureUploadEntry(z, 0, desc));
+            }
+
+            QRhiTextureUploadDescription upload;
+            upload.setEntries(entries.cbegin(), entries.cend());
+
+            updates->uploadTexture(lut.texture.get(), upload);
+
+            return true;
+        }
         static QRhiTexture::Format toTextureFormat(TextureType type)
         {
             switch (type) {
@@ -230,30 +384,20 @@ public:
             }
         }
     };
-    struct RenderLut {
-        int size = 0;
-        QByteArray rgba32f;
-        bool isValid() const
-        {
-            return size > 1 && !rgba32f.isEmpty();
-        }
-    };
     int alignTo(int value, int alignment);
     int std140BaseAlignment(ShaderDescriptor::ShaderParameter::Type type);
     int std140Size(ShaderDescriptor::ShaderParameter::Type type);
     int std140BufferSize(const QList<ShaderDescriptor::ShaderParameter>& params, QVector<int>* offsets);
-    QVector<ShaderDescriptor::ShaderParameter> lutParameters(const ShaderDefinition* effectDefinition) const;
-    
-    bool updateLutResources(RenderState& renderState, const ShaderDefinition* effectDefinition,
-                            QRhiResourceUpdateBatch* updates, int firstBinding);
-    QString lutShaderKey(const ShaderDefinition* effectDefinition) const;
-    QByteArray identityLutData(int size) const;
-    
-    RenderLut loadLut(const QString& filename) const;
-    
-    QByteArray shaderHash(const QString& text) const;
-    QString buildLayerShaderKey(RenderState::TextureType textureType, const ShaderDefinition* effectDefinition) const;
+    QString buildLayerShaderKey(RenderState::TextureType textureType, const ShaderDefinition* effectDefinition);
+    QString buildLutShaderKey(const ShaderDefinition* effectDefinition);
     QString buildLayerShaderSource(RenderState::TextureType textureType, const ShaderDefinition* effectDefinition);
+    struct FileHash {
+        qint64 size = -1;
+        qint64 modified = -1;
+        QByteArray hash;
+    };
+    QByteArray fileHash(const QString& filename);
+    QByteArray textHash(const QString& text) const;
     struct FrameStats {
         quint64 frameIndex = 0;
         int layerCount = 0;
@@ -313,6 +457,7 @@ public:
         QHash<QString, QString> shaderSourceCache;
         QHash<QString, QString> generatedShaderSourceCache;
         QHash<QString, QShader> shaderCache;
+        QHash<QString, FileHash> fileCache;
         FrameStats stats;
         core::Error error;
     };
@@ -471,7 +616,7 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
 
         renderState.textureType = newType;
 
-        if (!renderState.prepareUpload(image)) {
+        if (!renderState.prepareTextures(image)) {
             qWarning() << "renderengine: failed to prepare upload for image layer" << i;
             continue;
         }
@@ -568,7 +713,7 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         }
 
         if (hasEffect) {
-            const auto& params = effectDefinition.descriptor().parameters;
+            const auto& params = effectDefinition.descriptor().uniformParameters();
 
             QVector<int> paramOffsets;
             const qsizetype effectBufferSize = std140BufferSize(params, &paramOffsets);
@@ -601,8 +746,6 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
             QByteArray paramData(effectBufferSize, 0);
             int uniformIndex = 0;
             for (int p = 0; p < params.size(); ++p) {
-                if (params[p].type == ShaderDescriptor::ShaderParameter::Type::Lut)
-                    continue;
                 parameterValue(paramData.data() + paramOffsets[uniformIndex], params[p]);
                 ++uniformIndex;
             }
@@ -633,16 +776,62 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
         }
         
         const int lutFirstBinding = 4;
-        if (!updateLutResources(renderState, effectDefinitionPtr, updates, lutFirstBinding)) {
-            qWarning() << "renderengine: failed to update LUT resources for layer" << i;
-            continue;
+        if (effectDefinitionPtr) {
+            const QList<ShaderDescriptor::ShaderParameter> params =
+                effectDefinitionPtr->descriptor().lutParameters();
+
+            const QString key = buildLutShaderKey(effectDefinitionPtr);
+
+            if (renderState.lutKey != key || renderState.luts.size() != size_t(params.size())) {
+                renderState.luts.clear();
+                renderState.lutKey = key;
+
+                for (int l = 0; l < params.size(); ++l) {
+                    RenderState::LutResource lut;
+                    lut.name = params[l].name;
+                    lut.filename = params[l].value.isValid()
+                        ? params[l].value.toString()
+                        : params[l].defaultValue.toString();
+                    lut.binding = lutFirstBinding + l;
+
+                    RenderLut data = RenderLut::loadLut(lut.filename);
+
+                    if (!data.isValid()) {
+                        qWarning() << "renderengine: failed to load LUT, using identity LUT:" << lut.filename;
+                        data.size = 2;
+                        data.rgba32f = RenderLut::identityLut(data.size);
+                    }
+
+                    if (!renderState.initLut(lut, data, d.deviceRhi)) {
+                        qWarning() << "renderengine: failed to create LUT texture"
+                                   << lut.name << lut.filename << "size" << data.size;
+                        continue;
+                    }
+
+                    if (!renderState.uploadLut(lut, data, updates)) {
+                        qWarning() << "renderengine: failed to upload LUT texture"
+                                   << lut.name << lut.filename << "size" << data.size;
+                        continue;
+                    }
+
+                    renderState.luts.push_back(std::move(lut));
+                }
+
+                renderState.shaderBindings.reset();
+                renderState.pipeline.reset();
+            }
+        }
+        else if (!renderState.luts.empty()) {
+            renderState.luts.clear();
+            renderState.lutKey.clear();
+            renderState.shaderBindings.reset();
+            renderState.pipeline.reset();
         }
 
         if (!renderState.shaderBindings) {
             RE_TRACE() << "renderengine: frame" << frameIndex << "layer" << i << "creating shader bindings";
 
             QVector<QRhiShaderResourceBinding> bindings;
-
             bindings << QRhiShaderResourceBinding::uniformBuffer(0,
                                                                  QRhiShaderResourceBinding::VertexStage
                                                                      | QRhiShaderResourceBinding::FragmentStage,
@@ -864,6 +1053,7 @@ RenderEnginePrivate::freeResources()
     d.shaderSourceCache.clear();
     d.generatedShaderSourceCache.clear();
     d.shaderCache.clear();
+    d.fileCache.clear();
 }
 
 void
@@ -1203,9 +1393,6 @@ RenderEnginePrivate::std140BufferSize(const QList<ShaderDescriptor::ShaderParame
     offsets->clear();
     int offset = 0;
     for (const auto& param : params) {
-        if (param.type == ShaderDescriptor::ShaderParameter::Type::Lut)
-            continue;
-        
         const int alignment = std140BaseAlignment(param.type);
         offset = alignTo(offset, alignment);
         offsets->push_back(offset);
@@ -1217,232 +1404,9 @@ RenderEnginePrivate::std140BufferSize(const QList<ShaderDescriptor::ShaderParame
     return alignTo(offset, 16);
 }
 
-QVector<ShaderDescriptor::ShaderParameter>
-RenderEnginePrivate::lutParameters(const ShaderDefinition* effectDefinition) const
-{
-    QVector<ShaderDescriptor::ShaderParameter> result;
-
-    if (!effectDefinition)
-        return result;
-
-    for (const auto& param : effectDefinition->descriptor().parameters) {
-        if (param.type == ShaderDescriptor::ShaderParameter::Type::Lut)
-            result.append(param);
-    }
-
-    return result;
-}
-
-QString
-RenderEnginePrivate::lutShaderKey(const ShaderDefinition* effectDefinition) const
-{
-    QStringList parts;
-    for (const auto& param : lutParameters(effectDefinition)) {
-        const QString filename = param.value.isValid() ? param.value.toString() : param.defaultValue.toString();
-        QFileInfo info(filename);
-        parts << param.name << filename << QString::number(info.exists() ? info.size() : 0)
-              << QString::number(info.exists() ? info.lastModified().toMSecsSinceEpoch() : 0);
-    }
-    return parts.join("|");
-}
-
-QByteArray
-RenderEnginePrivate::identityLutData(int size) const
-{
-    QByteArray data;
-    data.resize(size * size * size * 4 * int(sizeof(float)));
-    float* dst = reinterpret_cast<float*>(data.data());
-    for (int z = 0; z < size; ++z) {
-        for (int y = 0; y < size; ++y) {
-            for (int x = 0; x < size; ++x) {
-                *dst++ = float(x) / float(size - 1);
-                *dst++ = float(y) / float(size - 1);
-                *dst++ = float(z) / float(size - 1);
-                *dst++ = 1.0f;
-            }
-        }
-    }
-    return data;
-}
-
-RenderEnginePrivate::RenderLut
-RenderEnginePrivate::loadLut(const QString& filename) const
-{
-    RenderLut result;
-
-    QFile file(filename);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "renderengine: could not open LUT:" << filename;
-        return result;
-    }
-
-    int lutSize = 0;
-    QVector<float> values;
-
-    QTextStream stream(&file);
-    while (!stream.atEnd()) {
-        QString line = stream.readLine().trimmed();
-
-        if (line.isEmpty() || line.startsWith("#"))
-            continue;
-
-        if (line.startsWith("TITLE"))
-            continue;
-
-        if (line.startsWith("LUT_3D_SIZE")) {
-            const QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-            if (tokens.size() >= 2)
-                lutSize = tokens[1].toInt();
-            continue;
-        }
-
-        if (line.startsWith("DOMAIN_MIN") || line.startsWith("DOMAIN_MAX"))
-            continue;
-
-        const QStringList tokens = line.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-        if (tokens.size() < 3)
-            continue;
-
-        bool okR = false;
-        bool okG = false;
-        bool okB = false;
-
-        const float r = tokens[0].toFloat(&okR);
-        const float g = tokens[1].toFloat(&okG);
-        const float b = tokens[2].toFloat(&okB);
-
-        if (okR && okG && okB) {
-            values.append(r);
-            values.append(g);
-            values.append(b);
-        }
-    }
-
-    if (lutSize < 2) {
-        qWarning() << "renderengine: invalid LUT size:" << filename << lutSize;
-        return result;
-    }
-
-    const int expectedTriplets = lutSize * lutSize * lutSize;
-    if (values.size() != expectedTriplets * 3) {
-        qWarning() << "renderengine: invalid LUT value count:"
-                   << filename
-                   << "expected" << expectedTriplets * 3
-                   << "got" << values.size();
-        return result;
-    }
-
-    result.size = lutSize;
-    result.rgba32f.resize(expectedTriplets * 4 * int(sizeof(float)));
-
-    float* dst = reinterpret_cast<float*>(result.rgba32f.data());
-    const float* src = values.constData();
-
-    for (int i = 0; i < expectedTriplets; ++i) {
-        *dst++ = *src++;
-        *dst++ = *src++;
-        *dst++ = *src++;
-        *dst++ = 1.0f;
-    }
-
-    qDebug() << "renderengine: loaded LUT"
-             << filename
-             << "size" << result.size
-             << "bytes" << result.rgba32f.size();
-
-    return result;
-}
-
-bool
-RenderEnginePrivate::updateLutResources(RenderState& renderState, const ShaderDefinition* effectDefinition,
-                                        QRhiResourceUpdateBatch* updates, int firstBinding)
-{
-    const QVector<ShaderDescriptor::ShaderParameter> params = lutParameters(effectDefinition);
-    const QString key = lutShaderKey(effectDefinition);
-
-    if (renderState.lutKey == key && renderState.luts.size() == params.size())
-        return true;
-
-    renderState.luts.clear();
-    renderState.lutKey = key;
-
-    for (int i = 0; i < params.size(); ++i) {
-        RenderState::LutResource lut;
-        lut.name = params[i].name;
-        lut.filename = params[i].value.isValid() ? params[i].value.toString() : params[i].defaultValue.toString();
-        lut.binding = firstBinding + i;
-        lut.size = 2;
-
-        lut.texture.reset(d.deviceRhi->newTexture(QRhiTexture::RGBA32F, lut.size, lut.size, lut.size, 1,
-                                                  QRhiTexture::ThreeDimensional));
-
-        if (!lut.texture || !lut.texture->create()) {
-            qWarning() << "renderengine: failed to create LUT texture" << lut.name << lut.filename;
-            return false;
-        }
-
-        RenderLut data = loadLut(lut.filename);
-
-        if (!data.isValid()) {
-            qWarning() << "renderengine: failed to load LUT, using identity LUT:" << lut.filename;
-
-            data.size = 2;
-            data.rgba32f = identityLutData(data.size);
-        }
-
-        lut.size = data.size;
-
-        lut.texture.reset(d.deviceRhi->newTexture(
-            QRhiTexture::RGBA32F,
-            lut.size,
-            lut.size,
-            lut.size,
-            1,
-            QRhiTexture::ThreeDimensional));
-        
-        if (!lut.texture || !lut.texture->create()) {
-            qWarning() << "renderengine: failed to create LUT texture"
-                       << lut.name
-                       << lut.filename
-                       << "size" << lut.size;
-            return false;
-        }
-        
-        const QByteArray& lutData = data.rgba32f;
-        const int bytesPerPixel = 4 * int(sizeof(float));
-        const int rowBytes = lut.size * bytesPerPixel;
-        const int sliceBytes = lut.size * rowBytes;
-        QVector<QRhiTextureUploadEntry> entries;
-
-        for (int z = 0; z < lut.size; ++z) {
-            const char* slicePtr = lutData.constData() + z * sliceBytes;
-            QRhiTextureSubresourceUploadDescription desc(slicePtr, quint32(sliceBytes));
-            desc.setSourceSize(QSize(lut.size, lut.size));
-            desc.setDataStride(quint32(rowBytes));
-            entries.append(QRhiTextureUploadEntry(z, 0, desc));
-        }
-        QRhiTextureUploadDescription upload;
-        upload.setEntries(entries.cbegin(), entries.cend());
-        updates->uploadTexture(lut.texture.get(), upload);
-    
-        renderState.luts.push_back(std::move(lut));
-    }
-
-    renderState.shaderBindings.reset();
-    renderState.pipeline.reset();
-
-    return true;
-}
-
-QByteArray
-RenderEnginePrivate::shaderHash(const QString& text) const
-{
-    return QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Sha1).toHex();
-}
-
 QString
 RenderEnginePrivate::buildLayerShaderKey(RenderState::TextureType textureType,
-                                         const ShaderDefinition* effectDefinition) const
+                                         const ShaderDefinition* effectDefinition)
 {
     const QString idtCode =
         R"(
@@ -1467,11 +1431,11 @@ vec4 idt(vec4 c)
 
     return QString("layer:%1:%2:%3:%4:%5:%6")
         .arg(int(textureType))
-        .arg(QString::fromLatin1(shaderHash(idtCode)))
-        .arg(QString::fromLatin1(shaderHash(odtCode)))
-        .arg(QString::fromLatin1(shaderHash(effectShaderCode)))
-        .arg(QString::fromLatin1(shaderHash(effectUniformBlock)))
-        .arg(QString::fromLatin1(shaderHash(lutShaderKey(effectDefinition))));
+        .arg(QString::fromLatin1(textHash(idtCode)))
+        .arg(QString::fromLatin1(textHash(odtCode)))
+        .arg(QString::fromLatin1(textHash(effectShaderCode)))
+        .arg(QString::fromLatin1(textHash(effectUniformBlock)))
+        .arg(QString::fromLatin1(textHash(buildLutShaderKey(effectDefinition))));
 }
 
 QString
@@ -1604,7 +1568,7 @@ vec4 _sample(ivec2 pixel)
     }
     
     const int lutFirstBinding = 4;
-    const QVector<ShaderDescriptor::ShaderParameter> lutParams = lutParameters(effectDefinition);
+    const QList<ShaderDescriptor::ShaderParameter> lutParams = effectDefinition->descriptor().lutParameters();
     for (int i = 0; i < lutParams.size(); ++i) {
         texUniformBlock += QString("layout(binding = %1) uniform sampler3D %2;\n")
                                .arg(lutFirstBinding + i)
@@ -1617,12 +1581,9 @@ vec3 _lookup(sampler3D lut, vec3 rgb)
 {
     ivec3 size = textureSize(lut, 0);
     vec3 s = vec3(size);
-
     vec3 v = clamp(rgb, vec3(0.0), vec3(1.0));
-
-    // Map 0..1 RGB into LUT texel centers.
+    // map 0..1 RGB into LUT texel centers.
     vec3 uvw = (v * (s - vec3(1.0)) + vec3(0.5)) / s;
-
     return texture(lut, uvw).rgb;
 }
 )";
@@ -1659,6 +1620,63 @@ vec3 _lookup(sampler3D lut, vec3 rgb)
     const QString generatedSource = layerDefinition.shaderCode();
     d.generatedShaderSourceCache.insert(shaderKey, generatedSource);
     return generatedSource;
+}
+
+QString
+RenderEnginePrivate::buildLutShaderKey(const ShaderDefinition* effectDefinition)
+{
+    if (!effectDefinition)
+        return QString();
+    QStringList parts;
+    for (const auto& param : effectDefinition->descriptor().lutParameters()) {
+        const QString filename = param.value.isValid()
+            ? param.value.toString()
+            : param.defaultValue.toString();
+        parts << param.name
+              << filename
+              << QString::fromLatin1(fileHash(filename));
+    }
+    return parts.join(",");
+}
+
+QByteArray
+RenderEnginePrivate::fileHash(const QString& filename)
+{
+    QFileInfo info(filename);
+    if (!info.exists())
+        return {};
+
+    const qint64 size = info.size();
+    const qint64 modified = info.lastModified().toMSecsSinceEpoch();
+
+    auto it = d.fileCache.constFind(filename);
+    if (it != d.fileCache.constEnd()
+        && it->size == size
+        && it->modified == modified) {
+        return it->hash;
+    }
+
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+
+    QCryptographicHash hash(QCryptographicHash::Sha1);
+    while (!file.atEnd())
+        hash.addData(file.read(1024 * 1024));
+
+    FileHash fileHash;
+    fileHash.size = size;
+    fileHash.modified = modified;
+    fileHash.hash = hash.result().toHex();
+
+    d.fileCache.insert(filename, fileHash);
+    return fileHash.hash;
+}
+
+QByteArray
+RenderEnginePrivate::textHash(const QString& text) const
+{
+    return QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Sha1).toHex();
 }
 
 void

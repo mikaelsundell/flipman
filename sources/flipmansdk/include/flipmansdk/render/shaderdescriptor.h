@@ -7,15 +7,17 @@
 #include <QString>
 #include <QVariant>
 #include <QVector>
+#include <QList>
 
 namespace flipman::sdk::render {
 
 /**
  * @class ShaderDescriptor
- * @brief Container describing shader parameters.
+ * @brief Container describing shader parameters and resources.
  *
- * Stores parameters declared via @param directives and is used
- * to expose shader controls and generate uniform blocks.
+ * Stores parameters declared via @param directives and is used to expose
+ * shader controls, generate uniform blocks, and describe external resources
+ * such as LUT textures.
  */
 class ShaderDescriptor {
 public:
@@ -33,24 +35,54 @@ public:
 
     /**
      * @struct ShaderParameter
-     * @brief Describes a parameter declared via @param.
+     * @brief Describes one parameter or resource declared via @param.
      */
     struct ShaderParameter {
-        enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4, Lut };
+        /**
+         * @enum Type
+         * @brief Supported shader parameter/resource types.
+         */
+        enum class Type {
+            Float,
+            Int,
+            Bool,
+            Vec2,
+            Vec3,
+            Vec4,
+            Lut
+        };
 
-        QString name;
-        Type type = Type::Float;
+        QString name;                 ///< Parameter/resource name.
+        Type type = Type::Float;      ///< Parameter/resource type.
 
-        QVariant value;
-        QVariant defaultValue;
-        QVariant minValue;
-        QVariant maxValue;
-        QVector<ShaderOption> options;
+        QVariant value;               ///< Current value.
+        QVariant defaultValue;        ///< Default value from the @param declaration.
+        QVariant minValue;            ///< Minimum value for numeric controls.
+        QVariant maxValue;            ///< Maximum value for numeric controls.
+        QVector<ShaderOption> options;///< Optional discrete values for combo-style controls.
 
-        QString label;
-        QString group;
+        QString label;                ///< Optional UI label.
+        QString group;                ///< Optional UI group.
 
+        /**
+         * @brief Returns true if the parameter has discrete options.
+         */
         bool hasOptions() const { return !options.isEmpty(); }
+
+        /**
+         * @brief Returns true if the parameter should be stored in the std140 uniform block.
+         */
+        bool isUniform() const { return type != Type::Lut; }
+
+        /**
+         * @brief Returns true if the parameter represents an external shader resource.
+         */
+        bool isResource() const { return type == Type::Lut; }
+
+        /**
+         * @brief Returns true if the parameter represents a LUT resource.
+         */
+        bool isLut() const { return type == Type::Lut; }
     };
 
 public:
@@ -76,8 +108,55 @@ public:
      */
     bool contains(const QString& name) const { return indexOf(name) >= 0; }
 
+    /**
+     * @brief Returns all parameters matching a specific type.
+     */
+    QList<ShaderParameter> parametersByType(ShaderParameter::Type type) const
+    {
+        QList<ShaderParameter> result;
+        for (const ShaderParameter& parameter : parameters) {
+            if (parameter.type == type)
+                result.append(parameter);
+        }
+        return result;
+    }
+
+    /**
+     * @brief Returns parameters that should be uploaded to the std140 uniform block.
+     */
+    QList<ShaderParameter> uniformParameters() const
+    {
+        QList<ShaderParameter> result;
+        for (const ShaderParameter& parameter : parameters) {
+            if (parameter.isUniform())
+                result.append(parameter);
+        }
+        return result;
+    }
+
+    /**
+     * @brief Returns parameters that describe external shader resources.
+     */
+    QList<ShaderParameter> resourceParameters() const
+    {
+        QList<ShaderParameter> result;
+        for (const ShaderParameter& parameter : parameters) {
+            if (parameter.isResource())
+                result.append(parameter);
+        }
+        return result;
+    }
+
+    /**
+     * @brief Returns LUT resource parameters.
+     */
+    QList<ShaderParameter> lutParameters() const
+    {
+        return parametersByType(ShaderParameter::Type::Lut);
+    }
+
 public:
-    QVector<ShaderParameter> parameters;  ///< Parameter list.
+    QList<ShaderParameter> parameters; ///< Parameter/resource list.
 };
 
 }  // namespace flipman::sdk::render
