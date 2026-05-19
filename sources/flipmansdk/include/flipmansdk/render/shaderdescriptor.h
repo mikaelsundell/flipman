@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <QList>
 #include <QString>
 #include <QVariant>
 #include <QVector>
-#include <QList>
 
 namespace flipman::sdk::render {
 
@@ -42,27 +42,19 @@ public:
          * @enum Type
          * @brief Supported shader parameter/resource types.
          */
-        enum class Type {
-            Float,
-            Int,
-            Bool,
-            Vec2,
-            Vec3,
-            Vec4,
-            Lut
-        };
+        enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4, Lut };
 
-        QString name;                 ///< Parameter/resource name.
-        Type type = Type::Float;      ///< Parameter/resource type.
+        QString name;             ///< Parameter/resource name.
+        Type type = Type::Float;  ///< Parameter/resource type.
 
-        QVariant value;               ///< Current value.
-        QVariant defaultValue;        ///< Default value from the @param declaration.
-        QVariant minValue;            ///< Minimum value for numeric controls.
-        QVariant maxValue;            ///< Maximum value for numeric controls.
-        QVector<ShaderOption> options;///< Optional discrete values for combo-style controls.
+        QVariant value;                 ///< Current value.
+        QVariant defaultValue;          ///< Default value from the @param declaration.
+        QVariant minValue;              ///< Minimum value for numeric controls.
+        QVariant maxValue;              ///< Maximum value for numeric controls.
+        QVector<ShaderOption> options;  ///< Optional discrete values for combo-style controls.
 
-        QString label;                ///< Optional UI label.
-        QString group;                ///< Optional UI group.
+        QString label;  ///< Optional UI label.
+        QString group;  ///< Optional UI group.
 
         /**
          * @brief Returns true if the parameter has discrete options.
@@ -150,13 +142,10 @@ public:
     /**
      * @brief Returns LUT resource parameters.
      */
-    QList<ShaderParameter> lutParameters() const
-    {
-        return parametersByType(ShaderParameter::Type::Lut);
-    }
+    QList<ShaderParameter> lutParameters() const { return parametersByType(ShaderParameter::Type::Lut); }
 
 public:
-    QList<ShaderParameter> parameters; ///< Parameter/resource list.
+    QList<ShaderParameter> parameters;  ///< Parameter/resource list.
 };
 
 }  // namespace flipman::sdk::render
