@@ -3,9 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "testsdk.h"
-
 #include <flipmansdk/core/application.h>
-
 #include <QDebug>
 #include <QTimer>
 

@@ -3,11 +3,9 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/av/media.h>
-
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/pluginregistry.h>
-
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QPointer>

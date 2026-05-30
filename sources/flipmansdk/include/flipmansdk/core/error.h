@@ -4,11 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QString>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

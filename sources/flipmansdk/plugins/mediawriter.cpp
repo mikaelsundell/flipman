@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/mediawriter.h>
-
 #include <QPointer>
 
 namespace flipman::sdk::plugins {

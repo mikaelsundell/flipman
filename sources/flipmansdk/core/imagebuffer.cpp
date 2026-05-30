@@ -3,10 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/imagebuffer.h>
-
 #include <OpenImageIO/half.h>
-
-
 
 #if defined(__ARM_NEON)
 #    include <arm_neon.h>

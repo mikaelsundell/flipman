@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/av/sidecar.h>
-
 #include <QSharedData>
 
 namespace flipman::sdk::av {

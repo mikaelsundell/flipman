@@ -48,11 +48,7 @@ void
 StylePrivate::init()
 {
     updateTheme(d.theme);
-    //updateColorSpace(QColorSpace::SRgb);
-
-    updateColorSpace(QColorSpace(QColorSpace::Primaries::SRgb, QColorSpace::TransferFunction::Gamma, 2.4f));
-
-
+    updateColorSpace(QColorSpace::SRgb);
     updateStylesheet();
 }
 
@@ -126,8 +122,8 @@ StylePrivate::updateTheme(Style::Theme theme)
 {
     auto map = [&](Style::ColorRole role, QColor color) { d.palette[roleName(role)] = color; };
     if (theme == Style::Dark) {
-        map(Style::Base, QColor::fromHsl(220, 6, 42));
-        map(Style::BaseAlt, QColor::fromHsl(220, 6, 48));
+        map(Style::Base, QColor::fromRgb(28, 28, 34));
+        map(Style::BaseAlt, QColor::fromHsl(240, 6, 14));
         map(Style::Dock, QColor::fromHsl(220, 6, 56));
         map(Style::DockAlt, QColor::fromHsl(220, 6, 40));
         map(Style::Accent, QColor::fromHsl(220, 6, 20));
@@ -142,8 +138,8 @@ StylePrivate::updateTheme(Style::Theme theme)
         map(Style::Progress, QColor::fromHsl(216, 82, 20));
         map(Style::Button, QColor::fromHsl(220, 6, 40));
         map(Style::ButtonAlt, QColor::fromHsl(220, 6, 54));
-        map(Style::Viewer, QColor::fromHsl(220, 6, 25));
-        map(Style::ViewerAlt, QColor::fromHsl(220, 6, 40));
+        map(Style::Viewer, QColor::fromRgb(39, 39, 45));
+        map(Style::ViewerAlt, QColor::fromRgbF(0.2, 0.2, 0.2));
     }
     else {
         map(Style::Base, QColor::fromHsl(0, 0, 210));

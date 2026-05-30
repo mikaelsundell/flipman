@@ -3,16 +3,13 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/system.h>
-
 #include <QCoreApplication>
 #include <QDir>
 #include <QPointer>
-
 #import <Foundation/Foundation.h>
 #import <Cocoa/Cocoa.h>
 #import <IOKit/pwr_mgt/IOPMLib.h>
 #import <IOKit/IOMessage.h>
-
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h>

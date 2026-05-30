@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/quicktime/quicktimewriter.h>
-#include <QDebug>
 
 namespace flipman::sdk::plugins {
 

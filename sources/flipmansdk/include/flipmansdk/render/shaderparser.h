@@ -4,15 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/file.h>
-#include <flipmansdk/render/shaderdefinition.h>
-
 #include <QScopedPointer>
 #include <QString>
 #include <QStringList>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderdefinition.h>
 
 namespace flipman::sdk::render {
 

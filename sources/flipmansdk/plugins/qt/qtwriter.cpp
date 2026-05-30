@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/qt/qtwriter.h>
-
 #include <QDir>
 #include <QImage>
 #include <QImageWriter>

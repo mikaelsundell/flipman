@@ -2,7 +2,6 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 
 #include <flipmansdk/av/track.h>
-
 #include <QColor>
 
 namespace flipman::sdk::av {

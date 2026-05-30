@@ -3,9 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-
 #include <flipmansdk/core/application.h>
-
 #include <QApplication>
 
 int

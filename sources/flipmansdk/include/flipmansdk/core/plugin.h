@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
-#include <flipmansdk/core/error.h>
-
 #include <QObject>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

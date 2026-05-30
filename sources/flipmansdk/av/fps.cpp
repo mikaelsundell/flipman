@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/av/fps.h>
-
 #include <QVector>
 
 namespace flipman::sdk::av {

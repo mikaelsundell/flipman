@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
-#include <flipmansdk/av/clip.h>
-#include <flipmansdk/av/timerange.h>
-
 #include <QColor>
 #include <QList>
 #include <QScopedPointer>
+#include <flipmansdk/av/clip.h>
+#include <flipmansdk/av/timerange.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 

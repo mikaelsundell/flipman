@@ -4,10 +4,8 @@
 
 #include <flipmansdk/av/timer.h>
 #include <flipmansdk/av/fps.h>
-
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-
 #include <QPointer>
 #include <QDebug>
 #include <QThread>

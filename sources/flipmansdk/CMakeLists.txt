@@ -62,6 +62,7 @@ source_group("Source Files\\render" FILES ${sdk_render_sources})
 file(GLOB sdk_widgets_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/widgets/*.h")
 file(GLOB sdk_widgets_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/widgets/*.cpp" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/widgets/*.mm"
 )
 source_group("Header Files\\widgets" FILES ${sdk_widgets_headers})
 source_group("Source Files\\widgets" FILES ${sdk_widgets_sources})
@@ -148,4 +149,6 @@ target_link_libraries(${sdk_name}
         "-framework CoreMedia"
         "-framework CoreVideo"
         "-framework AppKit"
+        "-framework Metal"
+        "-framework QuartzCore"
 )

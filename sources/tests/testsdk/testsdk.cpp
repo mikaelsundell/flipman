@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "testsdk.h"
-
 #include <flipmansdk/av/clip.h>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/media.h>
@@ -14,7 +13,6 @@
 #include <flipmansdk/av/timer.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/av/track.h>
-
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/dispatchgroup.h>
 #include <flipmansdk/core/environment.h>
@@ -23,25 +21,20 @@
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/log.h>
 #include <flipmansdk/core/system.h>
-
 #include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/mediawriter.h>
-
 #include <flipmansdk/plugins/pluginregistry.h>
-
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
 #include <flipmansdk/render/shadercompiler.h>
 #include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderdefinition.h>
 #include <flipmansdk/render/shaderparser.h>
-
 #include <QApplication>
 #include <QDebug>
 #include <QThread>
 #include <rhi/qrhi.h>
-
 #include <iostream>
 
 namespace flipman::sdk::test {

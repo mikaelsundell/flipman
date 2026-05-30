@@ -4,12 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <QColor>
 #include <QColorSpace>
 #include <QObject>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

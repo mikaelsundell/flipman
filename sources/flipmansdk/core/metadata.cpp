@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/metadata.h>
-
 #include <QMap>
 #include <QSharedData>
 #include <QVariant>

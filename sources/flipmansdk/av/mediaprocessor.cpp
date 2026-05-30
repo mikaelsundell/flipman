@@ -2,12 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-
 #include <flipmansdk/av/mediaprocessor.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/plugins/mediawriter.h>
 #include <flipmansdk/plugins/pluginregistry.h>
-
 #include <QtConcurrent>
 
 namespace flipman::sdk::av {

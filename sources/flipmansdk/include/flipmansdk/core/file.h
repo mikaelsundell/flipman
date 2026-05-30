@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <QtCore/QDateTime>
 #include <QtCore/QExplicitlySharedDataPointer>
 #include <QtCore/QFileInfo>
 #include <QtCore/QMetaType>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

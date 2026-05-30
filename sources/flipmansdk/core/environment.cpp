@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/environment.h>
-
 #include <QCoreApplication>
 #include <QDir>
 

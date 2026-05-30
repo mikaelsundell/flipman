@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <QApplication>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::plugins {
 class PluginRegistry;

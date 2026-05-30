@@ -3,13 +3,11 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/render/renderengine.h>
-
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/render/shadercompiler.h>
 #include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderparser.h>
-
 #include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
@@ -18,8 +16,6 @@
 #include <QMatrix4x4>
 #include <QRegularExpression>
 #include <QTextStream>
-
-#include <QDebug>
 
 #undef RENDERENGINE_STATS
 #undef RENDERENGINE_TRACE
@@ -1085,6 +1081,7 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
 #endif
 
     commandBuffer->beginPass(d.renderTarget.get(), d.background, { 1.0f, 0 }, resourceUpdates);
+
     renderScene(context, commandBuffer);
     commandBuffer->endPass();
 
@@ -1093,7 +1090,7 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
     timer.restart();
 #endif
 
-    commandBuffer->beginPass(context.renderTarget, Qt::transparent, { 1.0f, 0 });
+    commandBuffer->beginPass(context.renderTarget, d.background, { 1.0f, 0 });
     renderBlit(context, commandBuffer);
     commandBuffer->endPass();
 
@@ -1550,10 +1547,14 @@ vec4 _sample(ivec2 pixel)
     }
 
     const int lutFirstBinding = 4;
-    const QList<ShaderDescriptor::ShaderParameter> lutParams = effectDefinition->descriptor().lutParameters();
+    QList<ShaderDescriptor::ShaderParameter> lutParams;
+    if (effectDefinition)
+        lutParams = effectDefinition->descriptor().lutParameters();
+
     for (int i = 0; i < lutParams.size(); ++i) {
-        texUniformBlock
-            += QString("layout(binding = %1) uniform sampler3D %2;\n").arg(lutFirstBinding + i).arg(lutParams[i].name);
+        texUniformBlock += QString("layout(binding = %1) uniform sampler3D %2;\n")
+                               .arg(lutFirstBinding + i)
+                               .arg(lutParams[i].name);
     }
 
     if (!lutParams.isEmpty()) {

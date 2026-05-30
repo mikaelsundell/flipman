@@ -11,7 +11,6 @@
 #include <flipmansdk/plugins/qt/qtwriter.h>
 #include <flipmansdk/plugins/quicktime/quicktimereader.h>
 #include <flipmansdk/plugins/quicktime/quicktimewriter.h>
-
 #include <QMap>
 
 namespace flipman::sdk::plugins {

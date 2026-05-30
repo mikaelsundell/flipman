@@ -4,15 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
+#include <QObject>
+#include <QScopedPointer>
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/core/error.h>
-
-#include <QObject>
-#include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 

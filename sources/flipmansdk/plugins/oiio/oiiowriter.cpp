@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/oiio/oiiowriter.h>
-
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/typedesc.h>
 

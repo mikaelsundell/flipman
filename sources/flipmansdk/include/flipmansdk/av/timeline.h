@@ -4,18 +4,15 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
+#include <QObject>
+#include <QScopedPointer>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/av/track.h>
-
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/imagelayer.h>
-
-#include <QObject>
-#include <QScopedPointer>
 
 namespace flipman::sdk::av {
 

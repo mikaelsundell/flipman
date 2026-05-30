@@ -3,9 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/render/shaderparser.h>
-
 #include <flipmansdk/core/log.h>
-
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>

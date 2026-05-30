@@ -4,10 +4,9 @@
 
 #pragma once
 
+#include <QScopedPointer>
 #include <flipmansdk/plugins/mediawriter.h>
 #include <flipmansdk/plugins/pluginhandler.h>
-
-#include <QScopedPointer>
 
 namespace flipman::sdk::plugins {
 

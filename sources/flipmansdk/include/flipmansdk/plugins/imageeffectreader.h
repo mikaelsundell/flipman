@@ -4,14 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
+#include <QExplicitlySharedDataPointer>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/plugin.h>
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/imageeffect.h>
-
-#include <QExplicitlySharedDataPointer>
 
 namespace flipman::sdk::plugins {
 

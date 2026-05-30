@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <flipmansdk/render/shadercontract.h>
-
 #include <QRegularExpression>
 
 namespace flipman::sdk::render {

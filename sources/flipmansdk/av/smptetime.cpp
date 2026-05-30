@@ -3,8 +3,6 @@
 
 #include <flipmansdk/av/smptetime.h>
 
-#include <QDebug>
-
 namespace flipman::sdk::av {
 class SmpteTimePrivate : public QSharedData {
 public:

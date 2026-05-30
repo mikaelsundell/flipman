@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/render/shadercompiler.h>
-
 #include <rhi/qshaderbaker.h>
 
 namespace flipman::sdk::render {

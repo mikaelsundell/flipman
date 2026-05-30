@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/environment.h>
@@ -11,7 +10,6 @@
 #include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/pluginregistry.h>
 #include <flipmansdk/widgets/viewer.h>
-
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -33,7 +31,6 @@
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
-
 #include <algorithm>
 #include <cmath>
 
@@ -1063,7 +1060,7 @@ WindowPrivate::init()
 
     connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) { seekFrame(frame); });
 
-    d.window->setWindowTitle("testview");
+    d.window->setWindowTitle("testviewer");
     d.window->setCentralWidget(centralWidget);
     d.window->resize(1200, 700);
 }

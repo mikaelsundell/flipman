@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
 #include <QObject>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

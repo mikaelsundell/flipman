@@ -7,7 +7,6 @@
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/core/system.h>
 #include <flipmansdk/plugins/pluginregistry.h>
-
 #include <QPointer>
 
 namespace flipman::sdk::core {

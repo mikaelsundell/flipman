@@ -98,6 +98,15 @@ RenderDevicePrivate::create(RenderDevice::Backend backend, const QSize& size,
 #endif
     default: params = &nullParams; break;
     }
+#if defined(Q_OS_MACOS)
+#    if QT_CONFIG(metal)
+    backend = RenderDevice::Metal;
+#    else
+    backend = RenderDevice::Null;
+    d.error = core::Error("renderdevice", "metal backend is not available in this Qt build");
+    return false;
+#    endif
+#endif
     d.rhi.reset(QRhi::create(rhiBackend, params));
     if (!d.rhi) {
         d.error = core::Error("renderdevice", "failed to create rhi backend");

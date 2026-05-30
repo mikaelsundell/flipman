@@ -4,18 +4,16 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/render/shaderdescriptor.h>
-#include <flipmansdk/render/shaderfunction.h>
-
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
 #include <QVariant>
 #include <QVector>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderdescriptor.h>
+#include <flipmansdk/render/shaderfunction.h>
 
 namespace flipman::sdk::render {
 

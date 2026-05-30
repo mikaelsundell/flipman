@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/fx/fxreader.h>
-
 #include <flipmansdk/render/imageeffect.h>
 #include <flipmansdk/render/shaderparser.h>
 

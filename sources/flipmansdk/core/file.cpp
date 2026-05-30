@@ -4,7 +4,6 @@
 
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/filerange.h>
-
 #include <QDir>
 #include <QRegularExpression>
 

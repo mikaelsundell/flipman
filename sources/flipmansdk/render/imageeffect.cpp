@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/render/imageeffect.h>
-
 #include <QRegularExpression>
 #include <QStringList>
 

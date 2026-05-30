@@ -3,7 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/av/clip.h>
-
 #include <QColor>
 #include <QString>
 
