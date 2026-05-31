@@ -34,6 +34,7 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory (sources/flipmansdk)
 
 # tests
+add_subdirectory (sources/tests/testdecklink)
 add_subdirectory (sources/tests/testfx)
 add_subdirectory (sources/tests/testsdk)
 #add_subdirectory (sources/tests/testplay)
