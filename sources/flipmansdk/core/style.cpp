@@ -186,7 +186,10 @@ StylePrivate::updateStylesheet()
     }
 
     result.append(styleSheet.mid(lastIndex));
-    qApp->setStyleSheet(result);
+    
+    QMetaObject::invokeMethod(qApp, [result]() {
+        qApp->setStyleSheet(result);
+    }, Qt::QueuedConnection);
 }
 
 void
@@ -194,22 +197,22 @@ StylePrivate::updateTheme()
 {
     d.palette.clear();
     auto map = [&](Style::ColorRole role, QColor color) { d.palette[roleName(role)] = color; };
-    map(Style::ColorRole::Base, QColor::fromHsl(239, 24, 30));
-    map(Style::ColorRole::BaseAlt, QColor::fromHsl(231, 21, 39));
+    map(Style::ColorRole::Base, QColor::fromHsl(239, 18, 35));
+    map(Style::ColorRole::BaseAlt, QColor::fromHsl(230, 18, 45));
     map(Style::ColorRole::Accent, QColor::fromHsl(220, 6, 20));
     map(Style::ColorRole::AccentAlt, QColor::fromHsl(220, 6, 24));
     map(Style::ColorRole::Text, QColor::fromHsl(0, 0, 220));
     map(Style::ColorRole::TextAlt, QColor::fromHsl(0, 0, 220));
     map(Style::ColorRole::Highlight, QColor::fromHsl(217, 50, 63));
     map(Style::ColorRole::HighlightAlt, QColor::fromHsl(216, 60, 60));
-    map(Style::ColorRole::Border, QColor::fromHsl(239, 19, 24));
+    map(Style::ColorRole::Border, QColor::fromHsl(238, 19, 14));
     map(Style::ColorRole::BorderAlt, QColor::fromHsl(233, 25, 15));
     map(Style::ColorRole::Handle, QColor::fromHsl(215, 16, 96));
     map(Style::ColorRole::Progress, QColor::fromHsl(215, 16, 96));
     map(Style::ColorRole::Button, QColor::fromHsl(231, 21, 39));
     map(Style::ColorRole::ButtonAlt, QColor::fromHsl(220, 6, 64));
-    map(Style::ColorRole::Item, QColor::fromHsl(239, 24, 30));
-    map(Style::ColorRole::ItemAlt, QColor::fromHsl(251, 26, 24));
+    map(Style::ColorRole::Item, QColor::fromHsl(239, 16, 33));
+    map(Style::ColorRole::ItemAlt, QColor::fromHsl(238, 16, 28));
     map(Style::ColorRole::Viewer, QColor::fromHsl(210, 27, 25));
     map(Style::ColorRole::ViewerAlt, QColor::fromHsl(210, 6, 25));
     map(Style::ColorRole::Selection, QColor::fromHsl(55, 220, 180));

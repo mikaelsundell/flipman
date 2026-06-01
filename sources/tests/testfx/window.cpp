@@ -798,11 +798,12 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
 QWidget*
 WindowPrivate::addParameterPanel(QWidget* parent)
 {
-    QWidget* panel = new QWidget(parent);
+    QGroupBox* panel = new QGroupBox("Parameters", parent);
     panel->setMinimumWidth(320);
 
     QVBoxLayout* panelLayout = new QVBoxLayout(panel);
-    panelLayout->setContentsMargins(0, 0, 0, 0);
+    panelLayout->setContentsMargins(8, 8, 8, 8);
+    panelLayout->setSpacing(8);
 
     QScrollArea* scrollArea = new QScrollArea(panel);
     scrollArea->setWidgetResizable(true);
@@ -810,19 +811,12 @@ WindowPrivate::addParameterPanel(QWidget* parent)
 
     QWidget* content = new QWidget(scrollArea);
     QVBoxLayout* contentLayout = new QVBoxLayout(content);
-    contentLayout->setContentsMargins(12, 12, 12, 12);
+    contentLayout->setContentsMargins(0, 0, 0, 0);
     contentLayout->setSpacing(12);
 
     const sdk::render::ImageEffect imageEffect = d.imageLayer.imageEffect();
     const sdk::render::ShaderDefinition definition = imageEffect.shaderDefinition();
     const auto& parameters = definition.descriptor().parameters;
-
-    QLabel* titleLabel = new QLabel(imageEffect.name().isEmpty() ? "Parameters" : imageEffect.name(), content);
-    QFont titleFont = titleLabel->font();
-    titleFont.setBold(true);
-    titleFont.setPointSize(titleFont.pointSize() + 4);
-    titleLabel->setFont(titleFont);
-    contentLayout->addWidget(titleLabel);
 
     QMap<QString, QGroupBox*> groupBoxes;
     QMap<QString, QVBoxLayout*> groupLayouts;
@@ -851,6 +845,7 @@ WindowPrivate::addParameterPanel(QWidget* parent)
     }
 
     contentLayout->addStretch();
+
     scrollArea->setWidget(content);
     panelLayout->addWidget(scrollArea);
 
@@ -864,6 +859,7 @@ WindowPrivate::init()
     if (args.size() > 1) {
         d.inputFile = args.at(1);
     }
+
     d.dataPath = sdk::core::Environment::resourcePath("../../../data");
 
     sdk::core::File file(d.inputFile);
@@ -913,23 +909,25 @@ WindowPrivate::init()
     QHBoxLayout* controlsLayout = new QHBoxLayout(controlsWidget);
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(8);
+    controlsLayout->setAlignment(Qt::AlignVCenter);
 
-    QPushButton* fitButton = new QPushButton("Fit");
+    QPushButton* fitButton = new QPushButton("Fit", controlsWidget);
     fitButton->setShortcut(QKeySequence(Qt::Key_F));
 
-    QPushButton* z25Button = new QPushButton("25%");
+    QPushButton* z25Button = new QPushButton("25%", controlsWidget);
     z25Button->setShortcut(QKeySequence(Qt::Key_1));
 
-    QPushButton* z50Button = new QPushButton("50%");
+    QPushButton* z50Button = new QPushButton("50%", controlsWidget);
     z50Button->setShortcut(QKeySequence(Qt::Key_2));
 
-    QPushButton* z75Button = new QPushButton("75%");
+    QPushButton* z75Button = new QPushButton("75%", controlsWidget);
     z75Button->setShortcut(QKeySequence(Qt::Key_3));
 
-    QPushButton* z100Button = new QPushButton("100%");
+    QPushButton* z100Button = new QPushButton("100%", controlsWidget);
     z100Button->setShortcut(QKeySequence(Qt::Key_4));
 
     QLabel* shaderLabel = new QLabel("Shader", controlsWidget);
+    shaderLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QComboBox* shaderCombo = new QComboBox(controlsWidget);
     shaderCombo->setMinimumWidth(180);
@@ -943,30 +941,27 @@ WindowPrivate::init()
     if (shaderIndex >= 0)
         shaderCombo->setCurrentIndex(shaderIndex);
 
-    QLabel* zoomLabel = new QLabel("100%");
+    QLabel* zoomLabel = new QLabel("100%", controlsWidget);
     zoomLabel->setMinimumWidth(60);
     zoomLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-    controlsLayout->addWidget(fitButton);
-    controlsLayout->addWidget(z25Button);
-    controlsLayout->addWidget(z50Button);
-    controlsLayout->addWidget(z75Button);
-    controlsLayout->addWidget(z100Button);
+    controlsLayout->addWidget(fitButton, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z25Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z50Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z75Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z100Button, 0, Qt::AlignVCenter);
     controlsLayout->addSpacing(16);
-    controlsLayout->addWidget(shaderLabel);
-    controlsLayout->addWidget(shaderCombo);
+    controlsLayout->addWidget(shaderLabel, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(shaderCombo, 0, Qt::AlignVCenter);
     controlsLayout->addStretch();
-    controlsLayout->addWidget(zoomLabel);
-
+    controlsLayout->addWidget(zoomLabel, 0, Qt::AlignVCenter);
     leftLayout->addWidget(controlsWidget);
 
     QFrame* viewerFrame = new QFrame(leftWidget);
-    viewerFrame->setFrameShape(QFrame::NoFrame);
-
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);
 
-    d.viewer = new sdk::widgets::Viewer();
+    d.viewer = new sdk::widgets::Viewer(viewerFrame);
     d.viewer->setResolution(QSize(1920, 1080));
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     d.viewer->setImageLayers({ d.imageLayer });

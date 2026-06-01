@@ -13,6 +13,9 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDockWidget>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
@@ -253,15 +256,109 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     QVBoxLayout* layout = new QVBoxLayout(widget);
     layout->setSpacing(10);
 
+    QString* loadedStylesheetFile = new QString;
+
+    auto loadStylesheet = [this, loadedStylesheetFile](const QString& filename) -> bool {
+        if (filename.isEmpty())
+            return false;
+
+        QFile file(filename);
+        if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            qWarning() << "could not open stylesheet:" << filename << file.errorString();
+            return false;
+        }
+
+        qApp->setStyleSheet(QString::fromUtf8(file.readAll()));
+        *loadedStylesheetFile = filename;
+
+        if (d.statusLabel)
+            d.statusLabel->setText(QString("Loaded stylesheet: %1").arg(QFileInfo(filename).fileName()));
+
+        qInfo() << "Loaded stylesheet:" << filename;
+        return true;
+    };
+
+    auto addSpinSliderRow = [](QFormLayout* formLayout,
+                               const QString& label,
+                               QSpinBox* spin,
+                               int minValue,
+                               int maxValue,
+                               int value) {
+        QWidget* row = new QWidget(formLayout->parentWidget());
+        QHBoxLayout* rowLayout = new QHBoxLayout(row);
+        rowLayout->setContentsMargins(0, 0, 0, 0);
+        rowLayout->setSpacing(8);
+
+        QSlider* slider = new QSlider(Qt::Horizontal, row);
+        slider->setRange(minValue, maxValue);
+        slider->setValue(value);
+        slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        spin->setRange(minValue, maxValue);
+        spin->setSingleStep(1);
+        spin->setValue(value);
+
+        QObject::connect(slider, &QSlider::valueChanged, spin, &QSpinBox::setValue);
+        QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), slider, &QSlider::setValue);
+
+        rowLayout->addWidget(slider, 1);
+        rowLayout->addWidget(spin);
+
+        formLayout->addRow(label, row);
+    };
+
+    QGroupBox* stylesheetBox = new QGroupBox("Stylesheet", widget);
+    QHBoxLayout* stylesheetLayout = new QHBoxLayout(stylesheetBox);
+
+    QPushButton* loadStylesheetButton = new QPushButton("Load", stylesheetBox);
+    QPushButton* reloadStylesheetButton = new QPushButton("Reload", stylesheetBox);
+    QPushButton* clearStylesheetButton = new QPushButton("Clear", stylesheetBox);
+
+    stylesheetLayout->addWidget(loadStylesheetButton);
+    stylesheetLayout->addWidget(reloadStylesheetButton);
+    stylesheetLayout->addWidget(clearStylesheetButton);
+    stylesheetLayout->addStretch();
+
+    QObject::connect(loadStylesheetButton, &QPushButton::clicked, this, [this, loadStylesheet]() {
+        const QString filename = QFileDialog::getOpenFileName(
+            d.window,
+            "Load Stylesheet",
+            QString(),
+            "Qt Stylesheet (*.qss *.css);;All Files (*)");
+
+        loadStylesheet(filename);
+    });
+
+    QObject::connect(reloadStylesheetButton, &QPushButton::clicked, this, [this, loadedStylesheetFile, loadStylesheet]() {
+        if (loadedStylesheetFile->isEmpty()) {
+            if (d.statusLabel)
+                d.statusLabel->setText("No external stylesheet loaded");
+
+            qWarning() << "no external stylesheet loaded";
+            return;
+        }
+
+        loadStylesheet(*loadedStylesheetFile);
+    });
+
+    QObject::connect(clearStylesheetButton, &QPushButton::clicked, this, [this, loadedStylesheetFile]() {
+        qApp->setStyleSheet(QString());
+        loadedStylesheetFile->clear();
+
+        if (d.statusLabel)
+            d.statusLabel->setText("Cleared application stylesheet");
+
+        qInfo() << "Cleared application stylesheet";
+    });
+
     QGroupBox* colorBox = new QGroupBox("Colors", widget);
     QFormLayout* colorLayout = new QFormLayout(colorBox);
 
     d.colorRoleCombo = new QComboBox(colorBox);
 
     const QMetaEnum colorEnum = QMetaEnum::fromType<Style::ColorRole>();
-    for (int i = 0; i < colorEnum.keyCount(); ++i) {
+    for (int i = 0; i < colorEnum.keyCount(); ++i)
         d.colorRoleCombo->addItem(QString::fromLatin1(colorEnum.key(i)), colorEnum.value(i));
-    }
 
     d.colorButton = new QPushButton("Pick Color", colorBox);
     d.copyColorButton = new QPushButton("Copy", colorBox);
@@ -345,14 +442,9 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     d.mediumFontSpin = new QSpinBox(fontBox);
     d.largeFontSpin = new QSpinBox(fontBox);
 
-    for (QSpinBox* spin : { d.smallFontSpin.data(), d.mediumFontSpin.data(), d.largeFontSpin.data() }) {
-        spin->setRange(6, 48);
-        spin->setSingleStep(1);
-    }
-
-    d.smallFontSpin->setValue(sdk::core::style()->fontSize(sdk::core::Style::Small));
-    d.mediumFontSpin->setValue(sdk::core::style()->fontSize(Style::Medium));
-    d.largeFontSpin->setValue(sdk::core::style()->fontSize(Style::Large));
+    addSpinSliderRow(fontLayout, "Small", d.smallFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Small));
+    addSpinSliderRow(fontLayout, "Medium", d.mediumFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Medium));
+    addSpinSliderRow(fontLayout, "Large", d.largeFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Large));
 
     auto connectFontSpin = [this](QSpinBox* spin, Style::UIScale scale) {
         QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, [scale](int value) {
@@ -365,10 +457,6 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     connectFontSpin(d.mediumFontSpin, Style::Medium);
     connectFontSpin(d.largeFontSpin, Style::Large);
 
-    fontLayout->addRow("Small", d.smallFontSpin);
-    fontLayout->addRow("Medium", d.mediumFontSpin);
-    fontLayout->addRow("Large", d.largeFontSpin);
-
     QGroupBox* iconBox = new QGroupBox("Icon Sizes", widget);
     QFormLayout* iconLayout = new QFormLayout(iconBox);
 
@@ -376,14 +464,9 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     d.mediumIconSpin = new QSpinBox(iconBox);
     d.largeIconSpin = new QSpinBox(iconBox);
 
-    for (QSpinBox* spin : { d.smallIconSpin.data(), d.mediumIconSpin.data(), d.largeIconSpin.data() }) {
-        spin->setRange(8, 128);
-        spin->setSingleStep(1);
-    }
-
-    d.smallIconSpin->setValue(sdk::core::style()->iconSize(Style::Small));
-    d.mediumIconSpin->setValue(sdk::core::style()->iconSize(Style::Medium));
-    d.largeIconSpin->setValue(sdk::core::style()->iconSize(Style::Large));
+    addSpinSliderRow(iconLayout, "Small", d.smallIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Small));
+    addSpinSliderRow(iconLayout, "Medium", d.mediumIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Medium));
+    addSpinSliderRow(iconLayout, "Large", d.largeIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Large));
 
     auto connectIconSpin = [this](QSpinBox* spin, Style::UIScale scale) {
         QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, [scale](int value) {
@@ -396,10 +479,7 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     connectIconSpin(d.mediumIconSpin, Style::Medium);
     connectIconSpin(d.largeIconSpin, Style::Large);
 
-    iconLayout->addRow("Small", d.smallIconSpin);
-    iconLayout->addRow("Medium", d.mediumIconSpin);
-    iconLayout->addRow("Large", d.largeIconSpin);
-
+    layout->addWidget(stylesheetBox);
     layout->addWidget(colorBox);
     layout->addWidget(fontBox);
     layout->addWidget(iconBox);
