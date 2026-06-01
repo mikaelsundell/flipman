@@ -82,7 +82,7 @@ WindowPrivate::init()
 #endif
     }
 
-    Q_ASSERT_X(file.exists(), "testdisplay::loadFile", "file does not exist");
+    Q_ASSERT_X(file.exists(), "testviewer::loadFile", "file does not exist");
     Q_ASSERT(d.media.open(file) && d.media.waitForOpened() && "could not open media");
     Q_ASSERT(d.media.isValid() && "error opening media");
 
@@ -145,11 +145,6 @@ WindowPrivate::init()
 
     QFrame* viewerFrame = new QFrame(centralWidget);
     viewerFrame->setFrameShape(QFrame::NoFrame);
-    viewerFrame->setObjectName("viewerFrame");
-    viewerFrame->setStyleSheet("#viewerFrame {"
-                               "  border: 1px solid #3a3a3a;"
-                               "  background: #1e1e1e;"
-                               "}");
 
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);
@@ -226,7 +221,7 @@ WindowPrivate::init()
 
     connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) { seekFrame(frame); });
 
-    d.window->setWindowTitle("testdisplay");
+    d.window->setWindowTitle("testviewer");
     d.window->setCentralWidget(centralWidget);
     d.window->resize(1200, 700);
 

@@ -27,7 +27,7 @@ QCheckBox::indicator {
     width: 18px;
     height: 18px;
     background-color: $color.basealt;
-    border: 1px solid $color.borderalt;
+    border: 1px solid $color.border;
 }
 
 QCheckBox::indicator:checked {
@@ -293,7 +293,7 @@ QPushButton:disabled
 
 QPushButton:pressed
 {
-    background-color: $color.button.lightness(80);
+    background-color: $color.button.lightness(90);
 }
 
 QScrollArea

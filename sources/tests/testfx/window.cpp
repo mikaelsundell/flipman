@@ -962,11 +962,6 @@ WindowPrivate::init()
 
     QFrame* viewerFrame = new QFrame(leftWidget);
     viewerFrame->setFrameShape(QFrame::NoFrame);
-    viewerFrame->setObjectName("viewerFrame");
-    viewerFrame->setStyleSheet("#viewerFrame {"
-                               "  border: 1px solid #3a3a3a;"
-                               "  background: #1e1e1e;"
-                               "}");
 
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);

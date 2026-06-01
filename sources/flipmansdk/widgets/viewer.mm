@@ -479,16 +479,24 @@ Viewer::mouseReleaseEvent(QMouseEvent* event)
 void
 Viewer::wheelEvent(QWheelEvent* event)
 {
-    QPointF pos = event->position() - rect().center();
-    
-    float zoom = p->d.zoom;
+    if (p->d.zoomMode == Viewer::FitToView)
+        setZoomMode(Viewer::Manual);
+
+    const QPointF pos = event->position() - QPointF(width() * 0.5, height() * 0.5);
+
+    const float oldZoom = p->d.zoom;
     const float steps = event->angleDelta().y() / 120.0f;
     const float factor = std::pow(1.1f, steps);
+    const float newZoom = std::clamp(oldZoom * factor, 0.01f, 100.0f);
 
-    zoom = std::clamp(zoom * factor, 0.01f, 100.0f);
+    if (qFuzzyCompare(oldZoom, newZoom)) {
+        event->accept();
+        return;
+    }
 
-    p->d.pan = pos + QPointF((p->d.pan - pos) * (zoom / p->d.zoom));
-    p->d.zoom = zoom;
+    p->d.pan = pos + QPointF((p->d.pan - pos) * (newZoom / oldZoom));
+    p->d.zoom = newZoom;
+
     p->updateView();
 
     Q_EMIT zoomChanged(p->d.zoom);

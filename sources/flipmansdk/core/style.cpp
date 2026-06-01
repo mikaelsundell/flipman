@@ -148,14 +148,7 @@ StylePrivate::updateStylesheet()
             QColor mapped = color(role, state);
             if (mapped.isValid()) {
                 if (modifier == "lightness") {
-                    
-                    qDebug() << "mapped: " << mapped << "(" << factor << ")";
-                    
                     mapped = mapped.lighter(factor);
-                    
-                    qDebug() << "mapped: " << mapped;
-                    
-                    
                 }
                 else if (modifier == "saturation") {
                     float h, s, l, a;
