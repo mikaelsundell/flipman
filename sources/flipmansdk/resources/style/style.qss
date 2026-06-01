@@ -38,20 +38,34 @@ QCheckBox::indicator:indeterminate {
     image: url("$icon.partiallychecked");
 }
 
-QComboBox {
+QLineEdit,
+QComboBox,
+QPushButton,
+QToolButton,
+QSpinBox,
+QDoubleSpinBox
+{
     color: $color.text;
     font-size: $font.size.medium;
     background-color: $color.basealt;
-    height: 18px;
-    min-height: 18px;
-    min-width: 50px;
-    padding: 2px;
-    padding-left: 10px;
-    padding-right: 22px;
-    border-radius: 0px;
-    margin-top: 0px;
-    outline: none;
+    min-height: 24px;
+    max-height: 24px;
     border: 1px solid $color.border;
+    border-radius: 0px;
+}
+
+QLineEdit
+{
+    selection-background-color: $color.highlight;
+    min-width: 50px;
+    padding: 2px 6px;
+}
+
+QComboBox {
+    min-width: 50px;
+    padding: 2px 24px 2px 10px;
+    margin: 0px;
+    outline: none;
 }
 
 QComboBox:disabled {
@@ -60,15 +74,14 @@ QComboBox:disabled {
 
 QComboBox::down-arrow {
     image: url("$icon.down");
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
 }
 
 QComboBox::drop-down {
-    subcontrol-origin: padding;
+    subcontrol-origin: border;
     subcontrol-position: top right;
-    width: 18px;
-    right: 2px;
+    width: 22px;
     border: 0px;
 }
 
@@ -83,12 +96,138 @@ QComboBox::item:selected {
     background: $color.highlight;
 }
 
+QPushButton
+{
+    background-color: $color.button;
+    min-width: 50px;
+    padding: 2px 8px;
+}
+
+QPushButton:default
+{
+    font-weight: bold;
+}
+
+QPushButton:disabled
+{
+    color: $color.text.disabled;
+}
+
+QPushButton:pressed
+{
+    background-color: $color.button.lightness(90);
+}
+
+QToolButton
+{
+    background-color: $color.button;
+    padding: 2px 8px;
+}
+
+QToolButton:default
+{
+    font-weight: bold;
+}
+
+QToolButton:disabled
+{
+    color: $color.text.disabled;
+}
+
+QToolButton:checked
+{
+    background-color: $color.button.lightness(160);
+}
+
+QToolButton:pressed
+{
+    background-color: $color.button.lightness(80);
+}
+
+QToolButton[popupMode="1"]
+{
+    padding-right: 18px;
+}
+
+QToolButton::menu-button
+{
+    subcontrol-origin: border;
+    subcontrol-position: center right;
+    width: 18px;
+    border: 0px;
+    background: transparent;
+}
+
+QToolButton::menu-arrow
+{
+    width: 10px;
+    height: 10px;
+    image: url("$icon.down");
+}
+
+QToolButton::menu-arrow:open
+{
+    width: 10px;
+    height: 10px;
+    image: url("$icon.up");
+}
+
+QSpinBox,
+QDoubleSpinBox
+{
+    selection-background-color: $color.highlight;
+    padding-left: 8px;
+    padding-right: 24px;
+}
+
+QSpinBox::up-button,
+QDoubleSpinBox::up-button
+{
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 18px;
+    height: 11px;
+    right: 2px;
+    top: 1px;
+    border: 0px;
+    background: transparent;
+}
+
+QSpinBox::down-button,
+QDoubleSpinBox::down-button
+{
+    subcontrol-origin: padding;
+    subcontrol-position: bottom right;
+    width: 18px;
+    height: 11px;
+    right: 2px;
+    bottom: 1px;
+    border: 0px;
+    background: transparent;
+}
+
+QSpinBox::up-arrow,
+QDoubleSpinBox::up-arrow
+{
+    width: 8px;
+    height: 8px;
+    image: url("$icon.up");
+}
+
+QSpinBox::down-arrow,
+QDoubleSpinBox::down-arrow
+{
+    width: 8px;
+    height: 8px;
+    image: url("$icon.down");
+}
+
 QDockWidget {
     background: $color.dock;
 }
 
 QFrame {
-    border: 1px solid $color.border;
+    border: 0px solid $color.border;
 }
 
 QGroupBox
@@ -116,22 +255,6 @@ QLabel
     font-size: $font.size.medium;
     color: $color.text;
     border: 0px;
-}
-
-QLineEdit
-{
-    color: $color.text;
-    font-size: $font.size.medium;
-    background-color: $color.basealt;
-    selection-background-color: $color.highlight;
-    height: 18px;  
-    min-height: 18px;  
-    min-width: 50px;      
-    border: 1px solid $color.border;
-    border-radius: 0px;        
-    padding: 2px;
-    padding-left: 5px;
-    padding-right: 5px;
 }
 
 QListWidget {
@@ -182,7 +305,7 @@ QMenuBar::item:pressed {
 
 QMenu {
     background-color: $color.basealt;
-    border: 1px solid $color.border;
+    border: 0px solid $color.border;
     padding: 4px;
 }
 
@@ -234,7 +357,7 @@ QMenu::left-arrow {
 
 QProgressBar {
     min-height: 10px;
-    max-height: 10px; 
+    max-height: 10px;
     border-radius: 4px;
     background-color: $color.basealt;
     color: $color.text;
@@ -253,7 +376,7 @@ QPlainTextEdit
     background-color: $color.basealt;
     selection-background-color: $color.highlight;
     selection-color: $color.text;
-    border: 1px solid $color.borderalt;
+    border: 1px solid $color.border;
     outline: none;
     padding: 6px;
 }
@@ -266,39 +389,10 @@ QPlainTextEdit:disabled
     selection-color: $color.text.disabled;
 }
 
-QPushButton
-{
-    color: $color.text;
-    background-color: $color.button;
-    font-size: $font.size.medium;
-    height: 20px;  
-    min-width: 50px;      
-    border: 1px solid $color.border;
-    border-radius: 0px;        
-    padding: 2px;
-    padding-left: 5px;
-    padding-right: 5px;
-}
-
-QPushButton:default
-{
-    font-weight: bold;
-}
-
-QPushButton:disabled
-{
-    color: $color.text.disabled;
-}
-
-QPushButton:pressed
-{
-    background-color: $color.button.lightness(90);
-}
-
 QScrollArea
 {
     background-color: $color.base;
-    border: 1px solid $color.border;
+    border: 0px;
 }
 
 QScrollArea > QWidget > QWidget
@@ -357,7 +451,7 @@ QScrollBar::handle:vertical {
 }
 
 QScrollBar::handle:vertical:hover {
-    background:$color.handle;
+    background: $color.handle;
 }
 
 QScrollBar::add-line:vertical,
@@ -378,68 +472,14 @@ QScrollBar::sub-page:vertical {
     background: none;
 }
 
-QAbstractScrollArea::corner { 
+QAbstractScrollArea::corner {
     background: $color.basealt;
 }
 
-
-QSpinBox,
-QDoubleSpinBox
+QSplitter
 {
-    color: $color.text;
-    font-size: $font.size.medium;
-    background-color: $color.basealt;
-    selection-background-color: $color.highlight;
-    min-height: 28px;
-    border: 1px solid $color.border;
-    border-radius: 0px;
-    padding-left: 8px;
-    padding-right: 26px;
-}
-
-QSpinBox::up-button,
-QDoubleSpinBox::up-button
-{
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 20px;
-    height: 13px;
-    right: 2px;
-    top: 2px;
     border: 0px;
-    background: transparent;
 }
-
-QSpinBox::down-button,
-QDoubleSpinBox::down-button
-{
-    subcontrol-origin: padding;
-    subcontrol-position: bottom right;
-    width: 20px;
-    height: 13px;
-    right: 2px;
-    bottom: 2px;
-    border: 0px;
-    background: transparent;
-}
-
-QSpinBox::up-arrow,
-QDoubleSpinBox::up-arrow
-{
-    width: 8px;
-    height: 8px;
-    image: url("$icon.up");
-}
-
-QSpinBox::down-arrow,
-QDoubleSpinBox::down-arrow
-{
-    width: 8px;
-    height: 8px;
-    image: url("$icon.down");
-}
-
-
 
 QSplitter::handle {
     background-color: $color.dock;
@@ -455,9 +495,9 @@ QStatusBar {
 QTabWidget::pane
 {
     background-color: $color.item;
-    border-left: 1px solid $color.borderalt;
-    border-right: 1px solid $color.borderalt;
-    border-bottom: 1px solid $color.borderalt;
+    border-left: 1px solid $color.border;
+    border-right: 1px solid $color.border;
+    border-bottom: 1px solid $color.border;
     border-top: 0px;
     top: 0px;
 }
@@ -477,10 +517,10 @@ QTabBar::tab
     font-size: $font.size.medium;
     color: $color.text;
     background-color: $color.itemalt;
-    border-top: 1px solid $color.borderalt;
-    border-left: 1px solid $color.borderalt;
-    border-right: 1px solid $color.borderalt;
-    border-bottom: 1px solid $color.borderalt;
+    border-top: 1px solid $color.border;
+    border-left: 1px solid $color.border;
+    border-right: 1px solid $color.border;
+    border-bottom: 1px solid $color.border;
     padding: 4px 8px;
     margin: 0px;
     margin-right: -1px;
@@ -524,32 +564,6 @@ QTabBar QToolButton:pressed
     background-color: $color.item;
 }
 
-QToolButton[popupMode="1"]
-{
-    padding-right: 22px;
-}
-
-QToolButton::menu-button
-{
-    subcontrol-origin: padding;
-    subcontrol-position: center right;
-    width: 20px;
-    border: 0px;
-    background-color: $color.button;
-}
-
-QToolButton::menu-arrow
-{
-    width: 10px;
-    height: 10px;
-    image: url("$icon.down");
-}
-
-QToolButton::menu-arrow:open
-{
-    image: url("$icon.up");
-}
-
 QTabBar QToolButton::menu-indicator
 {
     image: none;
@@ -585,39 +599,6 @@ QTextEdit:disabled
     selection-color: $color.text.disabled;
 }
 
-QToolButton
-{
-    color: $color.text;
-    background-color: $color.button;
-    border: 1px solid $color.border;
-    border-radius: 0px;
-    height: 18px;  
-    min-height: 18px;
-    padding: 2px;
-    padding-left: 5px;
-    padding-right: 5px;
-}
-
-QToolButton:default
-{
-    font-weight: bold;
-}
-
-QToolButton:disabled
-{
-    color: $color.text.disabled;
-}
-
-QToolButton:checked
-{
-    background-color: $color.button.lightness(160);
-}
-
-QToolButton:pressed
-{
-    background-color: $color.button.lightness(80);
-}
-
 QSlider {
     background: transparent;
 }
@@ -633,11 +614,6 @@ QSlider::handle:horizontal {
     background: $color.handle;
     border-radius: 4px;
     margin: -5px 0;
-}
-
-QSplitter
-{
-    border: 0px;
 }
 
 QTableView
@@ -698,7 +674,6 @@ QTreeView
     selection-background-color: $color.highlight;
 }
 
-
 QTreeView::item {
     height: 28px;
     color: $color.text;
@@ -708,11 +683,6 @@ QTreeView::item {
 
 QTreeView::item:alternate {
     background-color: $color.itemalt;
-}
-
-QTreeView::item:selected {
-    color: $color.text;
-    background-color: $color.highlight;
 }
 
 QTreeView::item:selected {
@@ -752,10 +722,4 @@ QTreeView::indicator:unchecked {
 
 QTreeView::indicator:indeterminate {
     image: url("$icon.partiallychecked");
-}
-
-QTreeView::item {
-    height: 28px;
-    color: $color.text;
-    selection-background-color: $color.highlight;
 }
