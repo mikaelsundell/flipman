@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <QTextStream>
 #include <flipmansdk/flipmansdk.h>
+#include <QTextStream>
 
 namespace flipman::sdk::core {
 

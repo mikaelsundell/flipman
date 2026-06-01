@@ -4,10 +4,9 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
-#include <flipmansdk/flipmansdk.h>
-
 #include <QScopedPointer>
 #include <QWidget>
 

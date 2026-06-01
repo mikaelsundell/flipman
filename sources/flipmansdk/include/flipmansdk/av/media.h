@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <QExplicitlySharedDataPointer>
-#include <QMetaType>
-#include <QObject>
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
@@ -16,7 +14,9 @@
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/metadata.h>
-#include <flipmansdk/flipmansdk.h>
+#include <QExplicitlySharedDataPointer>
+#include <QMetaType>
+#include <QObject>
 
 namespace flipman::sdk::av {
 

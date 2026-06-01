@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/render/imageeffect.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMatrix4x4>
 #include <QMetaType>
-#include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imageeffect.h>
 
 namespace flipman::sdk::render {
 

@@ -72,14 +72,21 @@ file(GLOB sdk_root_headers
      "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/*.h")
 
 file(GLOB sdk_resources
-     "${CMAKE_CURRENT_SOURCE_DIR}/resources/*.qss")
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/style/*.qss"
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/style/*.qrc"
+)
 
 file(GLOB sdk_glsl_resources
      "${CMAKE_CURRENT_SOURCE_DIR}/resources/glsl/*.glsl"
 )
 
+file(GLOB sdk_metal_resources
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/metal/*.metal"
+)
+
 source_group("Resources" FILES ${sdk_resources})
 source_group("Resources\\glsl" FILES ${sdk_glsl_resources})
+source_group("Resources\\metal" FILES ${sdk_metal_resources})
 
 # target definition
 add_library(${sdk_name} SHARED

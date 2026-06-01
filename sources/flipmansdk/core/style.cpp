@@ -1,53 +1,80 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2025 - present Mikael Sundell
-// https://github.com/mikaelsundell/flipman
+// https://github.com/mikaelsundell/stageviz
 
 #include <flipmansdk/core/style.h>
-
+#include <flipmansdk/core/core.h>
 #include <QApplication>
 #include <QFile>
 #include <QMetaEnum>
-#include <QMutex>
-#include <QMutexLocker>
+#include <QPixmap>
 #include <QPointer>
 #include <QRegularExpression>
+#include <QScopedPointer>
 #include <QSurfaceFormat>
-
-
-#include <QDir>
+#include <algorithm>
 
 namespace flipman::sdk::core {
+
 class StylePrivate {
 public:
     StylePrivate();
     ~StylePrivate();
     void init();
-    void updateTheme(Style::Theme theme);
     void updateColorSpace(const QColorSpace& colorSpace);
     void updateStylesheet();
+    void updateTheme();
     QColorSpace colorSpace() const;
-    QColor color(const QString& name);
-    int fontSize(const QString& name);
+    QColor color(Style::ColorRole role, Style::UIState state) const;
+    int fontSize(Style::UIScale scale) const;
+    QPixmap icon(Style::IconRole role, Style::UIScale scale, Style::UIState state) const;
+    QString iconPath(Style::IconRole role) const;
+    int iconSize(Style::UIScale scale) const;
     QString roleName(Style::ColorRole role) const;
-    QString roleName(Style::FontRole role) const;
+    QString roleName(Style::IconRole role) const;
+    QString roleName(Style::UIScale scale) const;
+
+public:
+    struct IconKey {
+        int role;
+        int scale;
+        int state;
+        int physicalSize;
+        bool operator==(const IconKey& o) const
+        {
+            return role == o.role && scale == o.scale && state == o.state && physicalSize == o.physicalSize;
+        }
+    };
+
     struct Data {
-        QString path;
-        QString compiled;
-        Style::Theme theme;
         QHash<QString, QColor> palette;
-        QHash<QString, int> fonts;
+        QHash<QString, QString> icons;
+        QHash<QString, int> fontSizes;
+        QHash<QString, int> iconSizes;
+        mutable QHash<IconKey, QPixmap> pixmaps;
         QPointer<QObject> object;
     };
+
     Data d;
 };
 
-StylePrivate::StylePrivate() { d.theme = Style::Dark; }
-StylePrivate::~StylePrivate() {}
+inline size_t
+qHash(const StylePrivate::IconKey& k, size_t seed = 0)
+{
+    seed = ::qHash(k.role, seed);
+    seed = ::qHash(k.scale, seed);
+    seed = ::qHash(k.state, seed);
+    seed = ::qHash(k.physicalSize, seed);
+    return seed;
+}
+
+StylePrivate::StylePrivate() = default;
+StylePrivate::~StylePrivate() = default;
 
 void
 StylePrivate::init()
 {
-    updateTheme(d.theme);
+    updateTheme();
     updateColorSpace(QColorSpace::SRgb);
     updateStylesheet();
 }
@@ -55,115 +82,173 @@ StylePrivate::init()
 void
 StylePrivate::updateColorSpace(const QColorSpace& colorSpace)
 {
-    QSurfaceFormat format;
+    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
     format.setColorSpace(colorSpace);
-    // applying this ensures all new widgets/windows are tagged for
-    // the system compositor's color management pipeline.
     QSurfaceFormat::setDefaultFormat(format);
 }
 
 void
 StylePrivate::updateStylesheet()
 {
-    QFile file(":/flipmansdk/stylesheet.qss");
-    if (file.open(QFile::ReadOnly)) {
-        QString styleSheet = QLatin1String(file.readAll());
-        QRegularExpression regex(R"(\$([a-z0-9]+)(?:\.(lightness|saturation)\((\d+)\))?)",
-                                 QRegularExpression::CaseInsensitiveOption);
-        QString result;
-        qsizetype lastIndex = 0;
-        QRegularExpressionMatchIterator it = regex.globalMatch(styleSheet);
-        while (it.hasNext()) {
-            QRegularExpressionMatch match = it.next();
-            result.append(styleSheet.mid(lastIndex, match.capturedStart() - lastIndex));
+    QFile file(":/style/style.qss");
+    if (!file.open(QFile::ReadOnly)) {
+        qWarning() << "Failed to open QSS";
+        return;
+    }
 
-            QString roleName = match.captured(1).toLower();
-            QString modifier = match.captured(2).toLower();
-            int factor = match.captured(3).isEmpty() ? 100 : match.captured(3).toInt();
+    QString styleSheet = QString::fromUtf8(file.readAll());
 
-            QColor color = d.palette.value(roleName, QColor());
-            if (!color.isValid()) {
-                result.append(match.captured(0));
+    QRegularExpression regex(
+        R"(\$([a-z0-9_]+(?:\.(?!(?:lightness|saturation)\()[a-z0-9_]+){0,2})(?:\.(lightness|saturation)\((\d+)\))?)",
+        QRegularExpression::CaseInsensitiveOption);
+
+    QString result;
+    result.reserve(styleSheet.size());
+
+    qsizetype lastIndex = 0;
+    QRegularExpressionMatchIterator it = regex.globalMatch(styleSheet);
+
+    while (it.hasNext()) {
+        const QRegularExpressionMatch match = it.next();
+
+        const QString fullMatch = match.captured(0);
+        const QString path = match.captured(1).toLower();
+        const QString modifier = match.captured(2).toLower();
+        const int factor = match.captured(3).isEmpty() ? 100 : match.captured(3).toInt();
+
+        const QStringList parts = path.split('.');
+        const QString group = parts.value(0);
+        const QString roleStr = parts.value(1);
+        const QString stateStr = parts.value(2);
+
+        result.append(styleSheet.mid(lastIndex, match.capturedStart() - lastIndex));
+
+        bool replaced = false;
+        if (group == "color" && !roleStr.isEmpty()) {
+            Style::ColorRole role = Style::ColorRole::Base;
+            Style::UIState state = Style::UIState::Normal;
+            {
+                const QMetaEnum me = QMetaEnum::fromType<Style::ColorRole>();
+                for (int i = 0; i < me.keyCount(); ++i) {
+                    if (QString::fromLatin1(me.key(i)).compare(roleStr, Qt::CaseInsensitive) == 0) {
+                        role = static_cast<Style::ColorRole>(me.value(i));
+                        break;
+                    }
+                }
             }
-            else {
-                QColor mapped = color;
+            if (!stateStr.isEmpty()) {
+                const QMetaEnum me = QMetaEnum::fromType<Style::UIState>();
+                for (int i = 0; i < me.keyCount(); ++i) {
+                    if (QString::fromLatin1(me.key(i)).compare(stateStr, Qt::CaseInsensitive) == 0) {
+                        state = static_cast<Style::UIState>(me.value(i));
+                        break;
+                    }
+                }
+            }
+            QColor mapped = color(role, state);
+            if (mapped.isValid()) {
                 if (modifier == "lightness") {
+                    
+                    qDebug() << "mapped: " << mapped << "(" << factor << ")";
+                    
                     mapped = mapped.lighter(factor);
+                    
+                    qDebug() << "mapped: " << mapped;
+                    
+                    
                 }
                 else if (modifier == "saturation") {
                     float h, s, l, a;
                     mapped.getHslF(&h, &s, &l, &a);
-                    s = std::clamp(s * factor / 100.0, 0.0, 1.0);
+                    s = std::clamp(s * float(factor) / 100.0f, 0.0f, 1.0f);
                     mapped.setHslF(h, s, l, a);
                 }
-                float h, s, l;
-                mapped.getHslF(&h, &s, &l);
-                QString hsl = QString("hsl(%1, %2%, %3%)")
-                                  .arg(h < 0.0f ? 0.0f : h * 360.0f, 0, 'f', 6)
-                                  .arg(s * 100.0f, 0, 'f', 6)
-                                  .arg(l * 100.0f, 0, 'f', 6);
+                result.append(QString("rgba(%1, %2, %3, %4)")
+                                  .arg(mapped.red())
+                                  .arg(mapped.green())
+                                  .arg(mapped.blue())
+                                  .arg(mapped.alpha()));
 
-                result.append(hsl);
+                replaced = true;
             }
-            lastIndex = match.capturedEnd();
         }
-        result.append(styleSheet.mid(lastIndex));
-        for (auto it = d.fonts.constBegin(); it != d.fonts.constEnd(); ++it) {
-            QString placeholder = "$" + it.key();
-            QString replacement = QString::number(it.value()) + "px";
-            result.replace(placeholder, replacement, Qt::CaseInsensitive);
+        if (!replaced && group == "font" && roleStr == "size" && !stateStr.isEmpty()) {
+            const int size = d.fontSizes.value(stateStr, -1);
+            if (size > 0) {
+                result.append(QString::number(size) + "px");
+                replaced = true;
+            }
         }
-        qApp->setStyleSheet(result);
+        if (!replaced && group == "icon" && !roleStr.isEmpty()) {
+            const QString iconPath = d.icons.value(roleStr);
+            if (!iconPath.isEmpty()) {
+                result.append(iconPath);
+                replaced = true;
+            }
+        }
+        if (!replaced) {
+            result.append(fullMatch);
+        }
+        lastIndex = match.capturedEnd();
     }
+
+    result.append(styleSheet.mid(lastIndex));
+    qApp->setStyleSheet(result);
 }
 
 void
-StylePrivate::updateTheme(Style::Theme theme)
+StylePrivate::updateTheme()
 {
+    d.palette.clear();
     auto map = [&](Style::ColorRole role, QColor color) { d.palette[roleName(role)] = color; };
-    if (theme == Style::Dark) {
-        map(Style::Base, QColor::fromRgb(28, 28, 34));
-        map(Style::BaseAlt, QColor::fromHsl(240, 6, 14));
-        map(Style::Dock, QColor::fromHsl(220, 6, 56));
-        map(Style::DockAlt, QColor::fromHsl(220, 6, 40));
-        map(Style::Accent, QColor::fromHsl(220, 6, 20));
-        map(Style::AccentAlt, QColor::fromHsl(220, 6, 24));
-        map(Style::Text, QColor::fromHsl(0, 0, 220));
-        map(Style::TextDisabled, QColor::fromHsl(0, 0, 80));
-        map(Style::Highlight, QColor::fromHsl(216, 82, 80));
-        map(Style::HighlightAlt, QColor::fromHsl(216, 10, 60));
-        map(Style::Border, QColor::fromHsl(220, 3, 32));
-        map(Style::BorderAlt, QColor::fromHsl(220, 3, 64));
-        map(Style::Scrollbar, QColor::fromHsl(0, 0, 70));
-        map(Style::Progress, QColor::fromHsl(216, 82, 20));
-        map(Style::Button, QColor::fromHsl(220, 6, 40));
-        map(Style::ButtonAlt, QColor::fromHsl(220, 6, 54));
-        map(Style::Viewer, QColor::fromRgb(39, 39, 45));
-        map(Style::ViewerAlt, QColor::fromRgbF(0.2, 0.2, 0.2));
-    }
-    else {
-        map(Style::Base, QColor::fromHsl(0, 0, 210));
-        map(Style::BaseAlt, QColor::fromHsl(0, 0, 208));
-        map(Style::Dock, QColor::fromHsl(0, 0, 210));
-        map(Style::DockAlt, QColor::fromHsl(0, 0, 180));
-        map(Style::Accent, QColor::fromHsl(210, 10, 92));
-        map(Style::AccentAlt, QColor::fromHsl(210, 10, 88));
-        map(Style::Text, QColor::fromHsl(0, 0, 15));
-        map(Style::TextDisabled, QColor::fromHsl(0, 0, 65));
-        map(Style::Highlight, QColor::fromHsl(210, 90, 180));
-        map(Style::HighlightAlt, QColor::fromHsl(210, 60, 220));
-        map(Style::Border, QColor::fromHsl(0, 0, 200));
-        map(Style::BorderAlt, QColor::fromHsl(0, 0, 180));
-        map(Style::Scrollbar, QColor::fromHsl(0, 0, 180));
-        map(Style::Progress, QColor::fromHsl(210, 90, 45));
-        map(Style::Button, QColor::fromHsl(0, 0, 180));
-        map(Style::ButtonAlt, QColor::fromHsl(0, 0, 160));
-        map(Style::Viewer, QColor::fromHsl(220, 6, 25));
-        map(Style::ViewerAlt, QColor::fromHsl(220, 6, 40));
-    }
-    d.fonts[roleName(Style::LargeSize)] = 14;
-    d.fonts[roleName(Style::DefaultSize)] = 12;
-    d.fonts[roleName(Style::SmallSize)] = 10;
+    map(Style::ColorRole::Base, QColor::fromHsl(239, 24, 30));
+    map(Style::ColorRole::BaseAlt, QColor::fromHsl(231, 21, 39));
+    map(Style::ColorRole::Accent, QColor::fromHsl(220, 6, 20));
+    map(Style::ColorRole::AccentAlt, QColor::fromHsl(220, 6, 24));
+    map(Style::ColorRole::Text, QColor::fromHsl(0, 0, 220));
+    map(Style::ColorRole::TextAlt, QColor::fromHsl(0, 0, 220));
+    map(Style::ColorRole::Highlight, QColor::fromHsl(217, 50, 63));
+    map(Style::ColorRole::HighlightAlt, QColor::fromHsl(216, 60, 60));
+    map(Style::ColorRole::Border, QColor::fromHsl(239, 19, 24));
+    map(Style::ColorRole::BorderAlt, QColor::fromHsl(233, 25, 15));
+    map(Style::ColorRole::Handle, QColor::fromHsl(215, 16, 96));
+    map(Style::ColorRole::Progress, QColor::fromHsl(215, 16, 96));
+    map(Style::ColorRole::Button, QColor::fromHsl(231, 21, 39));
+    map(Style::ColorRole::ButtonAlt, QColor::fromHsl(220, 6, 64));
+    map(Style::ColorRole::Item, QColor::fromHsl(239, 24, 30));
+    map(Style::ColorRole::ItemAlt, QColor::fromHsl(251, 26, 24));
+    map(Style::ColorRole::Viewer, QColor::fromHsl(210, 27, 25));
+    map(Style::ColorRole::ViewerAlt, QColor::fromHsl(210, 6, 25));
+    map(Style::ColorRole::Selection, QColor::fromHsl(55, 220, 180));
+    map(Style::ColorRole::SelectionAlt, QColor::fromHsl(55, 140, 120));
+    map(Style::ColorRole::Warning, QColor(220, 170, 40));
+    map(Style::ColorRole::Error, QColor(150, 35, 50));
+    
+    d.icons[roleName(Style::IconRole::Checked)] = ":/icons/checked.png";
+    d.icons[roleName(Style::IconRole::Down)] = ":/icons/down.png";
+    d.icons[roleName(Style::IconRole::Left)] = ":/icons/left.png";
+    d.icons[roleName(Style::IconRole::Next)] = ":/icons/next.png";
+    d.icons[roleName(Style::IconRole::PartiallyChecked)] = ":/icons/partiallyChecked.png";
+    d.icons[roleName(Style::IconRole::Play)] = ":/icons/play.png";
+    d.icons[roleName(Style::IconRole::Previous)] = ":/icons/previous.png";
+    d.icons[roleName(Style::IconRole::Reverse)] = ":/icons/reverse.png";
+    d.icons[roleName(Style::IconRole::Right)] = ":/icons/right.png";
+    d.icons[roleName(Style::IconRole::Stop)] = ":/icons/stop.png";
+    d.icons[roleName(Style::IconRole::Up)] = ":/icons/up.png";
+
+#ifdef Q_OS_WIN
+    d.fontSizes[roleName(Style::UIScale::Small)] = 11;
+    d.fontSizes[roleName(Style::UIScale::Medium)] = 12;
+    d.fontSizes[roleName(Style::UIScale::Large)] = 16;
+#else
+    d.fontSizes[roleName(Style::UIScale::Small)] = 10;
+    d.fontSizes[roleName(Style::UIScale::Medium)] = 11;
+    d.fontSizes[roleName(Style::UIScale::Large)] = 14;
+#endif
+
+    d.iconSizes[roleName(Style::UIScale::Small)] = 16;
+    d.iconSizes[roleName(Style::UIScale::Medium)] = 32;
+    d.iconSizes[roleName(Style::UIScale::Large)] = 64;
 }
 
 QColorSpace
@@ -173,15 +258,59 @@ StylePrivate::colorSpace() const
 }
 
 QColor
-StylePrivate::color(const QString& name)
+StylePrivate::color(Style::ColorRole role, Style::UIState state) const
 {
-    return d.palette.value(name, QColor());
+    QColor color = d.palette.value(roleName(role), QColor());
+    if (state == Style::UIState::Disabled)
+        return color.darker(150);
+
+    return color;
 }
 
 int
-StylePrivate::fontSize(const QString& name)
+StylePrivate::fontSize(Style::UIScale scale) const
 {
-    return d.fonts.value(name, -1);
+    return d.fontSizes.value(roleName(scale), -1);
+}
+
+QPixmap
+StylePrivate::icon(Style::IconRole role, Style::UIScale scale, Style::UIState state) const
+{
+    const qreal dpr = devicePixelRatio();
+    const int logicalSize = iconSize(scale);
+    if (logicalSize <= 0)
+        return QPixmap();
+
+    const int physicalSize = physicalPixelSize(logicalSize, dpr);
+    IconKey key { int(role), int(scale), int(state), physicalSize };
+
+    auto it = d.pixmaps.constFind(key);
+    if (it != d.pixmaps.constEnd())
+        return it.value();
+
+    const QString path = iconPath(role);
+    if (path.isEmpty())
+        return QPixmap();
+
+    QPixmap loaded(path);
+    if (loaded.isNull())
+        return QPixmap();
+
+    QPixmap scaled = scaledPixmap(loaded, logicalSize, Qt::KeepAspectRatio);
+    d.pixmaps.insert(key, scaled);
+    return scaled;
+}
+
+QString
+StylePrivate::iconPath(Style::IconRole role) const
+{
+    return d.icons.value(roleName(role));
+}
+
+int
+StylePrivate::iconSize(Style::UIScale scale) const
+{
+    return d.iconSizes.value(roleName(scale), -1);
 }
 
 QString
@@ -192,10 +321,17 @@ StylePrivate::roleName(Style::ColorRole role) const
 }
 
 QString
-StylePrivate::roleName(Style::FontRole role) const
+StylePrivate::roleName(Style::IconRole role) const
 {
-    const QMetaEnum me = QMetaEnum::fromType<Style::FontRole>();
+    const QMetaEnum me = QMetaEnum::fromType<Style::IconRole>();
     return QString::fromLatin1(me.valueToKey(role)).toLower();
+}
+
+QString
+StylePrivate::roleName(Style::UIScale scale) const
+{
+    const QMetaEnum me = QMetaEnum::fromType<Style::UIScale>();
+    return QString::fromLatin1(me.valueToKey(scale)).toLower();
 }
 
 Style::Style()
@@ -207,29 +343,93 @@ Style::Style()
 
 Style::~Style() = default;
 
-
-void
-Style::setTheme(Style::Theme theme)
+QColor
+Style::color(ColorRole role, UIState state) const
 {
-    p->updateTheme(theme);
-}
-
-Style::Theme
-Style::theme() const
-{
-    return p->d.palette.value("base").lightness() < 128 ? Dark : Light;
+    return p->color(role, state);
 }
 
 void
 Style::setColor(ColorRole role, const QColor& color)
 {
-    p->d.palette[p->roleName(role)] = color;
+    if (!color.isValid())
+        return;
+
+    const QString key = p->roleName(role);
+    if (p->d.palette.value(key) == color)
+        return;
+
+    p->d.palette[key] = color;
+    Q_EMIT colorChanged(role);
 }
 
-QColor
-Style::color(ColorRole role) const
+QPixmap
+Style::icon(IconRole role, UIScale scale, UIState state) const
 {
-    return p->color(p->roleName(role));
+    return p->icon(role, scale, state);
+}
+
+QString
+Style::iconPath(IconRole role) const
+{
+    return p->iconPath(role);
+}
+
+void
+Style::setIconPath(IconRole role, const QString& path)
+{
+    const QString key = p->roleName(role);
+    if (p->d.icons.value(key) == path)
+        return;
+
+    p->d.icons[key] = path;
+    p->d.pixmaps.clear();
+}
+
+int
+Style::fontSize(UIScale scale) const
+{
+    return p->fontSize(scale);
+}
+
+void
+Style::setFontSize(UIScale scale, int size)
+{
+    if (size <= 0)
+        return;
+
+    const QString key = p->roleName(scale);
+    if (p->d.fontSizes.value(key) == size)
+        return;
+
+    p->d.fontSizes[key] = size;
+}
+
+int
+Style::iconSize(UIScale scale) const
+{
+    return p->iconSize(scale);
+}
+
+void
+Style::setIconSize(UIScale scale, int size)
+{
+    if (size <= 0)
+        return;
+
+    const QString key = p->roleName(scale);
+    if (p->d.iconSizes.value(key) == size)
+        return;
+
+    p->d.iconSizes[key] = size;
+    p->d.pixmaps.clear();
+}
+
+void
+Style::update()
+{
+    p->d.pixmaps.clear();
+    p->updateStylesheet();
 }
 
 void
@@ -244,15 +444,4 @@ Style::colorSpace() const
     return p->colorSpace();
 }
 
-void
-Style::setFontSize(FontRole role, int size)
-{
-    p->d.fonts.value(p->roleName(role), -1);
-}
-
-int
-Style::fontSize(FontRole role) const
-{
-    return p->fontSize(p->roleName(role));
-}
 }  // namespace flipman::sdk::core

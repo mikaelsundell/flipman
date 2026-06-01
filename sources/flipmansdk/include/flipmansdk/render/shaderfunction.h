@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QString>
 #include <QStringList>
 

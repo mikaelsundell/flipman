@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <QList>
-#include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/plugin.h>
-#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/plugins/pluginhandler.h>
+#include <QList>
+#include <QScopedPointer>
 
 namespace flipman::sdk::plugins {
 

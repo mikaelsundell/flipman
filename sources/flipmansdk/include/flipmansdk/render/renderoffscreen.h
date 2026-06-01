@@ -4,14 +4,14 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imagelayer.h>
 #include <QColor>
 #include <QImage>
 #include <QList>
 #include <QObject>
 #include <QScopedPointer>
 #include <QSize>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imagelayer.h>
 
 namespace flipman::sdk::render {
 

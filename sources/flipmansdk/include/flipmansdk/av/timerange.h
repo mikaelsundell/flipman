@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/av/time.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
-#include <flipmansdk/av/time.h>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 

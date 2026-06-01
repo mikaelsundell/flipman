@@ -4,12 +4,12 @@
 
 #pragma once
 
+#include <flipmansdk/core/imageformat.h>
+#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QRect>
 #include <QString>
-#include <flipmansdk/core/imageformat.h>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

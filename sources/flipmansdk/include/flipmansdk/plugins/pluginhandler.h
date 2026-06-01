@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/core/plugin.h>
 #include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/core/plugin.h>
 #include <functional>
 #include <typeindex>
 

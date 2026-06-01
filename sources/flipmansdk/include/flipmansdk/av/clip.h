@@ -4,16 +4,17 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/av/audiofilter.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/render/imageeffect.h>
 #include <QColor>
 #include <QMatrix4x4>
 #include <QObject>
 #include <QPointF>
 #include <QScopedPointer>
 #include <QSizeF>
-#include <flipmansdk/av/audiofilter.h>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imageeffect.h>
+
 
 namespace flipman::sdk::av {
 

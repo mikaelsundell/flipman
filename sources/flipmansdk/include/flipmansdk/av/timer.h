@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/av/fps.h>
 #include <QList>
 #include <QScopedPointer>
-#include <flipmansdk/av/fps.h>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 

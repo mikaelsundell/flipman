@@ -1,0 +1,18 @@
+<RCC>
+  <qresource prefix="icons">
+    <file>checked.png</file>
+    <file>down.png</file>
+    <file>left.png</file>
+    <file>next.png</file>
+    <file>partiallychecked.png</file>
+    <file>play.png</file>
+    <file>previous.png</file>
+    <file>reverse.png</file>
+    <file>right.png</file>
+    <file>stop.png</file>
+    <file>up.png</file>
+  </qresource>
+  <qresource prefix="style">
+    <file>style.qss</file>
+  </qresource>
+</RCC>

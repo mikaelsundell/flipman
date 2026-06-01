@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <QRhiWidget>
-#include <QScopedPointer>
-#include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/render/imagelayer.h>
 #include <flipmansdk/render/render.h>
+#include <QRhiWidget>
+#include <QScopedPointer>
 
 namespace flipman::sdk::widgets {
 
