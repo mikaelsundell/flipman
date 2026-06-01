@@ -60,7 +60,7 @@ QLineEdit
 }
 
 QComboBox {
-    font-size: $font.size.medium;
+    font-size: $font.size.small;
     min-width: 50px;
     background-color: $color.basealt;
     border: 1px solid $color.border;
@@ -179,11 +179,9 @@ QToolButton::menu-arrow:open
 QSpinBox,
 QDoubleSpinBox
 {
-    font-size: $font.size.medium;
+    font-size: $font.size.small;
     background-color: $color.basealt;
     selection-background-color: $color.highlight;
-    padding-left: 8px;
-    padding-right: 24px;
 }
 
 QSpinBox::up-button,

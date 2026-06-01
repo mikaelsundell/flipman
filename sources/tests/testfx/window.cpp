@@ -204,8 +204,8 @@ WindowPrivate::addDoubleSpinBox(double value, double minValue, double maxValue, 
     spin->setSingleStep(0.01);
     spin->setRange(minValue, maxValue);
     spin->setValue(value);
-    spin->setFixedWidth(90);
-    spin->setAlignment(Qt::AlignRight);
+    spin->setFixedWidth(72);
+    spin->setAlignment(Qt::AlignCenter);
     return spin;
 }
 
@@ -215,8 +215,8 @@ WindowPrivate::addIntSpinBox(int value, int minValue, int maxValue, QWidget* par
     QSpinBox* spin = new QSpinBox(parent);
     spin->setRange(minValue, maxValue);
     spin->setValue(value);
-    spin->setFixedWidth(90);
-    spin->setAlignment(Qt::AlignRight);
+    spin->setFixedWidth(72);
+    spin->setAlignment(Qt::AlignCenter);
     return spin;
 }
 
@@ -227,10 +227,11 @@ WindowPrivate::addComboRow(const QString& label, const QString& name, const QVar
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(10);
+    layout->setSpacing(12);
 
     QLabel* title = new QLabel(label, row);
-    title->setMinimumWidth(120);
+    title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QComboBox* combo = new QComboBox(row);
     combo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -269,10 +270,11 @@ WindowPrivate::addFloatRow(const QString& label, const QString& name, double val
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(10);
+    layout->setSpacing(12);
 
     QLabel* title = new QLabel(label, row);
     title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QSlider* slider = addFloatSlider(value, minValue, maxValue, row);
     slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -313,13 +315,17 @@ WindowPrivate::addIntRow(const QString& label, const QString& name, int value, i
     QWidget* row = new QWidget(parent);
     QHBoxLayout* layout = new QHBoxLayout(row);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(10);
+    layout->setSpacing(12);
 
     QLabel* title = new QLabel(label, row);
-    title->setMinimumWidth(80);
+    title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QSlider* slider = addIntSlider(value, minValue, maxValue, row);
+    slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
     QSpinBox* spin = addIntSpinBox(value, minValue, maxValue, row);
+    spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
     layout->addWidget(title);
     layout->addWidget(slider, 1);
@@ -353,6 +359,8 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
+    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -365,15 +373,19 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         QWidget* row = new QWidget(widget);
         QHBoxLayout* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->setSpacing(10);
+        rowLayout->setSpacing(12);
 
-        QLabel* label = new QLabel(name, row);
-        label->setMinimumWidth(80);
+        QLabel* componentLabel = new QLabel(name, row);
+        componentLabel->setFixedWidth(60);
+        componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
-        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-        rowLayout->addWidget(label);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+        rowLayout->addWidget(componentLabel);
         rowLayout->addWidget(slider, 1);
         rowLayout->addWidget(spin);
 
@@ -442,6 +454,8 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
+    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -456,15 +470,19 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         QWidget* row = new QWidget(widget);
         QHBoxLayout* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->setSpacing(10);
+        rowLayout->setSpacing(12);
 
-        QLabel* label = new QLabel(name, row);
-        label->setMinimumWidth(80);
+        QLabel* componentLabel = new QLabel(name, row);
+        componentLabel->setFixedWidth(60);
+        componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
-        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-        rowLayout->addWidget(label);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+        rowLayout->addWidget(componentLabel);
         rowLayout->addWidget(slider, 1);
         rowLayout->addWidget(spin);
 
@@ -553,6 +571,8 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
+    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -569,15 +589,19 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         QWidget* row = new QWidget(widget);
         QHBoxLayout* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(0, 0, 0, 0);
-        rowLayout->setSpacing(10);
+        rowLayout->setSpacing(12);
 
-        QLabel* label = new QLabel(name, row);
-        label->setMinimumWidth(80);
+        QLabel* componentLabel = new QLabel(name, row);
+        componentLabel->setFixedWidth(60);
+        componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
-        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        slider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
-        rowLayout->addWidget(label);
+        spin = addDoubleSpinBox(v, minValue, maxValue, row);
+        spin->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+
+        rowLayout->addWidget(componentLabel);
         rowLayout->addWidget(slider, 1);
         rowLayout->addWidget(spin);
 
@@ -746,17 +770,19 @@ WindowPrivate::addParameterWidget(const sdk::render::ShaderDescriptor::ShaderPar
         QWidget* row = new QWidget(parent);
         QHBoxLayout* layout = new QHBoxLayout(row);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(10);
+        layout->setSpacing(12);
 
         QLabel* title = new QLabel(label, row);
-        title->setMinimumWidth(160);
+        title->setFixedWidth(80);
+        title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         QCheckBox* box = new QCheckBox(row);
         box->setChecked(value.toBool());
+        box->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 
         layout->addWidget(title);
-        layout->addStretch();
-        layout->addWidget(box);
+        layout->addWidget(box, 0, Qt::AlignVCenter);
+        layout->addStretch(1);
 
         connect(box, &QCheckBox::toggled, this,
                 [this, name = param.name](bool checked) { setParameterValue(name, checked); });
@@ -799,7 +825,7 @@ QWidget*
 WindowPrivate::addParameterPanel(QWidget* parent)
 {
     QGroupBox* panel = new QGroupBox("Parameters", parent);
-    panel->setMinimumWidth(320);
+    panel->setMinimumWidth(220);
 
     QVBoxLayout* panelLayout = new QVBoxLayout(panel);
     panelLayout->setContentsMargins(8, 8, 8, 8);
