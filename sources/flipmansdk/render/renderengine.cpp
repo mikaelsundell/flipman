@@ -1552,9 +1552,8 @@ vec4 _sample(ivec2 pixel)
         lutParams = effectDefinition->descriptor().lutParameters();
 
     for (int i = 0; i < lutParams.size(); ++i) {
-        texUniformBlock += QString("layout(binding = %1) uniform sampler3D %2;\n")
-                               .arg(lutFirstBinding + i)
-                               .arg(lutParams[i].name);
+        texUniformBlock
+            += QString("layout(binding = %1) uniform sampler3D %2;\n").arg(lutFirstBinding + i).arg(lutParams[i].name);
     }
 
     if (!lutParams.isEmpty()) {

@@ -25,7 +25,7 @@
 
 namespace flipman {
 
-template <typename T>
+template<typename T>
 static void
 safeRelease(T*& p)
 {
@@ -47,14 +47,13 @@ struct YCbCr10 {
     uint16_t cr = 512;
 };
 
-enum class TestPattern {
-    Bars,
-    ColorPatches,
-    GrayRamp,
-    GrayRampMidWhite,
-    GrayRampThreeWhitePatches,
-    Pluge
+struct YCbCr8 {
+    uint8_t y = 16;
+    uint8_t cb = 128;
+    uint8_t cr = 128;
 };
+
+enum class TestPattern { Bars, ColorPatches, GrayRamp, GrayRampMidWhite, GrayRampThreeWhitePatches };
 
 struct PatternOptions {
     TestPattern pattern = TestPattern::GrayRampMidWhite;
@@ -63,26 +62,32 @@ struct PatternOptions {
     bool legalRange = true;
 };
 
-static double
+double
 clamp01(double v)
 {
     return std::max(0.0, std::min(1.0, v));
 }
 
-static uint16_t
+uint8_t
+clamp8(int v)
+{
+    return uint8_t(std::max(0, std::min(255, v)));
+}
+
+uint16_t
 clamp10(int v)
 {
     return uint16_t(std::max(0, std::min(1023, v)));
 }
 
-static double
+double
 encodeGamma(double linear, double gamma)
 {
     gamma = std::max(0.01, gamma);
     return std::pow(clamp01(linear), 1.0 / gamma);
 }
 
-static RGB
+RGB
 makeGray(double linear, const PatternOptions& options)
 {
     double v = clamp01(linear);
@@ -93,17 +98,7 @@ makeGray(double linear, const PatternOptions& options)
     return { v, v, v };
 }
 
-static YCbCr10
-makeYcbcrCode(int y, int cb = 512, int cr = 512)
-{
-    return {
-        clamp10(y),
-        clamp10(cb),
-        clamp10(cr)
-    };
-}
-
-static YCbCr10
+YCbCr10
 rgbToRec709Ycbcr10(const RGB& c, bool legalRange)
 {
     const double r = clamp01(c.r);
@@ -115,68 +110,89 @@ rgbToRec709Ycbcr10(const RGB& c, bool legalRange)
     const double cr = (r - y) / 1.5748;
 
     if (legalRange) {
-        return {
-            clamp10(int(std::round(64.0 + 876.0 * y))),
-            clamp10(int(std::round(512.0 + 896.0 * cb))),
-            clamp10(int(std::round(512.0 + 896.0 * cr)))
-        };
+        return { clamp10(int(std::round(64.0 + 876.0 * y))), clamp10(int(std::round(512.0 + 896.0 * cb))),
+                 clamp10(int(std::round(512.0 + 896.0 * cr))) };
     }
 
-    return {
-        clamp10(int(std::round(1023.0 * y))),
-        clamp10(int(std::round(512.0 + 1023.0 * cb))),
-        clamp10(int(std::round(512.0 + 1023.0 * cr)))
-    };
+    return { clamp10(int(std::round(1023.0 * y))), clamp10(int(std::round(512.0 + 1023.0 * cb))),
+             clamp10(int(std::round(512.0 + 1023.0 * cr))) };
 }
 
-static RGB
-colorPatchRgbAt(int x, int y, int width, int height)
+YCbCr8
+rgbToRec709Ycbcr8(const RGB& c, bool legalRange)
 {
-    constexpr std::array<RGB, 8> patches = {{
-        { 1.0, 1.0, 1.0 }, // white
-        { 1.0, 1.0, 0.0 }, // yellow
-        { 0.0, 1.0, 1.0 }, // cyan
-        { 0.0, 1.0, 0.0 }, // green
-        { 1.0, 0.0, 1.0 }, // magenta
-        { 1.0, 0.0, 0.0 }, // red
-        { 0.0, 0.0, 1.0 }, // blue
-        { 0.0, 0.0, 0.0 }  // black
-    }};
+    const YCbCr10 v = rgbToRec709Ycbcr10(c, legalRange);
+
+    if (legalRange) {
+        return { clamp8(int(std::round(double(v.y) / 4.0))), clamp8(int(std::round(double(v.cb) / 4.0))),
+                 clamp8(int(std::round(double(v.cr) / 4.0))) };
+    }
+
+    return { clamp8(int(std::round(double(v.y) * 255.0 / 1023.0))),
+             clamp8(int(std::round(double(v.cb) * 255.0 / 1023.0))),
+             clamp8(int(std::round(double(v.cr) * 255.0 / 1023.0))) };
+}
+
+RGB
+colorPatchRgbAt(int x, int y, int width, int height, const PatternOptions& options)
+{
+    const int topHeight = height * 3 / 4;
+
+    if (y >= topHeight) {
+        constexpr std::array<double, 8> grays = { 0.0, 0.05, 0.10, 0.18, 0.25, 0.50, 0.75, 1.0 };
+
+        const int index = std::clamp((x * int(grays.size())) / std::max(1, width), 0, int(grays.size()) - 1);
+
+        return makeGray(grays[index], options);
+    }
+
+    constexpr std::array<RGB, 12> patches = { {
+        { 1.0, 1.0, 1.0 },     // white
+        { 0.75, 0.75, 0.75 },  // 75% gray
+        { 0.50, 0.50, 0.50 },  // 50% gray
+        { 0.0, 0.0, 0.0 },     // black
+
+        { 1.0, 0.0, 0.0 },     // red
+        { 0.0, 1.0, 0.0 },     // green
+        { 0.0, 0.0, 1.0 },     // blue
+        { 0.18, 0.18, 0.18 },  // 18% gray
+
+        { 1.0, 1.0, 0.0 },    // yellow
+        { 0.0, 1.0, 1.0 },    // cyan
+        { 1.0, 0.0, 1.0 },    // magenta
+        { 0.10, 0.10, 0.10 }  // 10% gray
+    } };
 
     const int cols = 4;
-    const int rows = 2;
+    const int rows = 3;
 
     const int col = std::clamp((x * cols) / std::max(1, width), 0, cols - 1);
-    const int row = std::clamp((y * rows) / std::max(1, height), 0, rows - 1);
+    const int row = std::clamp((y * rows) / std::max(1, topHeight), 0, rows - 1);
     const int index = std::clamp(row * cols + col, 0, int(patches.size()) - 1);
 
     return patches[index];
 }
 
-static RGB
+RGB
 patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
 {
     if (options.pattern == TestPattern::Bars) {
-        constexpr std::array<RGB, 8> bars = {{
-            { 0.75, 0.75, 0.75 },
-            { 0.75, 0.75, 0.00 },
-            { 0.00, 0.75, 0.75 },
-            { 0.00, 0.75, 0.00 },
-            { 0.75, 0.00, 0.75 },
-            { 0.75, 0.00, 0.00 },
-            { 0.00, 0.00, 0.75 },
-            { 0.00, 0.00, 0.00 }
-        }};
+        constexpr std::array<RGB, 8> bars = { { { 0.75, 0.75, 0.75 },
+                                                { 0.75, 0.75, 0.00 },
+                                                { 0.00, 0.75, 0.75 },
+                                                { 0.00, 0.75, 0.00 },
+                                                { 0.75, 0.00, 0.75 },
+                                                { 0.75, 0.00, 0.00 },
+                                                { 0.00, 0.00, 0.75 },
+                                                { 0.00, 0.00, 0.00 } } };
 
-        const int index = std::min<int>(
-            x * int(bars.size()) / std::max(1, width),
-            int(bars.size()) - 1);
+        const int index = std::min<int>(x * int(bars.size()) / std::max(1, width), int(bars.size()) - 1);
 
         return bars[index];
     }
 
     if (options.pattern == TestPattern::ColorPatches)
-        return colorPatchRgbAt(x, y, width, height);
+        return colorPatchRgbAt(x, y, width, height, options);
 
     const double linearRamp = double(x) / double(std::max(1, width - 1));
     RGB rgb = makeGray(linearRamp, options);
@@ -185,8 +201,7 @@ patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
     const int cy = height / 2;
 
     auto insideSquare = [&](int centerX, int centerY) {
-        return std::abs(x - centerX) <= patchSize / 2 &&
-               std::abs(y - centerY) <= patchSize / 2;
+        return std::abs(x - centerX) <= patchSize / 2 && std::abs(y - centerY) <= patchSize / 2;
     };
 
     if (options.pattern == TestPattern::GrayRampMidWhite) {
@@ -195,9 +210,7 @@ patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
     }
 
     if (options.pattern == TestPattern::GrayRampThreeWhitePatches) {
-        if (insideSquare(width / 4, cy) ||
-            insideSquare(width / 2, cy) ||
-            insideSquare(width * 3 / 4, cy)) {
+        if (insideSquare(width / 4, cy) || insideSquare(width / 2, cy) || insideSquare(width * 3 / 4, cy)) {
             rgb = makeGray(1.0, options);
         }
     }
@@ -205,78 +218,22 @@ patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
     return rgb;
 }
 
-static YCbCr10
-plugeYcbcrAt(int x, int y, int width, int height, const PatternOptions& options)
+YCbCr10
+patternYcbcr10At(int x, int y, int width, int height, const PatternOptions& options)
 {
-    const int yBlack = options.legalRange ? 64 : 0;
-    const int yWhite = options.legalRange ? 940 : 1023;
-
-    const int yBelowBlack = options.legalRange ? 48 : 0;
-    const int yNearBlack1 = options.legalRange ? 80 : 20;
-    const int yNearBlack2 = options.legalRange ? 96 : 40;
-    const int yDebug1 = options.legalRange ? 128 : 80;
-    const int yDebug2 = options.legalRange ? 192 : 140;
-
-    int code = yBlack;
-
-    const int rampTop = height / 8;
-    const int rampBottom = height / 3;
-
-    if (y >= rampTop && y < rampBottom) {
-        const double t = double(x) / double(std::max(1, width - 1));
-        const int rampWhite = options.legalRange ? 256 : 192;
-        code = int(std::round(yBlack + double(rampWhite - yBlack) * t));
-    }
-
-    const int whiteSize = std::min(width, height) / 6;
-    const int whiteX = width - whiteSize - width / 16;
-    const int whiteY = height / 10;
-
-    if (x >= whiteX && x < whiteX + whiteSize &&
-        y >= whiteY && y < whiteY + whiteSize) {
-        code = yWhite;
-    }
-
-    const int barTop = height * 2 / 3;
-    const int barBottom = height - height / 12;
-    const int barWidth = width / 14;
-    const int barHeight = barBottom - barTop;
-    const int cx = width / 2;
-
-    if (y >= barTop && y < barTop + barHeight) {
-        if (x >= cx - barWidth * 3 && x < cx - barWidth * 2)
-            code = yBelowBlack;
-        else if (x >= cx - barWidth * 2 && x < cx - barWidth)
-            code = yBlack;
-        else if (x >= cx - barWidth && x < cx)
-            code = yNearBlack1;
-        else if (x >= cx && x < cx + barWidth)
-            code = yNearBlack2;
-        else if (x >= cx + barWidth && x < cx + barWidth * 2)
-            code = yDebug1;
-        else if (x >= cx + barWidth * 2 && x < cx + barWidth * 3)
-            code = yDebug2;
-    }
-
-    return makeYcbcrCode(code);
-}
-
-static YCbCr10
-patternYcbcrAt(int x, int y, int width, int height, const PatternOptions& options)
-{
-    if (options.pattern == TestPattern::Pluge)
-        return plugeYcbcrAt(x, y, width, height, options);
-
     return rgbToRec709Ycbcr10(patternRgbAt(x, y, width, height, options), options.legalRange);
 }
 
-static void
+YCbCr8
+patternYcbcr8At(int x, int y, int width, int height, const PatternOptions& options)
+{
+    return rgbToRec709Ycbcr8(patternRgbAt(x, y, width, height, options), options.legalRange);
+}
+
+void
 packV210Word(uint8_t* dst, int wordIndex, uint16_t a, uint16_t b, uint16_t c)
 {
-    const uint32_t word =
-        (uint32_t(a & 0x3ff) << 0) |
-        (uint32_t(b & 0x3ff) << 10) |
-        (uint32_t(c & 0x3ff) << 20);
+    const uint32_t word = (uint32_t(a & 0x3ff) << 0) | (uint32_t(b & 0x3ff) << 10) | (uint32_t(c & 0x3ff) << 20);
 
     dst[wordIndex * 4 + 0] = uint8_t((word >> 0) & 0xff);
     dst[wordIndex * 4 + 1] = uint8_t((word >> 8) & 0xff);
@@ -284,8 +241,9 @@ packV210Word(uint8_t* dst, int wordIndex, uint16_t a, uint16_t b, uint16_t c)
     dst[wordIndex * 4 + 3] = uint8_t((word >> 24) & 0xff);
 }
 
-static void
-fillRec709Pattern10Bit(IDeckLinkMutableVideoFrame* frame, int width, int height, int rowBytes, const PatternOptions& options)
+void
+fillRec709Pattern10Bit(IDeckLinkMutableVideoFrame* frame, int width, int height, int rowBytes,
+                       const PatternOptions& options)
 {
     void* bytes = nullptr;
     frame->GetBytes(&bytes);
@@ -296,12 +254,12 @@ fillRec709Pattern10Bit(IDeckLinkMutableVideoFrame* frame, int width, int height,
         auto* row = dst + y * rowBytes;
 
         for (int x = 0; x < width; x += 6) {
-            const YCbCr10 p0 = patternYcbcrAt(x + 0, y, width, height, options);
-            const YCbCr10 p1 = patternYcbcrAt(x + 1, y, width, height, options);
-            const YCbCr10 p2 = patternYcbcrAt(x + 2, y, width, height, options);
-            const YCbCr10 p3 = patternYcbcrAt(x + 3, y, width, height, options);
-            const YCbCr10 p4 = patternYcbcrAt(x + 4, y, width, height, options);
-            const YCbCr10 p5 = patternYcbcrAt(x + 5, y, width, height, options);
+            const YCbCr10 p0 = patternYcbcr10At(x + 0, y, width, height, options);
+            const YCbCr10 p1 = patternYcbcr10At(x + 1, y, width, height, options);
+            const YCbCr10 p2 = patternYcbcr10At(x + 2, y, width, height, options);
+            const YCbCr10 p3 = patternYcbcr10At(x + 3, y, width, height, options);
+            const YCbCr10 p4 = patternYcbcr10At(x + 4, y, width, height, options);
+            const YCbCr10 p5 = patternYcbcr10At(x + 5, y, width, height, options);
 
             const uint16_t cb0 = uint16_t((int(p0.cb) + int(p1.cb)) / 2);
             const uint16_t cr0 = uint16_t((int(p0.cr) + int(p1.cr)) / 2);
@@ -316,6 +274,33 @@ fillRec709Pattern10Bit(IDeckLinkMutableVideoFrame* frame, int width, int height,
             packV210Word(row, word + 1, p1.y, cb2, p2.y);
             packV210Word(row, word + 2, cr2, p3.y, cb4);
             packV210Word(row, word + 3, p4.y, cr4, p5.y);
+        }
+    }
+}
+
+void
+fillRec709Pattern8Bit(IDeckLinkMutableVideoFrame* frame, int width, int height, int rowBytes,
+                      const PatternOptions& options)
+{
+    void* bytes = nullptr;
+    frame->GetBytes(&bytes);
+
+    auto* dst = static_cast<uint8_t*>(bytes);
+
+    for (int y = 0; y < height; ++y) {
+        auto* row = dst + y * rowBytes;
+
+        for (int x = 0; x < width; x += 2) {
+            const YCbCr8 p0 = patternYcbcr8At(x + 0, y, width, height, options);
+            const YCbCr8 p1 = patternYcbcr8At(x + 1, y, width, height, options);
+
+            const uint8_t cb = uint8_t((int(p0.cb) + int(p1.cb)) / 2);
+            const uint8_t cr = uint8_t((int(p0.cr) + int(p1.cr)) / 2);
+
+            row[x * 2 + 0] = cb;
+            row[x * 2 + 1] = p0.y;
+            row[x * 2 + 2] = cr;
+            row[x * 2 + 3] = p1.y;
         }
     }
 }
@@ -341,6 +326,7 @@ public:
         QPointer<Window> window;
         QPointer<QComboBox> patternCombo;
         QPointer<QComboBox> modeCombo;
+        QPointer<QComboBox> formatCombo;
         QPointer<QDoubleSpinBox> gammaSpin;
         QPointer<QCheckBox> gammaCheck;
         QPointer<QCheckBox> legalRangeCheck;
@@ -368,10 +354,7 @@ public:
 
 WindowPrivate::WindowPrivate() {}
 
-WindowPrivate::~WindowPrivate()
-{
-    closeDeckLink();
-}
+WindowPrivate::~WindowPrivate() { closeDeckLink(); }
 
 void
 WindowPrivate::updateStatus(const QString& text)
@@ -386,20 +369,12 @@ WindowPrivate::currentPattern() const
     const int patternIndex = d.patternCombo ? d.patternCombo->currentIndex() : 0;
 
     switch (patternIndex) {
-    case 0:
-        return TestPattern::Bars;
-    case 1:
-        return TestPattern::ColorPatches;
-    case 2:
-        return TestPattern::GrayRamp;
-    case 3:
-        return TestPattern::GrayRampMidWhite;
-    case 4:
-        return TestPattern::GrayRampThreeWhitePatches;
-    case 5:
-        return TestPattern::Pluge;
-    default:
-        return TestPattern::GrayRampMidWhite;
+    case 0: return TestPattern::Bars;
+    case 1: return TestPattern::ColorPatches;
+    case 2: return TestPattern::GrayRamp;
+    case 3: return TestPattern::GrayRampMidWhite;
+    case 4: return TestPattern::GrayRampThreeWhitePatches;
+    default: return TestPattern::GrayRampMidWhite;
     }
 }
 
@@ -501,6 +476,12 @@ WindowPrivate::sendPattern()
             d.displayMode = BMDDisplayMode(modeData.toInt());
     }
 
+    if (d.formatCombo) {
+        const QVariant formatData = d.formatCombo->currentData();
+        if (formatData.isValid())
+            d.pixelFormat = BMDPixelFormat(formatData.toInt());
+    }
+
     const bool needEnable = !d.outputEnabled || d.activeDisplayMode != d.displayMode;
 
     if (needEnable) {
@@ -526,16 +507,15 @@ WindowPrivate::sendPattern()
 
     safeRelease(d.frame);
 
-    d.pixelFormat = bmdFormat10BitYUV;
-    d.rowBytes = ((d.width + 47) / 48) * 128;
+    if (d.pixelFormat == bmdFormat10BitYUV) {
+        d.rowBytes = ((d.width + 47) / 48) * 128;
+    }
+    else {
+        d.rowBytes = d.width * 2;
+    }
 
-    if (d.output->CreateVideoFrame(
-            d.width,
-            d.height,
-            d.rowBytes,
-            d.pixelFormat,
-            bmdFrameFlagDefault,
-            &d.frame) != S_OK || !d.frame) {
+    if (d.output->CreateVideoFrame(d.width, d.height, d.rowBytes, d.pixelFormat, bmdFrameFlagDefault, &d.frame) != S_OK
+        || !d.frame) {
         updateStatus("Failed to create DeckLink video frame.");
         stopOutput();
         return;
@@ -543,13 +523,20 @@ WindowPrivate::sendPattern()
 
     const PatternOptions options = patternOptions();
 
-    fillRec709Pattern10Bit(d.frame, d.width, d.height, d.rowBytes, options);
+    if (d.pixelFormat == bmdFormat10BitYUV) {
+        fillRec709Pattern10Bit(d.frame, d.width, d.height, d.rowBytes, options);
+    }
+    else {
+        fillRec709Pattern8Bit(d.frame, d.width, d.height, d.rowBytes, options);
+    }
+
     resendFrame();
 
     if (d.outputTimer && !d.outputTimer->isActive())
         d.outputTimer->start(40);
 
-    updateStatus(QString("Sending Rec.709 10-bit YUV pattern, gamma %1 %2, %3.")
+    updateStatus(QString("Sending Rec.709 %1 pattern, gamma %2 %3, %4.")
+                     .arg(d.pixelFormat == bmdFormat10BitYUV ? "10-bit YUV" : "8-bit UYVY")
                      .arg(QString::number(options.gamma, 'f', 2))
                      .arg(options.applyGamma ? "enabled" : "disabled")
                      .arg(options.legalRange ? "legal range" : "full range"));
@@ -569,9 +556,9 @@ WindowPrivate::init()
     titleFont.setPointSize(titleFont.pointSize() + 5);
     titleLabel->setFont(titleFont);
 
-    QLabel* infoLabel = new QLabel(
-        "Generates 10-bit YUV Rec.709 patterns and continuously sends them to the UltraStudio / DeckLink output.",
-        centralWidget);
+    QLabel* infoLabel
+        = new QLabel("Generates Rec.709 patterns and continuously sends them to the UltraStudio / DeckLink output.",
+                     centralWidget);
     infoLabel->setWordWrap(true);
 
     QGroupBox* outputBox = new QGroupBox("Output", centralWidget);
@@ -584,13 +571,17 @@ WindowPrivate::init()
     d.modeCombo->addItem("1080p2398", QVariant::fromValue(int(bmdModeHD1080p2398)));
     d.modeCombo->addItem("1080i50", QVariant::fromValue(int(bmdModeHD1080i50)));
 
+    d.formatCombo = new QComboBox(outputBox);
+    d.formatCombo->addItem("10-bit YUV", QVariant::fromValue(int(bmdFormat10BitYUV)));
+    d.formatCombo->addItem("8-bit UYVY", QVariant::fromValue(int(bmdFormat8BitYUV)));
+    d.formatCombo->setCurrentIndex(0);
+
     d.patternCombo = new QComboBox(outputBox);
     d.patternCombo->addItem("Color bars 75%");
-    d.patternCombo->addItem("Rec.709 patches");
+    d.patternCombo->addItem("Rec.709 patches + gray axis");
     d.patternCombo->addItem("Gray ramp");
     d.patternCombo->addItem("Gray ramp + center white");
     d.patternCombo->addItem("Gray ramp + 3 white patches");
-    d.patternCombo->addItem("PLUGE");
     d.patternCombo->setCurrentIndex(3);
 
     d.gammaSpin = new QDoubleSpinBox(outputBox);
@@ -621,6 +612,7 @@ WindowPrivate::init()
     };
 
     addRow("Mode", d.modeCombo);
+    addRow("Format", d.formatCombo);
     addRow("Pattern", d.patternCombo);
     addRow("Gamma", d.gammaSpin);
     outputLayout->addWidget(d.gammaCheck);
@@ -663,49 +655,35 @@ WindowPrivate::init()
     mainLayout->addWidget(statusFrame);
     mainLayout->addStretch();
 
-    QObject::connect(d.outputTimer, &QTimer::timeout, this, [this]() {
-        resendFrame();
-    });
+    QObject::connect(d.outputTimer, &QTimer::timeout, this, [this]() { resendFrame(); });
 
-    QObject::connect(sendButton, &QPushButton::clicked, this, [this]() {
-        sendPattern();
-    });
+    QObject::connect(sendButton, &QPushButton::clicked, this, [this]() { sendPattern(); });
 
-    QObject::connect(stopButton, &QPushButton::clicked, this, [this]() {
-        stopOutput();
-    });
+    QObject::connect(stopButton, &QPushButton::clicked, this, [this]() { stopOutput(); });
 
-    QObject::connect(gamma22Button, &QPushButton::clicked, this, [this]() {
-        setGammaAndSend(2.20);
-    });
+    QObject::connect(gamma22Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.20); });
 
-    QObject::connect(gamma24Button, &QPushButton::clicked, this, [this]() {
-        setGammaAndSend(2.40);
-    });
+    QObject::connect(gamma24Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.40); });
 
-    QObject::connect(d.gammaSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) {
-        sendPattern();
-    });
+    QObject::connect(d.gammaSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
+                     [this](double) { sendPattern(); });
 
-    QObject::connect(d.gammaCheck, &QCheckBox::toggled, this, [this](bool) {
-        sendPattern();
-    });
+    QObject::connect(d.gammaCheck, &QCheckBox::toggled, this, [this](bool) { sendPattern(); });
 
-    QObject::connect(d.patternCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
-        sendPattern();
-    });
+    QObject::connect(d.patternCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+                     [this](int) { sendPattern(); });
 
-    QObject::connect(d.legalRangeCheck, &QCheckBox::toggled, this, [this](bool) {
-        sendPattern();
-    });
+    QObject::connect(d.legalRangeCheck, &QCheckBox::toggled, this, [this](bool) { sendPattern(); });
 
-    QObject::connect(d.modeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
-        sendPattern();
-    });
+    QObject::connect(d.modeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+                     [this](int) { sendPattern(); });
+
+    QObject::connect(d.formatCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+                     [this](int) { sendPattern(); });
 
     d.window->setWindowTitle("testdecklink");
     d.window->setCentralWidget(centralWidget);
-    d.window->resize(700, 360);
+    d.window->resize(720, 390);
 }
 
 Window::Window(QWidget* parent)
@@ -718,4 +696,4 @@ Window::Window(QWidget* parent)
 
 Window::~Window() {}
 
-} // namespace flipman
+}  // namespace flipman

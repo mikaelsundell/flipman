@@ -21,4 +21,4 @@ private:
     QScopedPointer<WindowPrivate> p;
 };
 
-} // namespace flipman
+}  // namespace flipman

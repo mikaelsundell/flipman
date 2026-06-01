@@ -33,7 +33,7 @@ public:
     void updateTimeline();
     bool eventFilter(QObject* object, QEvent* event);
     void seekFrame(int frame);
-    
+
 public:
     struct DisplayTransform {
         QString label;
@@ -41,7 +41,7 @@ public:
         sdk::render::TransferFunction transferFunction;
     };
     QVector<DisplayTransform> displayTransforms();
-    
+
 public:
     struct Data {
         QString inputFile;
@@ -189,28 +189,19 @@ WindowPrivate::init()
     timelineLayout->addWidget(d.timelineLabel);
 
     mainLayout->addWidget(timelineWidget);
-    
+
     d.window->installEventFilter(this);
-    
-    connect(fitButton, &QPushButton::clicked, this, [this]() {
-        d.viewer->setZoomMode(sdk::widgets::Viewer::FitToView);
-    });
 
-    connect(z25Button, &QPushButton::clicked, this, [this]() {
-        d.viewer->setZoom(0.25f);
-    });
+    connect(fitButton, &QPushButton::clicked, this,
+            [this]() { d.viewer->setZoomMode(sdk::widgets::Viewer::FitToView); });
 
-    connect(z50Button, &QPushButton::clicked, this, [this]() {
-        d.viewer->setZoom(0.5f);
-    });
+    connect(z25Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.25f); });
 
-    connect(z75Button, &QPushButton::clicked, this, [this]() {
-        d.viewer->setZoom(0.75f);
-    });
+    connect(z50Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.5f); });
 
-    connect(z100Button, &QPushButton::clicked, this, [this]() {
-        d.viewer->setZoom(1.0f);
-    });
+    connect(z75Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.75f); });
+
+    connect(z100Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(1.0f); });
 
     connect(displayCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this, displayCombo, transforms](int index) {
@@ -233,9 +224,7 @@ WindowPrivate::init()
         zoomLabel->setText(QString("%1%").arg(percent));
     });
 
-    connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) {
-        seekFrame(frame);
-    });
+    connect(d.timelineSlider, &QSlider::valueChanged, this, [this](int frame) { seekFrame(frame); });
 
     d.window->setWindowTitle("testdisplay");
     d.window->setCentralWidget(centralWidget);
@@ -263,10 +252,7 @@ WindowPrivate::updateTimeline()
     const int total = d.timelineSlider ? d.timelineSlider->maximum() + 1 : 0;
 
     if (d.media.isValid() && d.media.time().isValid()) {
-        d.timelineLabel->setText(QString("%1 / %2  %3")
-                                     .arg(frame + 1)
-                                     .arg(total)
-                                     .arg(d.media.time().toString()));
+        d.timelineLabel->setText(QString("%1 / %2  %3").arg(frame + 1).arg(total).arg(d.media.time().toString()));
     }
     else {
         d.timelineLabel->setText(QString("%1 / %2").arg(frame + 1).arg(total));
@@ -291,8 +277,7 @@ WindowPrivate::eventFilter(QObject* object, QEvent* event)
                 d.window->update();
         });
         break;
-    default:
-        break;
+    default: break;
     }
     return QObject::eventFilter(object, event);
 }
@@ -362,4 +347,4 @@ Window::Window(QWidget* parent)
 
 Window::~Window() {}
 
-} // namespace flipman
+}  // namespace flipman

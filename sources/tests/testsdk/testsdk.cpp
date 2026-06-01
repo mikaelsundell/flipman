@@ -3,6 +3,9 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "testsdk.h"
+#include <QApplication>
+#include <QDebug>
+#include <QThread>
 #include <flipmansdk/av/clip.h>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/media.h>
@@ -31,11 +34,8 @@
 #include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderdefinition.h>
 #include <flipmansdk/render/shaderparser.h>
-#include <QApplication>
-#include <QDebug>
-#include <QThread>
-#include <rhi/qrhi.h>
 #include <iostream>
+#include <rhi/qrhi.h>
 
 namespace flipman::sdk::test {
 namespace {
