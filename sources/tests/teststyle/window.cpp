@@ -12,7 +12,6 @@
 #include <QClipboard>
 #include <QColorDialog>
 #include <QComboBox>
-#include <QDockWidget>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -31,6 +30,7 @@
 #include <QSpinBox>
 #include <QSplitter>
 #include <QStatusBar>
+#include <QTabWidget>
 #include <QTextBrowser>
 #include <QTimer>
 #include <QToolButton>
@@ -39,7 +39,6 @@
 namespace flipman {
 
 namespace {
-
     QString hslString(const QColor& color)
     {
         float h = 0.0f;
@@ -68,47 +67,97 @@ class WindowPrivate : public QObject {
 public:
     WindowPrivate();
     ~WindowPrivate() override;
-
     void init();
-
     QWidget* createControls(QWidget* parent);
     QWidget* createForm(QWidget* parent);
     QWidget* createPreview(QWidget* parent);
     QWidget* createStyleEditor(QWidget* parent);
+    QWidget* createVideoCapture(QWidget* parent);
     QTreeWidget* createTree(QWidget* parent);
-
     void createMenus();
-    void createDocks();
 
     struct Data {
-        QPointer<Window> window;
-
+        int progress = 35;
         QPointer<QProgressBar> progressBar;
         QPointer<QLabel> statusLabel;
         QPointer<QTimer> timer;
-
         QPointer<QComboBox> colorRoleCombo;
         QPointer<QPushButton> colorButton;
         QPointer<QPushButton> copyColorButton;
         QPointer<QLabel> hslLabel;
-
         QPointer<QSpinBox> smallFontSpin;
         QPointer<QSpinBox> mediumFontSpin;
         QPointer<QSpinBox> largeFontSpin;
-
         QPointer<QSpinBox> smallIconSpin;
         QPointer<QSpinBox> mediumIconSpin;
         QPointer<QSpinBox> largeIconSpin;
-
-        int progress = 35;
+        QPointer<Window> window;
     };
-
     Data d;
 };
 
 WindowPrivate::WindowPrivate() {}
 
 WindowPrivate::~WindowPrivate() {}
+
+void
+WindowPrivate::init()
+{
+    createMenus();
+
+    QWidget* centralWidget = new QWidget(d.window);
+    QHBoxLayout* rootLayout = new QHBoxLayout(centralWidget);
+    rootLayout->setContentsMargins(0, 0, 0, 0);
+    rootLayout->setSpacing(0);
+
+    QSplitter* rootSplitter = new QSplitter(Qt::Horizontal, centralWidget);
+    rootSplitter->setChildrenCollapsible(false);
+
+    QWidget* leftPanel = createStyleEditor(rootSplitter);
+    leftPanel->setMinimumWidth(260);
+    leftPanel->setMaximumWidth(520);
+
+    QTabWidget* tabs = new QTabWidget(rootSplitter);
+    tabs->setDocumentMode(true);
+    tabs->tabBar()->setAutoFillBackground(true);
+    tabs->setTabPosition(QTabWidget::North);
+
+    QWidget* filmScannerPage = new QWidget(tabs);
+    QVBoxLayout* filmScannerLayout = new QVBoxLayout(filmScannerPage);
+    filmScannerLayout->setContentsMargins(12, 12, 12, 12);
+    filmScannerLayout->setSpacing(12);
+
+    QLabel* filmScannerLabel = new QLabel("Film Scanner", filmScannerPage);
+    filmScannerLabel->setAlignment(Qt::AlignCenter);
+    filmScannerLayout->addWidget(filmScannerLabel, 1);
+
+    tabs->addTab(filmScannerPage, "Film Scanner");
+    tabs->addTab(createVideoCapture(tabs), "Video Capture");
+    tabs->setCurrentIndex(1);
+
+    rootSplitter->addWidget(leftPanel);
+    rootSplitter->addWidget(tabs);
+    rootSplitter->setStretchFactor(0, 0);
+    rootSplitter->setStretchFactor(1, 1);
+    rootSplitter->setSizes({ 320, 880 });
+
+    rootLayout->addWidget(rootSplitter);
+
+    d.window->setCentralWidget(centralWidget);
+    d.window->statusBar()->showMessage("Stylesheet preview");
+
+    d.timer = new QTimer(this);
+    QObject::connect(d.timer, &QTimer::timeout, this, [this]() {
+        d.progress = (d.progress + 1) % 101;
+
+        if (d.progressBar)
+            d.progressBar->setValue(d.progress);
+    });
+    d.timer->start(80);
+
+    d.window->setWindowTitle("teststyle");
+    d.window->resize(1200, 700);
+}
 
 QWidget*
 WindowPrivate::createControls(QWidget* parent)
@@ -220,7 +269,8 @@ WindowPrivate::createPreview(QWidget* parent)
 {
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
-    layout->setSpacing(10);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(12);
 
     QTextBrowser* browser = new QTextBrowser(widget);
     browser->setHtml("<b>QTextBrowser</b><br>"
@@ -248,12 +298,73 @@ WindowPrivate::createPreview(QWidget* parent)
 }
 
 QWidget*
+WindowPrivate::createVideoCapture(QWidget* parent)
+{
+    QWidget* widget = new QWidget(parent);
+    QVBoxLayout* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+
+    QWidget* toolbar = new QWidget(widget);
+    toolbar->setFixedHeight(40);
+    toolbar->setProperty("role", "toolbar");
+
+    QHBoxLayout* toolbarLayout = new QHBoxLayout(toolbar);
+    toolbarLayout->setContentsMargins(12, 0, 12, 0);
+    toolbarLayout->setSpacing(8);
+    toolbarLayout->setAlignment(Qt::AlignVCenter);
+
+    QLabel* title = new QLabel("Preview Roles", toolbar);
+    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
+    toolbarLayout->addWidget(title);
+    toolbarLayout->addStretch(1);
+
+    QWidget* content = new QWidget(widget);
+    QHBoxLayout* contentLayout = new QHBoxLayout(content);
+    contentLayout->setContentsMargins(12, 12, 12, 12);
+    contentLayout->setSpacing(12);
+
+    QWidget* controls = createControls(content);
+    QWidget* form = createForm(content);
+    QTreeWidget* tree = createTree(content);
+    QWidget* preview = createPreview(content);
+
+    controls->setMinimumWidth(220);
+    form->setMinimumWidth(260);
+    tree->setMinimumWidth(320);
+    preview->setMinimumWidth(260);
+
+    contentLayout->addWidget(controls);
+    contentLayout->addWidget(form);
+    contentLayout->addWidget(tree, 1);
+    contentLayout->addWidget(preview, 1);
+
+    QFrame* statusFrame = new QFrame(widget);
+    statusFrame->setFrameShape(QFrame::StyledPanel);
+
+    QVBoxLayout* statusLayout = new QVBoxLayout(statusFrame);
+    statusLayout->setContentsMargins(10, 8, 10, 8);
+
+    d.statusLabel = new QLabel("Ready. Previewing stylesheet roles.", statusFrame);
+    d.statusLabel->setWordWrap(true);
+    statusLayout->addWidget(d.statusLabel);
+
+    layout->addWidget(toolbar);
+    layout->addWidget(content, 1);
+    layout->addWidget(statusFrame);
+
+    return widget;
+}
+
+QWidget*
 WindowPrivate::createStyleEditor(QWidget* parent)
 {
     using Style = flipman::sdk::core::Style;
 
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
+    layout->setContentsMargins(12, 12, 12, 12);
     layout->setSpacing(10);
 
     QString* loadedStylesheetFile = new QString;
@@ -329,17 +440,18 @@ WindowPrivate::createStyleEditor(QWidget* parent)
         loadStylesheet(filename);
     });
 
-    QObject::connect(reloadStylesheetButton, &QPushButton::clicked, this, [this, loadedStylesheetFile, loadStylesheet]() {
-        if (loadedStylesheetFile->isEmpty()) {
-            if (d.statusLabel)
-                d.statusLabel->setText("No external stylesheet loaded");
+    QObject::connect(reloadStylesheetButton, &QPushButton::clicked, this,
+                     [this, loadedStylesheetFile, loadStylesheet]() {
+                         if (loadedStylesheetFile->isEmpty()) {
+                             if (d.statusLabel)
+                                 d.statusLabel->setText("No external stylesheet loaded");
 
-            qWarning() << "no external stylesheet loaded";
-            return;
-        }
+                             qWarning() << "no external stylesheet loaded";
+                             return;
+                         }
 
-        loadStylesheet(*loadedStylesheetFile);
-    });
+                         loadStylesheet(*loadedStylesheetFile);
+                     });
 
     QObject::connect(clearStylesheetButton, &QPushButton::clicked, this, [this, loadedStylesheetFile]() {
         qApp->setStyleSheet(QString());
@@ -514,94 +626,8 @@ WindowPrivate::createMenus()
     submenu->addAction("Sub Action 2");
 }
 
-void
-WindowPrivate::createDocks()
-{
-    QDockWidget* styleDock = new QDockWidget("Style Editor", d.window);
-    styleDock->setObjectName("StyleEditorDock");
-    styleDock->setWidget(createStyleEditor(styleDock));
-    d.window->addDockWidget(Qt::LeftDockWidgetArea, styleDock);
-
-    QDockWidget* dock = new QDockWidget("Dock Widget", d.window);
-    dock->setObjectName("StylePreviewDock");
-
-    QWidget* dockContent = new QWidget(dock);
-    dockContent->setProperty("DockWidget", true);
-
-    QVBoxLayout* dockLayout = new QVBoxLayout(dockContent);
-    dockLayout->addWidget(new QLabel("Dock content", dockContent));
-    dockLayout->addWidget(new QPushButton("Dock Button", dockContent));
-    dockLayout->addStretch();
-
-    dock->setWidget(dockContent);
-    d.window->addDockWidget(Qt::RightDockWidgetArea, dock);
-}
-
-void
-WindowPrivate::init()
-{
-    createMenus();
-
-    QWidget* centralWidget = new QWidget(d.window);
-    QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(12, 12, 12, 12);
-    mainLayout->setSpacing(12);
-
-    QLabel* titleLabel = new QLabel("Qt Stylesheet Preview", centralWidget);
-    QFont titleFont = titleLabel->font();
-    titleFont.setBold(true);
-    titleFont.setPointSize(titleFont.pointSize() + 5);
-    titleLabel->setFont(titleFont);
-
-    QLabel* infoLabel = new QLabel("Preview window for testing the application stylesheet across common Qt widgets.",
-                                   centralWidget);
-    infoLabel->setWordWrap(true);
-
-    QSplitter* splitter = new QSplitter(Qt::Horizontal, centralWidget);
-    splitter->addWidget(createControls(splitter));
-    splitter->addWidget(createForm(splitter));
-    splitter->addWidget(createTree(splitter));
-    splitter->addWidget(createPreview(splitter));
-    splitter->setStretchFactor(0, 0);
-    splitter->setStretchFactor(1, 0);
-    splitter->setStretchFactor(2, 1);
-    splitter->setStretchFactor(3, 1);
-
-    QFrame* statusFrame = new QFrame(centralWidget);
-    statusFrame->setFrameShape(QFrame::StyledPanel);
-
-    QVBoxLayout* statusLayout = new QVBoxLayout(statusFrame);
-    statusLayout->setContentsMargins(10, 8, 10, 8);
-
-    d.statusLabel = new QLabel("Ready. Open the menus and dock to inspect more styled widgets.", statusFrame);
-    d.statusLabel->setWordWrap(true);
-    statusLayout->addWidget(d.statusLabel);
-
-    mainLayout->addWidget(titleLabel);
-    mainLayout->addWidget(infoLabel);
-    mainLayout->addWidget(splitter, 1);
-    mainLayout->addWidget(statusFrame);
-
-    d.window->setCentralWidget(centralWidget);
-    d.window->statusBar()->showMessage("Stylesheet preview");
-
-    createDocks();
-
-    d.timer = new QTimer(this);
-    QObject::connect(d.timer, &QTimer::timeout, this, [this]() {
-        d.progress = (d.progress + 1) % 101;
-
-        if (d.progressBar)
-            d.progressBar->setValue(d.progress);
-    });
-    d.timer->start(80);
-
-    d.window->setWindowTitle("teststyle");
-    d.window->resize(1200, 700);
-}
-
 Window::Window(QWidget* parent)
-    : QMainWindow(parent)
+    : sdk::widgets::Window(parent)
     , p(new WindowPrivate())
 {
     p->d.window = this;

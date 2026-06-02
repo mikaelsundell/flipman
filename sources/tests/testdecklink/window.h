@@ -4,14 +4,14 @@
 
 #pragma once
 
-#include <QMainWindow>
+#include <flipmansdk/widgets/window.h>
 #include <QScopedPointer>
 
 namespace flipman {
 
 class WindowPrivate;
 
-class Window : public QMainWindow {
+class Window : public sdk::widgets::Window {
     Q_OBJECT
 public:
     explicit Window(QWidget* parent = nullptr);

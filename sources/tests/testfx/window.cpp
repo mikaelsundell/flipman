@@ -84,19 +84,18 @@ public:
         QString inputFile;
         QString dataPath;
         QString currentShader;
-
         QPointer<Window> window;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
         QPointer<QSplitter> splitter;
         QPointer<QWidget> parameterPanel;
-
+        QPointer<QWidget> parameterContainer;
+        QPointer<QVBoxLayout> parameterLayout;
         sdk::av::Media media;
         sdk::av::TimeRange timeRange;
         sdk::render::ImageLayer imageLayer;
     };
-
     Data d;
 };
 
@@ -159,19 +158,17 @@ WindowPrivate::loadShader(const QString& shader)
 void
 WindowPrivate::rebuildParameterPanel()
 {
-    if (!d.splitter)
+    if (!d.parameterContainer || !d.parameterLayout)
         return;
 
     if (d.parameterPanel) {
-        d.parameterPanel->deleteLater();
+        d.parameterLayout->removeWidget(d.parameterPanel);
+        delete d.parameterPanel;
         d.parameterPanel = nullptr;
     }
 
-    d.parameterPanel = addParameterPanel(d.splitter);
-    d.splitter->addWidget(d.parameterPanel);
-    d.splitter->setStretchFactor(0, 1);
-    d.splitter->setStretchFactor(1, 0);
-    d.splitter->setSizes({ 900, 320 });
+    d.parameterPanel = addParameterPanel(d.parameterContainer);
+    d.parameterLayout->addWidget(d.parameterPanel);
 }
 
 QSlider*
@@ -204,7 +201,7 @@ WindowPrivate::addDoubleSpinBox(double value, double minValue, double maxValue, 
     spin->setSingleStep(0.01);
     spin->setRange(minValue, maxValue);
     spin->setValue(value);
-    spin->setFixedWidth(72);
+    spin->setFixedWidth(80);
     spin->setAlignment(Qt::AlignCenter);
     return spin;
 }
@@ -215,7 +212,7 @@ WindowPrivate::addIntSpinBox(int value, int minValue, int maxValue, QWidget* par
     QSpinBox* spin = new QSpinBox(parent);
     spin->setRange(minValue, maxValue);
     spin->setValue(value);
-    spin->setFixedWidth(72);
+    spin->setFixedWidth(80);
     spin->setAlignment(Qt::AlignCenter);
     return spin;
 }
@@ -359,8 +356,8 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
-    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -376,7 +373,7 @@ WindowPrivate::addVec2Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         rowLayout->setSpacing(12);
 
         QLabel* componentLabel = new QLabel(name, row);
-        componentLabel->setFixedWidth(60);
+        componentLabel->setFixedWidth(80);
         componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
@@ -454,8 +451,8 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
-    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -473,7 +470,7 @@ WindowPrivate::addVec3Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         rowLayout->setSpacing(12);
 
         QLabel* componentLabel = new QLabel(name, row);
-        componentLabel->setFixedWidth(60);
+        componentLabel->setFixedWidth(80);
         componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
@@ -571,8 +568,8 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
     QFont font = title->font();
     font.setBold(true);
     title->setFont(font);
-    title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-    title->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    title->setFixedWidth(80);
+    title->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     layout->addWidget(title);
 
     QDoubleSpinBox* xSpin = nullptr;
@@ -592,7 +589,7 @@ WindowPrivate::addVec4Widget(const sdk::render::ShaderDescriptor::ShaderParamete
         rowLayout->setSpacing(12);
 
         QLabel* componentLabel = new QLabel(name, row);
-        componentLabel->setFixedWidth(60);
+        componentLabel->setFixedWidth(80);
         componentLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
         slider = addFloatSlider(v, minValue, maxValue, row);
@@ -882,9 +879,8 @@ void
 WindowPrivate::init()
 {
     const QStringList args = QCoreApplication::arguments();
-    if (args.size() > 1) {
+    if (args.size() > 1)
         d.inputFile = args.at(1);
-    }
 
     d.dataPath = sdk::core::Environment::resourcePath("../../../data");
 
@@ -906,7 +902,6 @@ WindowPrivate::init()
     Q_ASSERT(d.media.isValid() && "error open media");
 
     d.timeRange = d.media.timeRange();
-
     d.media.read();
 
     sdk::core::ImageBuffer image = d.media.image();
@@ -924,16 +919,15 @@ WindowPrivate::init()
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
-    d.splitter = new QSplitter(Qt::Horizontal, centralWidget);
+    QWidget* controlsWidget = new QWidget(centralWidget);
+    controlsWidget->setFixedHeight(40);
+    controlsWidget->setProperty("role", "toolbar");
 
-    QWidget* leftWidget = new QWidget(d.splitter);
-    QVBoxLayout* leftLayout = new QVBoxLayout(leftWidget);
-    leftLayout->setContentsMargins(0, 0, 0, 0);
-
-    QWidget* controlsWidget = new QWidget(leftWidget);
     QHBoxLayout* controlsLayout = new QHBoxLayout(controlsWidget);
-    controlsLayout->setContentsMargins(0, 0, 0, 0);
+    controlsLayout->setContentsMargins(8, 0, 8, 0);
     controlsLayout->setSpacing(8);
     controlsLayout->setAlignment(Qt::AlignVCenter);
 
@@ -979,13 +973,23 @@ WindowPrivate::init()
     controlsLayout->addSpacing(16);
     controlsLayout->addWidget(shaderLabel, 0, Qt::AlignVCenter);
     controlsLayout->addWidget(shaderCombo, 0, Qt::AlignVCenter);
-    controlsLayout->addStretch();
+    controlsLayout->addStretch(1);
     controlsLayout->addWidget(zoomLabel, 0, Qt::AlignVCenter);
-    leftLayout->addWidget(controlsWidget);
+
+    mainLayout->addWidget(controlsWidget);
+
+    d.splitter = new QSplitter(Qt::Horizontal, centralWidget);
+    d.splitter->setHandleWidth(1);
+
+    QWidget* leftWidget = new QWidget(d.splitter);
+    QVBoxLayout* leftLayout = new QVBoxLayout(leftWidget);
+    leftLayout->setContentsMargins(8, 8, 8, 8);
+    leftLayout->setSpacing(0);
 
     QFrame* viewerFrame = new QFrame(leftWidget);
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);
+    frameLayout->setSpacing(0);
 
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
     d.viewer->setResolution(QSize(1920, 1080));
@@ -993,11 +997,11 @@ WindowPrivate::init()
     d.viewer->setImageLayers({ d.imageLayer });
 
     frameLayout->addWidget(d.viewer);
-    leftLayout->addWidget(viewerFrame);
+    leftLayout->addWidget(viewerFrame, 1);
 
     QWidget* timelineWidget = new QWidget(leftWidget);
     QHBoxLayout* timelineLayout = new QHBoxLayout(timelineWidget);
-    timelineLayout->setContentsMargins(0, 0, 0, 0);
+    timelineLayout->setContentsMargins(8, 0, 8, 0);
     timelineLayout->setSpacing(8);
 
     d.timelineSlider = new QSlider(Qt::Horizontal, timelineWidget);
@@ -1020,15 +1024,21 @@ WindowPrivate::init()
     leftLayout->addWidget(timelineWidget);
     updateTimelineLabel();
 
-    d.parameterPanel = addParameterPanel(d.splitter);
+    d.parameterContainer = new QWidget(d.splitter);
+    d.parameterLayout = new QVBoxLayout(d.parameterContainer);
+    d.parameterLayout->setContentsMargins(8, 8, 8, 8);
+    d.parameterLayout->setSpacing(0);
+
+    d.parameterPanel = addParameterPanel(d.parameterContainer);
+    d.parameterLayout->addWidget(d.parameterPanel);
 
     d.splitter->addWidget(leftWidget);
-    d.splitter->addWidget(d.parameterPanel);
+    d.splitter->addWidget(d.parameterContainer);
     d.splitter->setStretchFactor(0, 1);
     d.splitter->setStretchFactor(1, 0);
     d.splitter->setSizes({ 900, 320 });
 
-    mainLayout->addWidget(d.splitter);
+    mainLayout->addWidget(d.splitter, 1);
 
     connect(fitButton, &QPushButton::clicked, this, [this]() {
         if (d.viewer)
@@ -1078,7 +1088,7 @@ WindowPrivate::init()
 
     d.window->setWindowTitle("testviewer");
     d.window->setCentralWidget(centralWidget);
-    d.window->resize(1200, 700);
+    d.window->resize(1200, 800);
 }
 
 void
@@ -1145,7 +1155,7 @@ WindowPrivate::update()
 }
 
 Window::Window(QWidget* parent)
-    : QMainWindow(parent)
+    : sdk::widgets::Window(parent)
     , p(new WindowPrivate())
 {
     p->d.window = this;

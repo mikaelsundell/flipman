@@ -3,16 +3,13 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/widgets/viewer.h>
-
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/render/renderengine.h>
-
 #include <QColorSpace>
 #include <QDebug>
 #include <QMouseEvent>
 #include <QPointer>
-
 #include <algorithm>
 #include <cmath>
 

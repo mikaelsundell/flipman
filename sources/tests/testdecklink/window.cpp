@@ -3,9 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-
 #include <DeckLinkAPI.h>
-
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -17,7 +15,6 @@
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QTimer>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -147,20 +144,18 @@ colorPatchRgbAt(int x, int y, int width, int height, const PatternOptions& optio
     }
 
     constexpr std::array<RGB, 12> patches = { {
-        { 1.0, 1.0, 1.0 },     // white
-        { 0.75, 0.75, 0.75 },  // 75% gray
-        { 0.50, 0.50, 0.50 },  // 50% gray
-        { 0.0, 0.0, 0.0 },     // black
-
-        { 1.0, 0.0, 0.0 },     // red
-        { 0.0, 1.0, 0.0 },     // green
-        { 0.0, 0.0, 1.0 },     // blue
-        { 0.18, 0.18, 0.18 },  // 18% gray
-
-        { 1.0, 1.0, 0.0 },    // yellow
-        { 0.0, 1.0, 1.0 },    // cyan
-        { 1.0, 0.0, 1.0 },    // magenta
-        { 0.10, 0.10, 0.10 }  // 10% gray
+        { 1.0, 1.0, 1.0 },
+        { 0.75, 0.75, 0.75 },
+        { 0.50, 0.50, 0.50 },
+        { 0.0, 0.0, 0.0 },
+        { 1.0, 0.0, 0.0 },
+        { 0.0, 1.0, 0.0 },
+        { 0.0, 0.0, 1.0 },
+        { 0.18, 0.18, 0.18 },
+        { 1.0, 1.0, 0.0 },
+        { 0.0, 1.0, 1.0 },
+        { 1.0, 0.0, 1.0 },
+        { 0.10, 0.10, 0.10 }
     } };
 
     const int cols = 4;
@@ -210,9 +205,8 @@ patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
     }
 
     if (options.pattern == TestPattern::GrayRampThreeWhitePatches) {
-        if (insideSquare(width / 4, cy) || insideSquare(width / 2, cy) || insideSquare(width * 3 / 4, cy)) {
+        if (insideSquare(width / 4, cy) || insideSquare(width / 2, cy) || insideSquare(width * 3 / 4, cy))
             rgb = makeGray(1.0, options);
-        }
     }
 
     return rgb;
@@ -311,27 +305,35 @@ public:
     ~WindowPrivate() override;
 
     void init();
-    bool openDeckLink();
     void closeDeckLink();
-    void sendPattern();
+    bool openDeckLink();
+    void populateDevices();
     void resendFrame();
+    void sendPattern();
+    void setControlsEnabled(bool enabled);
+    void setGammaAndSend(double gamma);
     void stopOutput();
     void updateStatus(const QString& text);
 
     PatternOptions patternOptions() const;
     TestPattern currentPattern() const;
-    void setGammaAndSend(double gamma);
 
     struct Data {
         QPointer<Window> window;
-        QPointer<QComboBox> patternCombo;
-        QPointer<QComboBox> modeCombo;
+        QPointer<QComboBox> deviceCombo;
         QPointer<QComboBox> formatCombo;
+        QPointer<QComboBox> modeCombo;
+        QPointer<QComboBox> patternCombo;
         QPointer<QDoubleSpinBox> gammaSpin;
         QPointer<QCheckBox> gammaCheck;
         QPointer<QCheckBox> legalRangeCheck;
+        QPointer<QPushButton> gamma22Button;
+        QPointer<QPushButton> gamma24Button;
+        QPointer<QPushButton> sendButton;
+        QPointer<QPushButton> stopButton;
         QPointer<QLabel> statusLabel;
         QPointer<QTimer> outputTimer;
+        QPointer<QWidget> controlsWidget;
 
         IDeckLinkIterator* iterator = nullptr;
         IDeckLink* deckLink = nullptr;
@@ -361,6 +363,78 @@ WindowPrivate::updateStatus(const QString& text)
 {
     if (d.statusLabel)
         d.statusLabel->setText(text);
+}
+
+void
+WindowPrivate::setControlsEnabled(bool enabled)
+{
+    if (d.controlsWidget)
+        d.controlsWidget->setEnabled(enabled);
+
+    if (d.sendButton)
+        d.sendButton->setEnabled(enabled);
+
+    if (d.stopButton)
+        d.stopButton->setEnabled(enabled);
+
+    if (d.gamma22Button)
+        d.gamma22Button->setEnabled(enabled);
+
+    if (d.gamma24Button)
+        d.gamma24Button->setEnabled(enabled);
+}
+
+void
+WindowPrivate::populateDevices()
+{
+    if (!d.deviceCombo)
+        return;
+
+    d.deviceCombo->clear();
+
+    IDeckLinkIterator* iterator = CreateDeckLinkIteratorInstance();
+    if (!iterator) {
+        d.deviceCombo->addItem("Desktop Video not available", -1);
+        d.deviceCombo->setEnabled(false);
+        setControlsEnabled(false);
+        updateStatus("Could not create DeckLink iterator. Is Blackmagic Desktop Video installed?");
+        return;
+    }
+
+    int index = 0;
+    IDeckLink* deckLink = nullptr;
+
+    while (iterator->Next(&deckLink) == S_OK && deckLink) {
+        CFStringRef displayName = nullptr;
+        QString name = QString("DeckLink Device %1").arg(index + 1);
+
+        if (deckLink->GetDisplayName(&displayName) == S_OK && displayName) {
+            name = QString::fromCFString(displayName);
+            CFRelease(displayName);
+        }
+
+        d.deviceCombo->addItem(name, index);
+
+        safeRelease(deckLink);
+        ++index;
+    }
+
+    safeRelease(iterator);
+
+    const bool hasDevices = index > 0;
+
+    if (!hasDevices) {
+        d.deviceCombo->addItem("No DeckLink / UltraStudio device found", -1);
+        d.deviceCombo->setEnabled(false);
+        setControlsEnabled(false);
+        updateStatus("No DeckLink / UltraStudio device found.");
+        return;
+    }
+
+    d.deviceCombo->setEnabled(true);
+    d.deviceCombo->setCurrentIndex(0);
+    setControlsEnabled(true);
+    updateStatus(QString("Found %1 DeckLink device%2.").arg(index).arg(index == 1 ? "" : "s"));
 }
 
 TestPattern
@@ -406,20 +480,40 @@ WindowPrivate::openDeckLink()
     if (d.output)
         return true;
 
+    const int selectedDevice = d.deviceCombo ? d.deviceCombo->currentData().toInt() : -1;
+    if (selectedDevice < 0) {
+        updateStatus("No DeckLink / UltraStudio device selected.");
+        return false;
+    }
+
     d.iterator = CreateDeckLinkIteratorInstance();
     if (!d.iterator) {
         updateStatus("Could not create DeckLink iterator. Is Blackmagic Desktop Video installed?");
         return false;
     }
 
-    if (d.iterator->Next(&d.deckLink) != S_OK || !d.deckLink) {
-        updateStatus("No DeckLink / UltraStudio device found.");
+    int index = 0;
+    IDeckLink* deckLink = nullptr;
+
+    while (d.iterator->Next(&deckLink) == S_OK && deckLink) {
+        if (index == selectedDevice) {
+            d.deckLink = deckLink;
+            deckLink = nullptr;
+            break;
+        }
+
+        safeRelease(deckLink);
+        ++index;
+    }
+
+    if (!d.deckLink) {
+        updateStatus("Selected DeckLink / UltraStudio device could not be opened.");
         closeDeckLink();
         return false;
     }
 
     if (d.deckLink->QueryInterface(IID_IDeckLinkOutput, reinterpret_cast<void**>(&d.output)) != S_OK || !d.output) {
-        updateStatus("DeckLink device does not support output.");
+        updateStatus("Selected DeckLink device does not support output.");
         closeDeckLink();
         return false;
     }
@@ -507,12 +601,10 @@ WindowPrivate::sendPattern()
 
     safeRelease(d.frame);
 
-    if (d.pixelFormat == bmdFormat10BitYUV) {
+    if (d.pixelFormat == bmdFormat10BitYUV)
         d.rowBytes = ((d.width + 47) / 48) * 128;
-    }
-    else {
+    else
         d.rowBytes = d.width * 2;
-    }
 
     if (d.output->CreateVideoFrame(d.width, d.height, d.rowBytes, d.pixelFormat, bmdFrameFlagDefault, &d.frame) != S_OK
         || !d.frame) {
@@ -523,12 +615,10 @@ WindowPrivate::sendPattern()
 
     const PatternOptions options = patternOptions();
 
-    if (d.pixelFormat == bmdFormat10BitYUV) {
+    if (d.pixelFormat == bmdFormat10BitYUV)
         fillRec709Pattern10Bit(d.frame, d.width, d.height, d.rowBytes, options);
-    }
-    else {
+    else
         fillRec709Pattern8Bit(d.frame, d.width, d.height, d.rowBytes, options);
-    }
 
     resendFrame();
 
@@ -547,36 +637,59 @@ WindowPrivate::init()
 {
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
-    mainLayout->setContentsMargins(12, 12, 12, 12);
-    mainLayout->setSpacing(12);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
-    QLabel* titleLabel = new QLabel("DeckLink Rec.709 Test Generator", centralWidget);
+    QWidget* toolbar = new QWidget(centralWidget);
+    toolbar->setFixedHeight(40);
+    toolbar->setProperty("role", "toolbar");
+
+    QHBoxLayout* toolbarLayout = new QHBoxLayout(toolbar);
+    toolbarLayout->setContentsMargins(12, 0, 12, 0);
+    toolbarLayout->setSpacing(8);
+    toolbarLayout->setAlignment(Qt::AlignVCenter);
+
+    QLabel* titleLabel = new QLabel("DeckLink Rec.709 Test Generator", toolbar);
     QFont titleFont = titleLabel->font();
     titleFont.setBold(true);
-    titleFont.setPointSize(titleFont.pointSize() + 5);
     titleLabel->setFont(titleFont);
+
+    toolbarLayout->addWidget(titleLabel);
+    toolbarLayout->addStretch(1);
+
+    QWidget* contentWidget = new QWidget(centralWidget);
+    QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
+    contentLayout->setContentsMargins(12, 12, 12, 12);
+    contentLayout->setSpacing(12);
 
     QLabel* infoLabel
         = new QLabel("Generates Rec.709 patterns and continuously sends them to the UltraStudio / DeckLink output.",
-                     centralWidget);
+                     contentWidget);
     infoLabel->setWordWrap(true);
 
-    QGroupBox* outputBox = new QGroupBox("Output", centralWidget);
+    QGroupBox* outputBox = new QGroupBox("Output", contentWidget);
     QVBoxLayout* outputLayout = new QVBoxLayout(outputBox);
     outputLayout->setSpacing(10);
 
-    d.modeCombo = new QComboBox(outputBox);
+    d.deviceCombo = new QComboBox(outputBox);
+
+    d.controlsWidget = new QWidget(outputBox);
+    QVBoxLayout* controlsLayout = new QVBoxLayout(d.controlsWidget);
+    controlsLayout->setContentsMargins(0, 0, 0, 0);
+    controlsLayout->setSpacing(10);
+
+    d.modeCombo = new QComboBox(d.controlsWidget);
     d.modeCombo->addItem("1080p25", QVariant::fromValue(int(bmdModeHD1080p25)));
     d.modeCombo->addItem("1080p24", QVariant::fromValue(int(bmdModeHD1080p24)));
     d.modeCombo->addItem("1080p2398", QVariant::fromValue(int(bmdModeHD1080p2398)));
     d.modeCombo->addItem("1080i50", QVariant::fromValue(int(bmdModeHD1080i50)));
 
-    d.formatCombo = new QComboBox(outputBox);
+    d.formatCombo = new QComboBox(d.controlsWidget);
     d.formatCombo->addItem("10-bit YUV", QVariant::fromValue(int(bmdFormat10BitYUV)));
     d.formatCombo->addItem("8-bit UYVY", QVariant::fromValue(int(bmdFormat8BitYUV)));
     d.formatCombo->setCurrentIndex(0);
 
-    d.patternCombo = new QComboBox(outputBox);
+    d.patternCombo = new QComboBox(d.controlsWidget);
     d.patternCombo->addItem("Color bars 75%");
     d.patternCombo->addItem("Rec.709 patches + gray axis");
     d.patternCombo->addItem("Gray ramp");
@@ -584,58 +697,72 @@ WindowPrivate::init()
     d.patternCombo->addItem("Gray ramp + 3 white patches");
     d.patternCombo->setCurrentIndex(3);
 
-    d.gammaSpin = new QDoubleSpinBox(outputBox);
+    d.gammaSpin = new QDoubleSpinBox(d.controlsWidget);
     d.gammaSpin->setDecimals(2);
     d.gammaSpin->setRange(1.00, 3.00);
     d.gammaSpin->setSingleStep(0.10);
     d.gammaSpin->setValue(2.40);
     d.gammaSpin->setFixedWidth(90);
+    d.gammaSpin->setAlignment(Qt::AlignCenter);
 
-    d.gammaCheck = new QCheckBox("Apply gamma encoding", outputBox);
+    d.gammaCheck = new QCheckBox("Apply gamma encoding", d.controlsWidget);
     d.gammaCheck->setChecked(false);
 
-    d.legalRangeCheck = new QCheckBox("Legal video range", outputBox);
+    d.legalRangeCheck = new QCheckBox("Legal video range", d.controlsWidget);
     d.legalRangeCheck->setChecked(true);
 
-    auto addRow = [&](const QString& label, QWidget* widget) {
-        QWidget* row = new QWidget(outputBox);
+    auto addRow = [](QVBoxLayout* parentLayout, const QString& label, QWidget* widget, bool expanding) {
+        QWidget* row = new QWidget(parentLayout->parentWidget());
         QHBoxLayout* layout = new QHBoxLayout(row);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(10);
 
         QLabel* title = new QLabel(label, row);
         title->setFixedWidth(100);
+        title->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
         layout->addWidget(title);
-        layout->addWidget(widget, 1);
-        outputLayout->addWidget(row);
+
+        if (expanding) {
+            widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            layout->addWidget(widget, 1);
+        }
+        else {
+            layout->addWidget(widget, 0, Qt::AlignLeft | Qt::AlignVCenter);
+            layout->addStretch(1);
+        }
+
+        parentLayout->addWidget(row);
     };
 
-    addRow("Mode", d.modeCombo);
-    addRow("Format", d.formatCombo);
-    addRow("Pattern", d.patternCombo);
-    addRow("Gamma", d.gammaSpin);
-    outputLayout->addWidget(d.gammaCheck);
-    outputLayout->addWidget(d.legalRangeCheck);
+    addRow(controlsLayout, "Device", d.deviceCombo, true);
+    addRow(controlsLayout, "Mode", d.modeCombo, true);
+    addRow(controlsLayout, "Format", d.formatCombo, true);
+    addRow(controlsLayout, "Pattern", d.patternCombo, true);
+    addRow(controlsLayout, "Gamma", d.gammaSpin, false);
+    controlsLayout->addWidget(d.gammaCheck);
+    controlsLayout->addWidget(d.legalRangeCheck);
 
-    QWidget* buttonsRow = new QWidget(centralWidget);
+    outputLayout->addWidget(d.controlsWidget);
+
+    QWidget* buttonsRow = new QWidget(contentWidget);
     QHBoxLayout* buttonsLayout = new QHBoxLayout(buttonsRow);
     buttonsLayout->setContentsMargins(0, 0, 0, 0);
     buttonsLayout->setSpacing(8);
 
-    QPushButton* sendButton = new QPushButton("Send Pattern", buttonsRow);
-    QPushButton* stopButton = new QPushButton("Stop Output", buttonsRow);
-    QPushButton* gamma22Button = new QPushButton("2.2", buttonsRow);
-    QPushButton* gamma24Button = new QPushButton("2.4", buttonsRow);
+    d.sendButton = new QPushButton("Send Pattern", buttonsRow);
+    d.stopButton = new QPushButton("Stop Output", buttonsRow);
+    d.gamma22Button = new QPushButton("2.2", buttonsRow);
+    d.gamma24Button = new QPushButton("2.4", buttonsRow);
 
-    buttonsLayout->addWidget(sendButton);
-    buttonsLayout->addWidget(stopButton);
+    buttonsLayout->addWidget(d.sendButton);
+    buttonsLayout->addWidget(d.stopButton);
     buttonsLayout->addSpacing(16);
-    buttonsLayout->addWidget(gamma22Button);
-    buttonsLayout->addWidget(gamma24Button);
+    buttonsLayout->addWidget(d.gamma22Button);
+    buttonsLayout->addWidget(d.gamma24Button);
     buttonsLayout->addStretch();
 
-    QFrame* statusFrame = new QFrame(centralWidget);
+    QFrame* statusFrame = new QFrame(contentWidget);
     statusFrame->setFrameShape(QFrame::StyledPanel);
 
     QVBoxLayout* statusLayout = new QVBoxLayout(statusFrame);
@@ -648,22 +775,26 @@ WindowPrivate::init()
     d.outputTimer = new QTimer(this);
     d.outputTimer->setTimerType(Qt::PreciseTimer);
 
-    mainLayout->addWidget(titleLabel);
-    mainLayout->addWidget(infoLabel);
-    mainLayout->addWidget(outputBox);
-    mainLayout->addWidget(buttonsRow);
-    mainLayout->addWidget(statusFrame);
-    mainLayout->addStretch();
+    contentLayout->addWidget(infoLabel);
+    contentLayout->addWidget(outputBox);
+    contentLayout->addWidget(buttonsRow);
+    contentLayout->addWidget(statusFrame);
+    contentLayout->addStretch();
+
+    mainLayout->addWidget(toolbar);
+    mainLayout->addWidget(contentWidget, 1);
 
     QObject::connect(d.outputTimer, &QTimer::timeout, this, [this]() { resendFrame(); });
 
-    QObject::connect(sendButton, &QPushButton::clicked, this, [this]() { sendPattern(); });
+    QObject::connect(d.deviceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        closeDeckLink();
+        setControlsEnabled(d.deviceCombo && d.deviceCombo->currentData().toInt() >= 0);
+    });
 
-    QObject::connect(stopButton, &QPushButton::clicked, this, [this]() { stopOutput(); });
-
-    QObject::connect(gamma22Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.20); });
-
-    QObject::connect(gamma24Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.40); });
+    QObject::connect(d.sendButton, &QPushButton::clicked, this, [this]() { sendPattern(); });
+    QObject::connect(d.stopButton, &QPushButton::clicked, this, [this]() { stopOutput(); });
+    QObject::connect(d.gamma22Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.20); });
+    QObject::connect(d.gamma24Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.40); });
 
     QObject::connect(d.gammaSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
                      [this](double) { sendPattern(); });
@@ -681,13 +812,16 @@ WindowPrivate::init()
     QObject::connect(d.formatCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
                      [this](int) { sendPattern(); });
 
+    setControlsEnabled(false);
+    populateDevices();
+
     d.window->setWindowTitle("testdecklink");
     d.window->setCentralWidget(centralWidget);
     d.window->resize(720, 390);
 }
 
 Window::Window(QWidget* parent)
-    : QMainWindow(parent)
+    : sdk::widgets::Window(parent)
     , p(new WindowPrivate())
 {
     p->d.window = this;

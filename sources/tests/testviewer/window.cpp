@@ -96,11 +96,17 @@ WindowPrivate::init()
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->setSpacing(0);
 
     QWidget* controlsWidget = new QWidget(centralWidget);
+    controlsWidget->setFixedHeight(40);
+    controlsWidget->setProperty("role", "toolbar");
+
     QHBoxLayout* controlsLayout = new QHBoxLayout(controlsWidget);
-    controlsLayout->setContentsMargins(0, 0, 0, 0);
+    controlsLayout->setContentsMargins(8, 0, 8, 0);
     controlsLayout->setSpacing(8);
+    controlsLayout->setAlignment(Qt::AlignVCenter);
 
     QPushButton* fitButton = new QPushButton("Fit", controlsWidget);
     fitButton->setShortcut(QKeySequence(Qt::Key_F));
@@ -118,6 +124,7 @@ WindowPrivate::init()
     z100Button->setShortcut(QKeySequence(Qt::Key_4));
 
     QLabel* displayLabel = new QLabel("Display", controlsWidget);
+    displayLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
     QComboBox* displayCombo = new QComboBox(controlsWidget);
     displayCombo->setMinimumWidth(220);
@@ -130,24 +137,30 @@ WindowPrivate::init()
     zoomLabel->setMinimumWidth(60);
     zoomLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
 
-    controlsLayout->addWidget(fitButton);
-    controlsLayout->addWidget(z25Button);
-    controlsLayout->addWidget(z50Button);
-    controlsLayout->addWidget(z75Button);
-    controlsLayout->addWidget(z100Button);
+    controlsLayout->addWidget(fitButton, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z25Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z50Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z75Button, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(z100Button, 0, Qt::AlignVCenter);
     controlsLayout->addSpacing(16);
-    controlsLayout->addWidget(displayLabel);
-    controlsLayout->addWidget(displayCombo);
-    controlsLayout->addStretch();
-    controlsLayout->addWidget(zoomLabel);
+    controlsLayout->addWidget(displayLabel, 0, Qt::AlignVCenter);
+    controlsLayout->addWidget(displayCombo, 0, Qt::AlignVCenter);
+    controlsLayout->addStretch(1);
+    controlsLayout->addWidget(zoomLabel, 0, Qt::AlignVCenter);
 
     mainLayout->addWidget(controlsWidget);
 
-    QFrame* viewerFrame = new QFrame(centralWidget);
+    QWidget* contentWidget = new QWidget(centralWidget);
+    QVBoxLayout* contentLayout = new QVBoxLayout(contentWidget);
+    contentLayout->setContentsMargins(8, 8, 8, 8);
+    contentLayout->setSpacing(0);
+
+    QFrame* viewerFrame = new QFrame(contentWidget);
     viewerFrame->setFrameShape(QFrame::NoFrame);
 
     QVBoxLayout* frameLayout = new QVBoxLayout(viewerFrame);
     frameLayout->setContentsMargins(0, 0, 0, 0);
+    frameLayout->setSpacing(0);
 
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
     d.viewer->setResolution(QSize(1920, 1080));
@@ -159,11 +172,11 @@ WindowPrivate::init()
     }
 
     frameLayout->addWidget(d.viewer);
-    mainLayout->addWidget(viewerFrame, 1);
+    contentLayout->addWidget(viewerFrame, 1);
 
-    QWidget* timelineWidget = new QWidget(centralWidget);
+    QWidget* timelineWidget = new QWidget(contentWidget);
     QHBoxLayout* timelineLayout = new QHBoxLayout(timelineWidget);
-    timelineLayout->setContentsMargins(0, 0, 0, 0);
+    timelineLayout->setContentsMargins(8, 0, 8, 0);
     timelineLayout->setSpacing(8);
 
     d.timelineSlider = new QSlider(Qt::Horizontal, timelineWidget);
@@ -183,7 +196,8 @@ WindowPrivate::init()
     timelineLayout->addWidget(d.timelineSlider, 1);
     timelineLayout->addWidget(d.timelineLabel);
 
-    mainLayout->addWidget(timelineWidget);
+    contentLayout->addWidget(timelineWidget);
+    mainLayout->addWidget(contentWidget, 1);
 
     d.window->installEventFilter(this);
 
@@ -191,11 +205,8 @@ WindowPrivate::init()
             [this]() { d.viewer->setZoomMode(sdk::widgets::Viewer::FitToView); });
 
     connect(z25Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.25f); });
-
     connect(z50Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.5f); });
-
     connect(z75Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(0.75f); });
-
     connect(z100Button, &QPushButton::clicked, this, [this]() { d.viewer->setZoom(1.0f); });
 
     connect(displayCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
