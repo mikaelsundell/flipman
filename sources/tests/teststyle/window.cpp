@@ -389,12 +389,8 @@ WindowPrivate::createStyleEditor(QWidget* parent)
         return true;
     };
 
-    auto addSpinSliderRow = [](QFormLayout* formLayout,
-                               const QString& label,
-                               QSpinBox* spin,
-                               int minValue,
-                               int maxValue,
-                               int value) {
+    auto addSpinSliderRow = [](QFormLayout* formLayout, const QString& label, QSpinBox* spin, int minValue,
+                               int maxValue, int value) {
         QWidget* row = new QWidget(formLayout->parentWidget());
         QHBoxLayout* rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(0, 0, 0, 0);
@@ -431,11 +427,8 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     stylesheetLayout->addStretch();
 
     QObject::connect(loadStylesheetButton, &QPushButton::clicked, this, [this, loadStylesheet]() {
-        const QString filename = QFileDialog::getOpenFileName(
-            d.window,
-            "Load Stylesheet",
-            QString(),
-            "Qt Stylesheet (*.qss *.css);;All Files (*)");
+        const QString filename = QFileDialog::getOpenFileName(d.window, "Load Stylesheet", QString(),
+                                                              "Qt Stylesheet (*.qss *.css);;All Files (*)");
 
         loadStylesheet(filename);
     });

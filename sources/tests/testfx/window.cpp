@@ -78,7 +78,7 @@ public:
     QVariant parameterValue(const sdk::render::ShaderDescriptor::ShaderParameter& param) const;
 
     void seekFrame(int frame);
-    void updateTimelineLabel();
+    void updateTimeline();
 
     struct Data {
         QString inputFile;
@@ -991,8 +991,10 @@ WindowPrivate::init()
     frameLayout->setContentsMargins(0, 0, 0, 0);
     frameLayout->setSpacing(0);
 
+    QRect displayWindow = image.displayWindow();
+
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
-    d.viewer->setResolution(QSize(1920, 1080));
+    d.viewer->setResolution(QSize(displayWindow.width(), displayWindow.height()));
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     d.viewer->setImageLayers({ d.imageLayer });
 
@@ -1022,7 +1024,7 @@ WindowPrivate::init()
     timelineLayout->addWidget(d.timelineLabel);
 
     leftLayout->addWidget(timelineWidget);
-    updateTimelineLabel();
+    updateTimeline();
 
     d.parameterContainer = new QWidget(d.splitter);
     d.parameterLayout = new QVBoxLayout(d.parameterContainer);
@@ -1123,12 +1125,12 @@ WindowPrivate::seekFrame(int frame)
 
     d.imageLayer.setImage(image);
 
-    updateTimelineLabel();
+    updateTimeline();
     update();
 }
 
 void
-WindowPrivate::updateTimelineLabel()
+WindowPrivate::updateTimeline()
 {
     if (!d.timelineLabel)
         return;

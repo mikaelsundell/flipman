@@ -84,8 +84,6 @@ QuicktimeReaderPrivate::init()
 {
 }
 
-
-
 static QString
 pixelFormatName(OSType format)
 {

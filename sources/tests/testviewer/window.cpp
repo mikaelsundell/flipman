@@ -37,8 +37,7 @@ public:
 public:
     struct DisplayTransform {
         QString label;
-        sdk::render::ColorSpace colorSpace;
-        sdk::render::TransferFunction transferFunction;
+        sdk::render::DisplayTransform transform;
     };
     QVector<DisplayTransform> displayTransforms();
 
@@ -46,12 +45,10 @@ public:
     struct Data {
         QString inputFile;
         QString dataPath;
-
         QPointer<Window> window;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
-
         sdk::av::Media media;
         sdk::av::TimeRange timeRange;
         sdk::render::ImageLayer imageLayer;
@@ -73,7 +70,7 @@ WindowPrivate::init()
 
     sdk::core::File file(d.inputFile);
     if (!file.exists()) {
-#if (1)
+#if (0)
         const QString filename = "23.967.00086400.exr";
         file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
 #else
@@ -162,14 +159,28 @@ WindowPrivate::init()
     frameLayout->setContentsMargins(0, 0, 0, 0);
     frameLayout->setSpacing(0);
 
+    QRect displayWindow = image.displayWindow();
+
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
-    d.viewer->setResolution(QSize(1920, 1080));
+    d.viewer->setResolution(QSize(displayWindow.width(), displayWindow.height()));
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-    if (!transforms.isEmpty()) {
-        d.viewer->setDisplayColorSpace(transforms.first().colorSpace);
-        d.viewer->setDisplayTransferFunction(transforms.first().transferFunction);
+    const sdk::render::DisplayTransform displayTransform { sdk::render::ColorSpace::Rec709,
+                                                           sdk::render::TransferFunction::Gamma24 };
+
+    d.viewer->setDisplayTransform(displayTransform);
+
+    int defaultDisplayIndex = 0;
+
+    for (int i = 0; i < transforms.size(); ++i) {
+        if (transforms[i].transform.colorSpace == displayTransform.colorSpace
+            && transforms[i].transform.transferFunction == displayTransform.transferFunction) {
+            defaultDisplayIndex = i;
+            break;
+        }
     }
+
+    displayCombo->setCurrentIndex(defaultDisplayIndex);
 
     frameLayout->addWidget(d.viewer);
     contentLayout->addWidget(viewerFrame, 1);
@@ -218,10 +229,11 @@ WindowPrivate::init()
                 if (transformIndex < 0 || transformIndex >= transforms.size())
                     return;
 
-                const DisplayTransform& transform = transforms[transformIndex];
+                const DisplayTransform& displayTransform = transforms[transformIndex];
 
-                d.viewer->setDisplayColorSpace(transform.colorSpace);
-                d.viewer->setDisplayTransferFunction(transform.transferFunction);
+                d.viewer->setDisplayTransform(
+                    { displayTransform.transform.colorSpace, displayTransform.transform.transferFunction });
+
                 d.viewer->update();
             });
 
@@ -244,7 +256,6 @@ void
 WindowPrivate::update()
 {
     Q_ASSERT(d.viewer);
-
     d.viewer->setImageLayers({ d.imageLayer });
     d.viewer->update();
 }
@@ -329,17 +340,16 @@ WindowPrivate::displayTransforms()
 {
     using ColorSpace = sdk::render::ColorSpace;
     using TransferFunction = sdk::render::TransferFunction;
-
     return {
-        { "sRGB", ColorSpace::Rec709, TransferFunction::SRGB },
-        { "Rec.709 Gamma 2.2", ColorSpace::Rec709, TransferFunction::Gamma22 },
-        { "Rec.709 Gamma 2.4", ColorSpace::Rec709, TransferFunction::Gamma24 },
-        { "Rec.709 Gamma 2.6", ColorSpace::Rec709, TransferFunction::Gamma26 },
-        { "Display P3 sRGB", ColorSpace::DisplayP3, TransferFunction::SRGB },
-        { "Display P3 Gamma 2.2", ColorSpace::DisplayP3, TransferFunction::Gamma22 },
-        { "Display P3 Gamma 2.4", ColorSpace::DisplayP3, TransferFunction::Gamma24 },
-        { "DCI-P3 Gamma 2.6", ColorSpace::DCIP3, TransferFunction::Gamma26 },
-        { "Rec.2020 Gamma 2.4", ColorSpace::Rec2020, TransferFunction::Gamma24 },
+        { "sRGB", { ColorSpace::Rec709, TransferFunction::SRGB } },
+        { "Rec.709 Gamma 2.2", { ColorSpace::Rec709, TransferFunction::Gamma22 } },
+        { "Rec.709 Gamma 2.4", { ColorSpace::Rec709, TransferFunction::Gamma24 } },
+        { "Rec.709 Gamma 2.6", { ColorSpace::Rec709, TransferFunction::Gamma26 } },
+        { "Display P3 sRGB", { ColorSpace::DisplayP3, TransferFunction::SRGB } },
+        { "Display P3 Gamma 2.2", { ColorSpace::DisplayP3, TransferFunction::Gamma22 } },
+        { "Display P3 Gamma 2.4", { ColorSpace::DisplayP3, TransferFunction::Gamma24 } },
+        { "DCI-P3 Gamma 2.6", { ColorSpace::DCIP3, TransferFunction::Gamma26 } },
+        { "Rec.2020 Gamma 2.4", { ColorSpace::Rec2020, TransferFunction::Gamma24 } },
     };
 }
 

@@ -34,6 +34,7 @@ public:
     QString roleName(Style::ColorRole role) const;
     QString roleName(Style::IconRole role) const;
     QString roleName(Style::UIScale scale) const;
+
 public:
     struct IconKey {
         int role;
@@ -219,9 +220,7 @@ StylePrivate::updateTheme()
 {
     d.palette.clear();
 
-    auto map = [&](Style::ColorRole role, QColor color) {
-        d.palette[roleName(role)] = color;
-    };
+    auto map = [&](Style::ColorRole role, QColor color) { d.palette[roleName(role)] = color; };
 
     map(Style::ColorRole::Base, QColor::fromHsl(238, 24, 36));
     map(Style::ColorRole::BaseAlt, QColor::fromHsl(230, 18, 45));

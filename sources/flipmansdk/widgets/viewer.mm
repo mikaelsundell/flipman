@@ -3,6 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/widgets/viewer.h>
+#include <flipmansdk/core/core.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/render/renderengine.h>
@@ -12,162 +13,12 @@
 #include <QPointer>
 #include <algorithm>
 #include <cmath>
-
 #include <rhi/qrhi.h>
-
-#ifdef Q_OS_MACOS
 #include <AppKit/AppKit.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <QuartzCore/CAMetalLayer.h>
-#endif
 
 namespace flipman::sdk::widgets {
-
-#ifdef Q_OS_MACOS
-static CAMetalLayer*
-findMetalLayer(CALayer* layer)
-{
-    if (!layer)
-        return nil;
-    if ([layer isKindOfClass:CAMetalLayer.class])
-        return static_cast<CAMetalLayer*>(layer);
-    for (CALayer* sublayer in layer.sublayers) {
-        if (CAMetalLayer* metalLayer = findMetalLayer(sublayer))
-            return metalLayer;
-    }
-    return nil;
-}
-
-static QColorSpace::Primaries
-toQtPrimaries(render::ColorSpace colorSpace)
-{
-    switch (colorSpace) {
-    case render::ColorSpace::Auto:
-    case render::ColorSpace::Raw:
-    case render::ColorSpace::Rec709:
-        return QColorSpace::Primaries::SRgb;
-    case render::ColorSpace::DisplayP3:
-    case render::ColorSpace::DCIP3:
-        return QColorSpace::Primaries::DciP3D65;
-    case render::ColorSpace::Rec2020:
-        return QColorSpace::Primaries::Bt2020;
-    case render::ColorSpace::ACEScg:
-        return QColorSpace::Primaries::SRgb;
-    }
-    return QColorSpace::Primaries::SRgb;
-}
-
-static QColorSpace
-createQtDisplayColorSpace(render::ColorSpace colorSpace,
-                          render::TransferFunction transferFunction)
-{
-    if (colorSpace == render::ColorSpace::DisplayP3 &&
-        transferFunction == render::TransferFunction::SRGB) {
-        return QColorSpace(QColorSpace::NamedColorSpace::DisplayP3);
-    }
-
-    if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Auto) &&
-        transferFunction == render::TransferFunction::SRGB) {
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-    }
-
-    if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Auto) &&
-        transferFunction == render::TransferFunction::Linear) {
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgbLinear);
-    }
-
-    const QColorSpace::Primaries primaries = toQtPrimaries(colorSpace);
-
-    switch (transferFunction) {
-    case render::TransferFunction::Gamma22:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.2f);
-
-    case render::TransferFunction::Gamma24:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.4f);
-
-    case render::TransferFunction::Gamma25:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.5f);
-
-    case render::TransferFunction::Gamma26:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.6f);
-
-    case render::TransferFunction::Linear:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Linear);
-
-    case render::TransferFunction::Auto:
-    case render::TransferFunction::Raw:
-    case render::TransferFunction::SRGB:
-    case render::TransferFunction::Cineon:
-    case render::TransferFunction::ArriLogC3:
-    case render::TransferFunction::ArriLogC4:
-    case render::TransferFunction::SonySLog3:
-    case render::TransferFunction::ACEScct:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::SRgb);
-    }
-
-    return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-}
-
-static CGColorSpaceRef
-createCGColorSpace(render::ColorSpace colorSpace,
-                   render::TransferFunction transferFunction)
-{
-    QColorSpace qtColorSpace = createQtDisplayColorSpace(colorSpace, transferFunction);
-
-    if (!qtColorSpace.isValid())
-        return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-
-    const QByteArray icc = qtColorSpace.iccProfile();
-
-    if (icc.isEmpty()) {
-        if (colorSpace == render::ColorSpace::DisplayP3)
-            return CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3);
-
-        return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-    }
-
-    CFDataRef data = CFDataCreate(
-        kCFAllocatorDefault,
-        reinterpret_cast<const UInt8*>(icc.constData()),
-        icc.size());
-
-    if (!data)
-        return CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
-
-    CGColorSpaceRef cgColorSpace = CGColorSpaceCreateWithICCData(data);
-    CFRelease(data);
-
-    return cgColorSpace;
-}
-
-static void
-setViewerMetalLayerColorSpace(QWidget* widget,
-                              render::ColorSpace colorSpace,
-                              render::TransferFunction transferFunction)
-{
-    if (!widget)
-        return;
-
-    NSView* view = reinterpret_cast<NSView*>(widget->winId());
-    if (!view)
-        return;
-
-    CAMetalLayer* metalLayer = findMetalLayer(view.layer);
-    if (!metalLayer)
-        return;
-
-    CGColorSpaceRef cgColorSpace = createCGColorSpace(colorSpace, transferFunction);
-
-    if (!cgColorSpace)
-        return;
-
-    metalLayer.colorspace = cgColorSpace;
-    CGColorSpaceRelease(cgColorSpace);
-}
-
-#endif
 
 class ViewerPrivate : public QObject {
 public:
@@ -178,14 +29,19 @@ public:
     void updateContext(render::RenderEngine::Context& context);
     void updateView();
     void updateDisplayColorSpace();
+
 public:
+    CAMetalLayer* findMetalLayer(CALayer* layer);
+    QColorSpace::Primaries toPrimaries(render::ColorSpace colorSpace);
+    QColorSpace toDisplayColorSpace(render::ColorSpace colorSpace,
+                                     render::TransferFunction transferFunction);
+    void updateWidget(QWidget* widget, const render::DisplayTransform& transform);
     struct Data {
         std::unique_ptr<render::RenderEngine> renderEngine;
         QList<render::ImageLayer> imageLayers;
         QColor background = core::style()->color(core::Style::Viewer);
         QSize resolution = QSize(1920, 1080);
-        render::ColorSpace displayColorSpace = render::ColorSpace::Rec709;
-        render::TransferFunction displayTransferFunction = render::TransferFunction::Gamma24;
+        render::DisplayTransform displayTransform;
         QMatrix4x4 view;
         QPointF mousepos;
         QPointF pan;
@@ -193,6 +49,7 @@ public:
         float zoom = 1.0f;
         QPointer<Viewer> widget;
     };
+
     Data d;
 };
 
@@ -218,12 +75,7 @@ ViewerPrivate::clear()
 void
 ViewerPrivate::updateDisplayColorSpace()
 {
-#ifdef Q_OS_MACOS
-    setViewerMetalLayerColorSpace(
-        d.widget,
-        d.displayColorSpace,
-        d.displayTransferFunction);
-#endif
+    updateWidget(d.widget, d.displayTransform);
 }
 
 void
@@ -276,6 +128,210 @@ ViewerPrivate::updateView()
     }
 }
 
+CAMetalLayer*
+ViewerPrivate::findMetalLayer(CALayer* layer)
+{
+    if (!layer)
+        return nil;
+
+    if ([layer isKindOfClass:CAMetalLayer.class])
+        return static_cast<CAMetalLayer*>(layer);
+
+    for (CALayer* sublayer in layer.sublayers) {
+        if (CAMetalLayer* metalLayer = findMetalLayer(sublayer))
+            return metalLayer;
+    }
+
+    return nil;
+}
+
+QColorSpace::Primaries
+ViewerPrivate::toPrimaries(render::ColorSpace colorSpace)
+{
+    switch (colorSpace) {
+    case render::ColorSpace::Auto:
+    case render::ColorSpace::Raw:
+    case render::ColorSpace::Rec709:
+        return QColorSpace::Primaries::SRgb;
+
+    case render::ColorSpace::DisplayP3:
+    case render::ColorSpace::DCIP3:
+        return QColorSpace::Primaries::DciP3D65;
+
+    case render::ColorSpace::Rec2020:
+        return QColorSpace::Primaries::Bt2020;
+
+    case render::ColorSpace::ACEScg:
+        qWarning() << "viewer: ACEScg/AP1 primaries cannot be represented by QColorSpace::Primaries,"
+                   << "falling back to sRGB primaries for display tagging";
+        return QColorSpace::Primaries::SRgb;
+    }
+
+    qWarning() << "viewer: unknown color space for display primaries,"
+               << "falling back to sRGB primaries"
+               << "colorSpace:" << int(colorSpace);
+
+    return QColorSpace::Primaries::SRgb;
+}
+
+QColorSpace
+ViewerPrivate::toDisplayColorSpace(render::ColorSpace colorSpace,
+                                   render::TransferFunction transferFunction)
+{
+    if (colorSpace == render::ColorSpace::DisplayP3 &&
+        transferFunction == render::TransferFunction::SRGB) {
+        return QColorSpace(QColorSpace::NamedColorSpace::DisplayP3);
+    }
+
+    if ((colorSpace == render::ColorSpace::Rec709 ||
+         colorSpace == render::ColorSpace::Auto) &&
+        transferFunction == render::TransferFunction::SRGB) {
+        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
+    }
+
+    if ((colorSpace == render::ColorSpace::Rec709 ||
+         colorSpace == render::ColorSpace::Auto) &&
+        transferFunction == render::TransferFunction::Linear) {
+        return QColorSpace(QColorSpace::NamedColorSpace::SRgbLinear);
+    }
+
+    const QColorSpace::Primaries primaries = toPrimaries(colorSpace);
+
+    switch (transferFunction) {
+    case render::TransferFunction::Gamma22:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.2f);
+
+    case render::TransferFunction::Gamma24:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.4f);
+
+    case render::TransferFunction::Gamma25:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.5f);
+
+    case render::TransferFunction::Gamma26:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.6f);
+
+    case render::TransferFunction::Linear:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::Linear);
+
+    case render::TransferFunction::SRGB:
+        return QColorSpace(primaries, QColorSpace::TransferFunction::SRgb);
+
+    case render::TransferFunction::Auto:
+    case render::TransferFunction::Raw:
+        qWarning() << "viewer: transfer function cannot be represented as a display color space,"
+                   << "falling back to sRGB"
+                   << "transferFunction:" << int(transferFunction);
+        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
+
+    case render::TransferFunction::ACEScc:
+    case render::TransferFunction::ACEScct:
+    case render::TransferFunction::ADX10:
+    case render::TransferFunction::ADX16:
+    case render::TransferFunction::Cineon:
+    case render::TransferFunction::AppleLog:
+    case render::TransferFunction::ArriLogC3:
+    case render::TransferFunction::ArriLogC4:
+    case render::TransferFunction::BmdFilmGen5:
+    case render::TransferFunction::DaVinciIntermediate:
+    case render::TransferFunction::CanonLog2:
+    case render::TransferFunction::CanonLog3:
+    case render::TransferFunction::PanasonicVLog:
+    case render::TransferFunction::RedLog3G10:
+    case render::TransferFunction::SonySLog3:
+        qWarning() << "viewer: log/camera transfer function cannot be used as a display color space tag,"
+                   << "falling back to sRGB"
+                   << "transferFunction:" << int(transferFunction);
+        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
+    }
+
+    qWarning() << "viewer: unknown transfer function for display color space,"
+               << "falling back to sRGB"
+               << "transferFunction:" << int(transferFunction);
+
+    return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
+}
+
+void
+ViewerPrivate::updateWidget(QWidget* widget, const render::DisplayTransform& transform)
+{
+    if (!widget) {
+        qWarning() << "viewer: failed to update display color space, widget is null";
+        return;
+    }
+
+    NSView* view = reinterpret_cast<NSView*>(widget->winId());
+    if (!view) {
+        qWarning() << "viewer: failed to get view from widget";
+        return;
+    }
+
+    CAMetalLayer* metalLayer = findMetalLayer(view.layer);
+    if (!metalLayer) {
+        qWarning() << "viewer: failed to get metal layer from view";
+        return;
+    }
+
+    const QColorSpace qtColorSpace = toDisplayColorSpace(
+        transform.colorSpace,
+        transform.transferFunction);
+
+    CGColorSpaceRef cgColorSpace = nullptr;
+
+    if (!qtColorSpace.isValid()) {
+        qWarning() << "viewer: failed to create color space for display,"
+                   << "falling back to sRGB";
+
+        cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+    }
+    else {
+        const QByteArray icc = qtColorSpace.iccProfile();
+
+        if (icc.isEmpty()) {
+            if (transform.colorSpace == render::ColorSpace::DisplayP3) {
+                qWarning() << "viewer: no ICC profile available,"
+                           << "falling back to native DisplayP3 CGColorSpace";
+                cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceDisplayP3);
+            }
+            else {
+                qWarning() << "viewer: no ICC profile available,"
+                           << "falling back to sRGB CGColorSpace";
+                cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            }
+        }
+        else {
+            CFDataRef data = CFDataCreate(
+                kCFAllocatorDefault,
+                reinterpret_cast<const UInt8*>(icc.constData()),
+                icc.size());
+
+            if (!data) {
+                qWarning() << "viewer: failed to create ICC data for display,"
+                           << "falling back to sRGB CGColorSpace";
+
+                cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            }
+            else {
+                cgColorSpace = CGColorSpaceCreateWithICCData(data);
+                CFRelease(data);
+
+                if (!cgColorSpace) {
+                    qWarning() << "viewer: failed to create CGColorSpace from ICC,"
+                               << "falling back to sRGB CGColorSpace";
+                    cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+                }
+            }
+        }
+    }
+
+    if (!cgColorSpace) {
+        qWarning() << "viewer: failed to create fallback CGColorSpace";
+        return;
+    }
+
+    metalLayer.colorspace = cgColorSpace;
+    CGColorSpaceRelease(cgColorSpace);
+}
+
 void
 ViewerPrivate::render(QRhiCommandBuffer* commandBuffer)
 {
@@ -302,10 +358,7 @@ Viewer::Viewer(QWidget* parent)
     : QRhiWidget(parent)
     , p(new ViewerPrivate())
 {
-#ifdef Q_OS_MACOS
     setApi(QRhiWidget::Api::Metal);
-#endif
-
     p->d.widget = this;
     p->init();
 }
@@ -321,7 +374,6 @@ Viewer::initialize(QRhiCommandBuffer*)
 void
 Viewer::render(QRhiCommandBuffer* commandBuffer)
 {
-    p->updateDisplayColorSpace();
     p->render(commandBuffer);
 }
 
@@ -352,36 +404,21 @@ Viewer::setImageLayers(const QList<render::ImageLayer>& imageLayers)
     update();
 }
 
-render::ColorSpace
-Viewer::displayColorSpace() const
+render::DisplayTransform
+Viewer::displayTransform() const
 {
-    return p->d.displayColorSpace;
+    return p->d.displayTransform;
 }
 
 void
-Viewer::setDisplayColorSpace(render::ColorSpace colorSpace)
+Viewer::setDisplayTransform(const render::DisplayTransform& transform)
 {
-    if (p->d.displayColorSpace == colorSpace)
+    if (p->d.displayTransform.colorSpace == transform.colorSpace &&
+        p->d.displayTransform.transferFunction == transform.transferFunction) {
         return;
+    }
 
-    p->d.displayColorSpace = colorSpace;
-    p->updateDisplayColorSpace();
-    update();
-}
-
-render::TransferFunction
-Viewer::displayTransferFunction() const
-{
-    return p->d.displayTransferFunction;
-}
-
-void
-Viewer::setDisplayTransferFunction(render::TransferFunction transferFunction)
-{
-    if (p->d.displayTransferFunction == transferFunction)
-        return;
-
-    p->d.displayTransferFunction = transferFunction;
+    p->d.displayTransform = transform;
     p->updateDisplayColorSpace();
     update();
 }

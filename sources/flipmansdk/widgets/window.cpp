@@ -20,7 +20,6 @@ public:
         QPointer<Window> window;
     };
     Data d;
-
 };
 
 WindowPrivate::WindowPrivate() {}
@@ -38,9 +37,7 @@ WindowPrivate::eventFilter(QObject* object, QEvent* event)
 {
     if (object == d.window && event->type() == QEvent::Show) {
         d.window->removeEventFilter(this);
-        QTimer::singleShot(0, d.window, []() {
-            sdk::core::style()->update();
-        });
+        QTimer::singleShot(0, d.window, []() { sdk::core::style()->update(); });
     }
     return QObject::eventFilter(object, event);
 }

@@ -115,37 +115,22 @@ public:
     ///@{
 
     /**
-     * @brief Returns the display color space used for viewer output tagging.
+     * @brief Returns the display/surface tag used for viewer output.
      *
-     * This describes the color primaries of the final framebuffer presented by
-     * the viewer. It should match the output produced by the render engine.
+     * This describes the final framebuffer to the window system. It does not
+     * perform color conversion. The render engine must already have produced
+     * pixels matching this transform.
      */
-    render::ColorSpace displayColorSpace() const;
+    render::DisplayTransform displayTransform() const;
 
     /**
-     * @brief Sets the display color space used for viewer output tagging.
+     * @brief Sets the display/surface tag used for viewer output.
      *
      * On platforms that support explicit surface color tagging, such as macOS
      * with CAMetalLayer, this value is used to describe the presented
      * framebuffer to the window system.
      */
-    void setDisplayColorSpace(render::ColorSpace colorSpace);
-
-    /**
-     * @brief Returns the display transfer function used for viewer output tagging.
-     *
-     * This describes the transfer curve of the final framebuffer presented by
-     * the viewer, such as sRGB, gamma 2.4, or gamma 2.6.
-     */
-    render::TransferFunction displayTransferFunction() const;
-
-    /**
-     * @brief Sets the display transfer function used for viewer output tagging.
-     *
-     * This does not perform color conversion by itself. The render engine must
-     * still render pixels using the matching output transform.
-     */
-    void setDisplayTransferFunction(render::TransferFunction transferFunction);
+    void setDisplayTransform(const render::DisplayTransform& transform);
 
     ///@}
 
