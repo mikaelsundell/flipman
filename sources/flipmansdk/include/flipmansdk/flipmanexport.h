@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2024 - present Mikael Sundell
+// https://github.com/mikaelsundell/flipman
 
 #ifndef FLIPMANSDK_EXPORT_H
 #define FLIPMANSDK_EXPORT_H

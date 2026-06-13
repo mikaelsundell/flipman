@@ -97,6 +97,11 @@ public:
     void setBackground(const QColor& background);
 
     /**
+     * @brief Returns the image layers.
+     */
+    QList<ImageLayer> imageLayers() const;
+
+    /**
      * @brief Sets the image layers to render.
      */
     void setImageLayers(const QList<ImageLayer>& imageLayers);

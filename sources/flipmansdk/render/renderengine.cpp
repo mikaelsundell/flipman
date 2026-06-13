@@ -434,6 +434,7 @@ public:
         QSize resolution = QSize(1920, 1080);
         QColor background = core::style()->color(core::Style::Viewer);
         QList<ImageLayer> imageLayers;
+        QList<RenderOutput*> renderOutputs;
         bool quadBufferUploaded = false;
         bool mvpBufferUploaded = false;
         bool valid = false;
@@ -457,8 +458,8 @@ RenderEnginePrivate::initResources(const RenderContext& context, const RenderSpe
         return false;
 
     d.deviceRhi = context.rhi;
-    d.deviceRenderPassDescriptor = spec.surface.renderTarget->renderPassDescriptor();
-    d.size = spec.size;
+    d.deviceRenderPassDescriptor = spec.surface().renderTarget()->renderPassDescriptor();
+    d.size = spec.size();
 
     d.quad = {
         // pos(x,y,z)      uv
@@ -933,10 +934,12 @@ RenderEnginePrivate::updateRenderStates(const RenderContext& context, QRhiResour
 void
 RenderEnginePrivate::updateBlit(const RenderContext& context, const RenderSpec& spec, QRhiResourceUpdateBatch* updates)
 {
-    if (!updates)
+    Q_UNUSED(context)
+
+    if (!updates || !d.renderTexture || !d.mvpBuffer)
         return;
 
-    const QSize widgetSize = spec.size;
+    const QSize widgetSize = spec.size();
     const QSize textureSize = d.renderTexture->pixelSize();
 
     if (widgetSize.isEmpty() || textureSize.isEmpty())
@@ -948,8 +951,8 @@ RenderEnginePrivate::updateBlit(const RenderContext& context, const RenderSpec& 
     QMatrix4x4 matrix;
     matrix.setToIdentity();
     matrix.scale(sx, sy);
-    QMatrix4x4 finalMatrix = spec.view * matrix;
 
+    const QMatrix4x4 finalMatrix = spec.view() * matrix;
     updates->updateDynamicBuffer(d.mvpBuffer.get(), 0, 64, finalMatrix.constData());
 }
 
@@ -959,8 +962,8 @@ RenderEnginePrivate::updateBlitResources(const RenderContext& context, const Ren
     if (!context.isValid() || !d.deviceRhi || !d.mvpBuffer || !d.sampler || !d.renderTexture)
         return false;
 
-    d.deviceRenderPassDescriptor = spec.surface.renderTarget->renderPassDescriptor();
-    d.size = spec.size;
+    d.deviceRenderPassDescriptor = spec.surface().renderTarget()->renderPassDescriptor();
+    d.size = spec.size();
 
     d.blitPipeline.reset();
     d.blitShaderBindings.reset();
@@ -1090,7 +1093,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
     timer.restart();
 #endif
 
-    commandBuffer->beginPass(spec.surface.renderTarget, d.background, { 1.0f, 0 });
+    commandBuffer->beginPass(spec.surface().renderTarget(), d.background, { 1.0f, 0 });
     renderBlit(context, spec, commandBuffer);
     commandBuffer->endPass();
 
@@ -1109,7 +1112,7 @@ RenderEnginePrivate::renderScene(const RenderContext& context, const RenderSpec&
     if (!d.quadBuffer)
         return;
 
-    const QSize size = spec.size;
+    const QSize size = spec.size();
     const QSize targetSize = d.renderTexture->pixelSize();
     commandBuffer->setViewport({ 0, 0, float(targetSize.width()), float(targetSize.height()) });
 
@@ -1143,10 +1146,10 @@ RenderEnginePrivate::renderBlit(const RenderContext& context, const RenderSpec& 
     commandBuffer->setGraphicsPipeline(d.blitPipeline.get());
     commandBuffer->setShaderResources(d.blitShaderBindings.get());
 
-    const QSize size = spec.size;
+    const QSize size = spec.size();
     commandBuffer->setViewport({ 0, 0, float(size.width()), float(size.height()) });
 
-    const QSize widgetSize = spec.size;
+    const QSize widgetSize = spec.size();
     const QSize textureSize = d.renderTexture->pixelSize();
 
     commandBuffer->setViewport({ 0, 0, float(widgetSize.width()), float(widgetSize.height()) });
@@ -1706,10 +1709,13 @@ RenderEngine::initialize(const RenderContext& context, const RenderSpec& spec)
     if (!context.isValid())
         return false;
 
+    QRhiRenderTarget* renderTarget = spec.surface().renderTarget();
+    if (!renderTarget)
+        return false;
+
     const bool deviceChanged = p->d.deviceRhi != context.rhi;
-    const bool blitContextChanged = p->d.deviceRenderPassDescriptor
-                                        != spec.surface.renderTarget->renderPassDescriptor()
-                                    || p->d.size != spec.size;
+    const bool blitContextChanged = p->d.deviceRenderPassDescriptor != renderTarget->renderPassDescriptor()
+                                    || p->d.size != spec.size();
 
     if (!p->d.valid || deviceChanged) {
         p->freeResources();
@@ -1756,10 +1762,29 @@ RenderEngine::setBackground(const QColor& background)
     p->d.background = background;
 }
 
+QList<ImageLayer>
+RenderEngine::imageLayers() const
+{
+    return p->d.imageLayers;
+}
+
 void
 RenderEngine::setImageLayers(const QList<ImageLayer>& imageLayers)
 {
     p->d.imageLayers = imageLayers;
+}
+
+
+QList<RenderOutput*>
+RenderEngine::renderOutputs() const
+{
+    return p->d.renderOutputs;
+}
+
+void
+RenderEngine::setRenderOutputs(const QList<RenderOutput*>& renderOutputs)
+{
+    p->d.renderOutputs = renderOutputs;
 }
 
 bool

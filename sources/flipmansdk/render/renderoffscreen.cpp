@@ -71,13 +71,16 @@ RenderOffscreen::render()
 
     RenderContext context = p->d.device->context();
 
+    RenderSurface surface;
+    surface.setRenderTarget(p->d.device->surface().renderTarget());
+
     RenderSpec renderSpec;
-    renderSpec.surface = p->d.device->surface();
-    renderSpec.size = p->d.device->size();
-    renderSpec.view.setToIdentity();
-    renderSpec.format = RenderSpec::Format::RGBA16F;
-    renderSpec.enabled = true;
-    renderSpec.readback = true;
+    renderSpec.setSurface(surface);
+    renderSpec.setSize(p->d.device->size());
+
+    QMatrix4x4 view;
+    view.setToIdentity();
+    renderSpec.setView(view);
 
     if (!context.isValid() || !renderSpec.isValid()) {
         p->d.device->endFrame();
@@ -88,9 +91,7 @@ RenderOffscreen::render()
         p->d.device->endFrame();
         return {};
     }
-
     p->d.renderEngine->render(context, renderSpec, commandBuffer);
-
     p->d.device->endFrame();
     return p->d.device->readback();
 }

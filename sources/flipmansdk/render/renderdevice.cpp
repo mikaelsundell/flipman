@@ -187,12 +187,10 @@ RenderSurface
 RenderDevicePrivate::surface() const
 {
     RenderSurface surface;
-
     if (!d.initialized)
         return surface;
 
-    surface.renderTarget = d.renderTarget.get();
-
+    surface.setRenderTarget(d.renderTarget.get());
     return surface;
 }
 

@@ -96,12 +96,12 @@ ViewerPrivate::renderSpec() const
     if (!renderTarget)
         return spec;
 
-    spec.surface.renderTarget = renderTarget;
-    spec.view = d.view;
-    spec.size = renderTarget->pixelSize();
-    spec.format = render::RenderSpec::Format::RGBA16F;
-    spec.enabled = true;
-    spec.readback = false;
+    render::RenderSurface surface;
+    surface.setRenderTarget(renderTarget);
+
+    spec.setSurface(surface);
+    spec.setView(d.view);
+    spec.setSize(renderTarget->pixelSize());
 
     return spec;
 }

@@ -6,66 +6,134 @@
 
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/rendersurface.h>
+#include <QExplicitlySharedDataPointer>
 #include <QMatrix4x4>
 #include <QMetaType>
 #include <QSize>
 #include <QString>
-#include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
 
+class RenderSpecPrivate;
+
 /**
  * @class RenderSpec
- * @brief Describes one render output request.
+ * @brief A lightweight, render-ready description of an output pass.
  *
- * RenderSpec is a lightweight description of where and how a rendered frame
- * should be written. It does not own GPU resources. The render engine uses it
- * to write the computed render result to widget targets, offscreen targets,
- * readback targets, or external output paths such as DeckLink.
+ * RenderSpec serves as the bridge between high-level output configuration and
+ * the low-level RenderEngine. It describes where and how the already computed
+ * render result should be written, including the destination surface, output
+ * size, view transform, and optional output/calibration LUT.
+ *
+ * @note Because it uses QExplicitlySharedDataPointer, it is designed for cheap
+ * value copies and safe handoffs between UI/output configuration and rendering
+ * code.
  */
 class FLIPMANSDK_EXPORT RenderSpec {
 public:
     /**
-     * @enum Format
-     * @brief Requested pixel format for the output.
+     * @brief Constructs an empty RenderSpec.
      */
-    enum class Format {
-        RGBA16F,  ///< Half-float RGBA output.
-        RGBA8,    ///< 8-bit RGBA output.
-        UYVY8,    ///< 8-bit 4:2:2 UYVY / 2vuy output.
-        V210      ///< 10-bit 4:2:2 v210 output.
-    };
-
-public:
-    RenderSpec() = default;
+    RenderSpec();
 
     /**
-     * @brief Returns true if the output request can be rendered.
+     * @brief Copy constructor. Performs a shallow copy of the render spec data.
      */
-    bool isValid() const
-    {
-        if (!enabled || !size.isValid())
-            return false;
+    RenderSpec(const RenderSpec& other);
 
-        if (readback)
-            return true;
+    /**
+     * @brief Destroys the RenderSpec.
+     * @note Required for the PIMPL pattern to safely delete RenderSpecPrivate.
+     */
+    ~RenderSpec();
 
-        return surface.isValid();
-    }
+    /** @name Attributes */
+    ///@{
 
-public:
-    RenderSurface surface;            ///< Output surface used when rendering directly to an external QRhi target.
-    QMatrix4x4 view;                  ///< Output transform, for example viewer pan/zoom.
-    QSize size;                       ///< Output size in pixels.
-    QString lut;                      ///< Optional output/calibration LUT path.
-    Format format = Format::RGBA16F;  ///< Requested output pixel format.
-    bool enabled = true;              ///< Whether this output should be rendered.
-    bool readback = false;            ///< Whether this output should produce CPU-readable data.
+    /**
+     * @brief Returns the output surface used when rendering directly to an external QRhi target.
+     */
+    RenderSurface surface() const;
+
+    /**
+     * @brief Sets the output surface used when rendering directly to an external QRhi target.
+     */
+    void setSurface(const RenderSurface& surface);
+
+    /**
+     * @brief Returns the output transform, for example viewer pan/zoom.
+     */
+    QMatrix4x4 view() const;
+
+    /**
+     * @brief Sets the output transform, for example viewer pan/zoom.
+     */
+    void setView(const QMatrix4x4& view);
+
+    /**
+     * @brief Returns the output size in pixels.
+     */
+    QSize size() const;
+
+    /**
+     * @brief Sets the output size in pixels.
+     */
+    void setSize(const QSize& size);
+
+    /**
+     * @brief Returns the optional output/calibration LUT path.
+     */
+    QString lut() const;
+
+    /**
+     * @brief Sets the optional output/calibration LUT path.
+     */
+    void setLut(const QString& lut);
+
+    ///@}
+
+    /** @name Status */
+    ///@{
+
+    /**
+     * @brief Returns true if the output pass can be rendered.
+     */
+    bool isValid() const;
+
+    /**
+     * @brief Resets the render spec to an empty, uninitialized state.
+     */
+    void reset();
+
+    ///@}
+
+    /** @name Operators */
+    ///@{
+
+    /**
+     * @brief Assignment operator. Performs a shallow copy of the shared data.
+     */
+    RenderSpec& operator=(const RenderSpec& other);
+
+    /**
+     * @brief Equality operator.
+     */
+    bool operator==(const RenderSpec& other) const;
+
+    /**
+     * @brief Inequality operator.
+     */
+    bool operator!=(const RenderSpec& other) const;
+
+    ///@}
+
+private:
+    QExplicitlySharedDataPointer<RenderSpecPrivate> p;  ///< Private implementation.
 };
 
 }  // namespace flipman::sdk::render
 
 /**
- * @note Registering the type for use in QVariant.
+ * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::render::RenderSpec)
