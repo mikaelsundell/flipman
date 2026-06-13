@@ -51,16 +51,6 @@ public:
     ///@{
 
     /**
-     * @brief Returns the output surface used when rendering directly to an external QRhi target.
-     */
-    RenderSurface surface() const;
-
-    /**
-     * @brief Sets the output surface used when rendering directly to an external QRhi target.
-     */
-    void setSurface(const RenderSurface& surface);
-
-    /**
      * @brief Returns the output transform, for example viewer pan/zoom.
      */
     QMatrix4x4 view() const;

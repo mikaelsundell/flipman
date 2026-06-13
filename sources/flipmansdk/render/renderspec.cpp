@@ -10,7 +10,6 @@ class RenderSpecPrivate : public QSharedData {
 public:
     void init();
     struct Data {
-        RenderSurface surface;
         QMatrix4x4 view;
         QSize size;
         QString lut;
@@ -35,18 +34,6 @@ RenderSpec::RenderSpec(const RenderSpec& other)
 {}
 
 RenderSpec::~RenderSpec() {}
-
-RenderSurface
-RenderSpec::surface() const
-{
-    return p->d.surface;
-}
-
-void
-RenderSpec::setSurface(const RenderSurface& surface)
-{
-    p->d.surface = surface;
-}
 
 QMatrix4x4
 RenderSpec::view() const
@@ -109,7 +96,7 @@ RenderSpec::operator=(const RenderSpec& other)
 bool
 RenderSpec::operator==(const RenderSpec& other) const
 {
-    return (p->d.surface == other.p->d.surface && p->d.view == other.p->d.view && p->d.size == other.p->d.size
+    return (p->d.view == other.p->d.view && p->d.size == other.p->d.size
             && p->d.lut == other.p->d.lut);
 }
 

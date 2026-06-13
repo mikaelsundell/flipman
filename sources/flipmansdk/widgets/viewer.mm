@@ -81,7 +81,12 @@ ViewerPrivate::updateDisplayColorSpace()
 void
 ViewerPrivate::updateContext(render::RenderContext& context)
 {
-    context.rhi = d.widget ? d.widget->rhi() : nullptr;
+    context.setRhi(d.widget ? d.widget->rhi() : nullptr);
+    render::RenderSurface surface;
+    if (d.widget)
+        surface.setRenderTarget(d.widget->renderTarget());
+
+    context.setSurface(surface);
 }
 
 render::RenderSpec
@@ -96,10 +101,6 @@ ViewerPrivate::renderSpec() const
     if (!renderTarget)
         return spec;
 
-    render::RenderSurface surface;
-    surface.setRenderTarget(renderTarget);
-
-    spec.setSurface(surface);
     spec.setView(d.view);
     spec.setSize(renderTarget->pixelSize());
 

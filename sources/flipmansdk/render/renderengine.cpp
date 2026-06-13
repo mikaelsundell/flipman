@@ -454,11 +454,20 @@ RenderEnginePrivate::RenderEnginePrivate() {}
 bool
 RenderEnginePrivate::initResources(const RenderContext& context, const RenderSpec& spec)
 {
-    if (!context.isValid())
+    if (!context.isValid()) {
+        d.error = core::Error("renderengine", "invalid render context");
         return false;
+    }
 
-    d.deviceRhi = context.rhi;
-    d.deviceRenderPassDescriptor = spec.surface().renderTarget()->renderPassDescriptor();
+    d.deviceRhi = context.rhi();
+
+    QRhiRenderTarget* renderTarget = context.surface().renderTarget();
+    if (!renderTarget) {
+        d.error = core::Error("renderengine", "invalid render target");
+        return false;
+    }
+
+    d.deviceRenderPassDescriptor = renderTarget->renderPassDescriptor();
     d.size = spec.size();
 
     d.quad = {
@@ -962,7 +971,13 @@ RenderEnginePrivate::updateBlitResources(const RenderContext& context, const Ren
     if (!context.isValid() || !d.deviceRhi || !d.mvpBuffer || !d.sampler || !d.renderTexture)
         return false;
 
-    d.deviceRenderPassDescriptor = spec.surface().renderTarget()->renderPassDescriptor();
+    QRhiRenderTarget* renderTarget = context.surface().renderTarget();
+    if (!renderTarget) {
+        d.error = core::Error("renderengine", "invalid render target");
+        return false;
+    }
+
+    d.deviceRenderPassDescriptor = renderTarget->renderPassDescriptor();
     d.size = spec.size();
 
     d.blitPipeline.reset();
@@ -1051,6 +1066,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
     ++d.frameIndex;
     resetFrameStats();
 
+    // upload static fullscreen quad data once.
     if (!d.quadBufferUploaded) {
         QRhiResourceUpdateBatch* u = d.deviceRhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(d.quadBuffer.get(), 0, static_cast<quint32>(d.quad.size() * sizeof(float)),
@@ -1058,33 +1074,45 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
         commandBuffer->resourceUpdate(u);
         d.quadBufferUploaded = true;
     }
+
+    // initialize the shared MVP buffer once. It is updated per output pass below.
     if (!d.mvpBufferUploaded) {
         QMatrix4x4 m;
         m.setToIdentity();
+
         QRhiResourceUpdateBatch* u = d.deviceRhi->nextResourceUpdateBatch();
         u->updateDynamicBuffer(d.mvpBuffer.get(), 0, 64, m.constData());
         commandBuffer->resourceUpdate(u);
         d.mvpBufferUploaded = true;
     }
+
     QRhiResourceUpdateBatch* resourceUpdates = d.deviceRhi->nextResourceUpdateBatch();
 
 #if RE_STATS_ENABLED
     timer.start();
 #endif
+
+    // prepare layer textures, shader resources, uniforms, LUTs and pipelines.
+    // This updates all resources needed by the scene pass.
     updateRenderStates(context, resourceUpdates);
+
 #if RE_STATS_ENABLED
     d.stats.updateRenderStatesNs = timer.nsecsElapsed();
     timer.restart();
 #endif
 
+    // prepare the primary output transform. The primary output is the target
+    // supplied by the caller through RenderSpec.
     updateBlit(context, spec, resourceUpdates);
+
 #if RE_STATS_ENABLED
     d.stats.updateBlitNs = timer.nsecsElapsed();
     timer.restart();
 #endif
 
+    // scene pass
+    // render all image layers into the engine-owned internal RGBA16F target.
     commandBuffer->beginPass(d.renderTarget.get(), d.background, { 1.0f, 0 }, resourceUpdates);
-
     renderScene(context, spec, commandBuffer);
     commandBuffer->endPass();
 
@@ -1093,9 +1121,33 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
     timer.restart();
 #endif
 
-    commandBuffer->beginPass(spec.surface().renderTarget(), d.background, { 1.0f, 0 });
+    // primary output pass
+    // sample the internal RGBA16F target and draw it into the caller-provided
+    // render target, applying the primary RenderSpec view transform.
+    commandBuffer->beginPass(context.surface().renderTarget(), d.background, { 1.0f, 0 });
     renderBlit(context, spec, commandBuffer);
     commandBuffer->endPass();
+
+    // additional output passes
+    // each RenderOutput can request its own size, view transform, LUT and
+    // delivery format. These should render from the same internal RGBA16F
+    // target into output-owned resources, then optionally convert/read back
+    // before calling RenderOutput::enqueueFrame().
+    for (RenderOutput* output : d.renderOutputs) {
+        if (!output || !output->enabled())
+            continue;
+
+        const RenderSpec outputSpec = output->pass();
+        if (!outputSpec.isValid())
+            continue;
+
+        // TODO:
+        // 1. Ensure per-output RGBA16F render target/resources.
+        // 2. Render internal RGBA16F -> output RGBA16F target using output view/LUT.
+        // 3. If required, convert output RGBA16F to output->format() using compute.
+        // 4. Read back converted data.
+        // 5. Call output->enqueueFrame(image, d.frameIndex).
+    }
 
 #if RE_STATS_ENABLED
     d.stats.renderBlitNs = timer.nsecsElapsed();
@@ -1709,11 +1761,11 @@ RenderEngine::initialize(const RenderContext& context, const RenderSpec& spec)
     if (!context.isValid())
         return false;
 
-    QRhiRenderTarget* renderTarget = spec.surface().renderTarget();
+    QRhiRenderTarget* renderTarget = context.surface().renderTarget();
     if (!renderTarget)
         return false;
 
-    const bool deviceChanged = p->d.deviceRhi != context.rhi;
+    const bool deviceChanged = p->d.deviceRhi != context.rhi();
     const bool blitContextChanged = p->d.deviceRenderPassDescriptor != renderTarget->renderPassDescriptor()
                                     || p->d.size != spec.size();
 

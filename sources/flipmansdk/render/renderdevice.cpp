@@ -176,22 +176,17 @@ RenderContext
 RenderDevicePrivate::context() const
 {
     RenderContext context;
+
     if (!d.initialized)
         return context;
 
-    context.rhi = d.rhi.get();
-    return context;
-}
-
-RenderSurface
-RenderDevicePrivate::surface() const
-{
     RenderSurface surface;
-    if (!d.initialized)
-        return surface;
-
     surface.setRenderTarget(d.renderTarget.get());
-    return surface;
+
+    context.setRhi(d.rhi.get());
+    context.setSurface(surface);
+
+    return context;
 }
 
 RenderDevice::RenderDevice(QObject* parent)
@@ -223,12 +218,6 @@ RenderContext
 RenderDevice::context() const
 {
     return p->context();
-}
-
-RenderSurface
-RenderDevice::surface() const
-{
-    return p->surface();
 }
 
 RenderDevice::TargetFormat
