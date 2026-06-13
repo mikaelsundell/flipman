@@ -47,17 +47,25 @@ public:
      */
     bool initialize(const QSize& size);
 
-    /**
-     * @brief Sets the background clear color.
-     */
-    void setBackground(const QColor& color);
+    /** @name Render */
+    ///@{
 
     /**
-     * @brief Sets the image layers to render.
+     * @brief Returns the render engine used by the viewer.
      *
-     * Layers are processed in order.
+     * The viewer does not take ownership of the render engine.
      */
-    void setImageLayers(const QList<ImageLayer>& imageLayers);
+    render::RenderEngine* renderEngine() const;
+
+    /**
+     * @brief Sets the render engine used by the viewer.
+     *
+     * The viewer uses this engine to render into the QRhiWidget frame context.
+     * Ownership remains with the caller.
+     */
+    void setRenderEngine(render::RenderEngine* renderEngine);
+
+    ///@}
 
     /**
      * @brief Executes a render pass and returns the resulting image.

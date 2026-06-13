@@ -46,6 +46,7 @@ public:
         QString inputFile;
         QString dataPath;
         QPointer<Window> window;
+        QPointer<sdk::render::RenderEngine> renderEngine;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
@@ -161,8 +162,11 @@ WindowPrivate::init()
 
     QRect displayWindow = image.displayWindow();
 
+    d.renderEngine = new sdk::render::RenderEngine(d.window);
+    d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
+
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
-    d.viewer->setResolution(QSize(displayWindow.width(), displayWindow.height()));
+    d.viewer->setRenderEngine(d.renderEngine.data());
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
     const sdk::render::DisplayTransform displayTransform { sdk::render::ColorSpace::Rec709,
@@ -170,17 +174,15 @@ WindowPrivate::init()
 
     d.viewer->setDisplayTransform(displayTransform);
 
-    int defaultDisplayIndex = 0;
-
+    int index = 0;
     for (int i = 0; i < transforms.size(); ++i) {
         if (transforms[i].transform.colorSpace == displayTransform.colorSpace
             && transforms[i].transform.transferFunction == displayTransform.transferFunction) {
-            defaultDisplayIndex = i;
+            index = i;
             break;
         }
     }
-
-    displayCombo->setCurrentIndex(defaultDisplayIndex);
+    displayCombo->setCurrentIndex(index);
 
     frameLayout->addWidget(d.viewer);
     contentLayout->addWidget(viewerFrame, 1);
@@ -256,7 +258,7 @@ void
 WindowPrivate::update()
 {
     Q_ASSERT(d.viewer);
-    d.viewer->setImageLayers({ d.imageLayer });
+    d.renderEngine->setImageLayers({ d.imageLayer });
     d.viewer->update();
 }
 

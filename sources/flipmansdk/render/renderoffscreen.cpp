@@ -5,6 +5,8 @@
 #include <flipmansdk/render/renderdevice.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
+#include <flipmansdk/render/renderspec.h>
+#include <QPointer>
 
 namespace flipman::sdk::render {
 
@@ -12,12 +14,10 @@ class RenderOffscreenPrivate {
 public:
     struct Data {
         std::unique_ptr<RenderDevice> device;
-        std::unique_ptr<RenderEngine> engine;
-        QList<ImageLayer> imageLayers;
-        QColor background = Qt::black;
-        QSize size;
+        QPointer<render::RenderEngine> renderEngine;
         bool initialized = false;
     };
+
     Data d;
 };
 
@@ -28,44 +28,40 @@ RenderOffscreen::RenderOffscreen(QObject* parent)
 
 RenderOffscreen::~RenderOffscreen() {}
 
+render::RenderEngine*
+RenderOffscreen::renderEngine() const
+{
+    return p->d.renderEngine;
+}
+
+void
+RenderOffscreen::setRenderEngine(render::RenderEngine* renderEngine)
+{
+    if (p->d.renderEngine == renderEngine)
+        return;
+
+    p->d.renderEngine = renderEngine;
+}
+
 bool
 RenderOffscreen::initialize(const QSize& size)
 {
     if (size.isEmpty())
         return false;
 
-    p->d.size = size;
     p->d.device = std::make_unique<RenderDevice>();
+
     if (!p->d.device->create(RenderDevice::Auto, size))
         return false;
 
-    p->d.engine = std::make_unique<RenderEngine>();
-    p->d.engine->setResolution(size);
-    p->d.engine->setBackground(p->d.background);
     p->d.initialized = true;
     return true;
-}
-
-void
-RenderOffscreen::setBackground(const QColor& color)
-{
-    p->d.background = color;
-    if (p->d.engine)
-        p->d.engine->setBackground(color);
-}
-
-void
-RenderOffscreen::setImageLayers(const QList<ImageLayer>& imageLayers)
-{
-    p->d.imageLayers = imageLayers;
-    if (p->d.engine)
-        p->d.engine->setImageLayers(imageLayers);
 }
 
 core::ImageBuffer
 RenderOffscreen::render()
 {
-    if (!p->d.initialized)
+    if (!p->d.initialized || !p->d.renderEngine || !p->d.device)
         return {};
 
     QRhiCommandBuffer* commandBuffer = nullptr;
@@ -73,9 +69,28 @@ RenderOffscreen::render()
     if (!p->d.device->beginFrame(commandBuffer))
         return {};
 
-    RenderEngine::Context context = p->d.device->context();
-    p->d.engine->initialize(context);
-    p->d.engine->render(context, commandBuffer);
+    RenderContext context = p->d.device->context();
+
+    RenderSpec renderSpec;
+    renderSpec.surface = p->d.device->surface();
+    renderSpec.size = p->d.device->size();
+    renderSpec.view.setToIdentity();
+    renderSpec.format = RenderSpec::Format::RGBA16F;
+    renderSpec.enabled = true;
+    renderSpec.readback = true;
+
+    if (!context.isValid() || !renderSpec.isValid()) {
+        p->d.device->endFrame();
+        return {};
+    }
+
+    if (!p->d.renderEngine->initialize(context, renderSpec)) {
+        p->d.device->endFrame();
+        return {};
+    }
+
+    p->d.renderEngine->render(context, renderSpec, commandBuffer);
+
     p->d.device->endFrame();
     return p->d.device->readback();
 }

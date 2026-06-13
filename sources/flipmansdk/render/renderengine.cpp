@@ -53,14 +53,14 @@ namespace flipman::sdk::render {
 class RenderEnginePrivate : public QSharedData {
 public:
     RenderEnginePrivate();
-    bool initResources(const RenderEngine::Context& context);
-    void updateRenderStates(const RenderEngine::Context&, QRhiResourceUpdateBatch* updates);
-    void updateBlit(const RenderEngine::Context&, QRhiResourceUpdateBatch* updates);
-    bool updateBlitResources(const RenderEngine::Context& context);
+    bool initResources(const RenderContext& context, const RenderSpec& spec);
+    void updateRenderStates(const RenderContext& context, QRhiResourceUpdateBatch* updates);
+    void updateBlit(const RenderContext& context, const RenderSpec& spec, QRhiResourceUpdateBatch* updates);
+    bool updateBlitResources(const RenderContext& context, const RenderSpec& spec);
     void freeResources();
-    void render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer);
-    void renderScene(const RenderEngine::Context&, QRhiCommandBuffer*);
-    void renderBlit(const RenderEngine::Context&, QRhiCommandBuffer*);
+    void render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
+    void renderScene(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
+    void renderBlit(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
     void parameterValue(char* dst, const ShaderDescriptor::ShaderParameter& param);
     QString loadShader(const QString& name);
     QShader compileShader(const QString& source, QShader::Stage stage);
@@ -451,14 +451,14 @@ public:
 RenderEnginePrivate::RenderEnginePrivate() {}
 
 bool
-RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
+RenderEnginePrivate::initResources(const RenderContext& context, const RenderSpec& spec)
 {
-    if (!renderContext.isValid())
+    if (!context.isValid())
         return false;
 
-    d.deviceRhi = renderContext.rhi;
-    d.deviceRenderPassDescriptor = renderContext.renderPassDescriptor;
-    d.size = renderContext.size;
+    d.deviceRhi = context.rhi;
+    d.deviceRenderPassDescriptor = spec.surface.renderTarget->renderPassDescriptor();
+    d.size = spec.size;
 
     d.quad = {
         // pos(x,y,z)      uv
@@ -516,7 +516,7 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
         return false;
     }
 
-    if (!updateBlitResources(renderContext))
+    if (!updateBlitResources(context, spec))
         return false;
 
     d.renderStates.clear();
@@ -527,7 +527,7 @@ RenderEnginePrivate::initResources(const RenderEngine::Context& renderContext)
 }
 
 void
-RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QRhiResourceUpdateBatch* updates)
+RenderEnginePrivate::updateRenderStates(const RenderContext& context, QRhiResourceUpdateBatch* updates)
 {
     Q_UNUSED(context)
 
@@ -931,12 +931,12 @@ RenderEnginePrivate::updateRenderStates(const RenderEngine::Context& context, QR
 }
 
 void
-RenderEnginePrivate::updateBlit(const RenderEngine::Context& context, QRhiResourceUpdateBatch* updates)
+RenderEnginePrivate::updateBlit(const RenderContext& context, const RenderSpec& spec, QRhiResourceUpdateBatch* updates)
 {
     if (!updates)
         return;
 
-    const QSize widgetSize = context.size;
+    const QSize widgetSize = spec.size;
     const QSize textureSize = d.renderTexture->pixelSize();
 
     if (widgetSize.isEmpty() || textureSize.isEmpty())
@@ -948,19 +948,19 @@ RenderEnginePrivate::updateBlit(const RenderEngine::Context& context, QRhiResour
     QMatrix4x4 matrix;
     matrix.setToIdentity();
     matrix.scale(sx, sy);
-    QMatrix4x4 finalMatrix = context.view * matrix;
+    QMatrix4x4 finalMatrix = spec.view * matrix;
 
     updates->updateDynamicBuffer(d.mvpBuffer.get(), 0, 64, finalMatrix.constData());
 }
 
 bool
-RenderEnginePrivate::updateBlitResources(const RenderEngine::Context& context)
+RenderEnginePrivate::updateBlitResources(const RenderContext& context, const RenderSpec& spec)
 {
     if (!context.isValid() || !d.deviceRhi || !d.mvpBuffer || !d.sampler || !d.renderTexture)
         return false;
 
-    d.deviceRenderPassDescriptor = context.renderPassDescriptor;
-    d.size = context.size;
+    d.deviceRenderPassDescriptor = spec.surface.renderTarget->renderPassDescriptor();
+    d.size = spec.size;
 
     d.blitPipeline.reset();
     d.blitShaderBindings.reset();
@@ -1037,7 +1037,7 @@ RenderEnginePrivate::freeResources()
 }
 
 void
-RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer)
+RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer)
 {
 #if RE_STATS_ENABLED
     QElapsedTimer frameTimer;
@@ -1074,7 +1074,7 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
     timer.restart();
 #endif
 
-    updateBlit(context, resourceUpdates);
+    updateBlit(context, spec, resourceUpdates);
 #if RE_STATS_ENABLED
     d.stats.updateBlitNs = timer.nsecsElapsed();
     timer.restart();
@@ -1082,7 +1082,7 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
 
     commandBuffer->beginPass(d.renderTarget.get(), d.background, { 1.0f, 0 }, resourceUpdates);
 
-    renderScene(context, commandBuffer);
+    renderScene(context, spec, commandBuffer);
     commandBuffer->endPass();
 
 #if RE_STATS_ENABLED
@@ -1090,8 +1090,8 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
     timer.restart();
 #endif
 
-    commandBuffer->beginPass(context.renderTarget, d.background, { 1.0f, 0 });
-    renderBlit(context, commandBuffer);
+    commandBuffer->beginPass(spec.surface.renderTarget, d.background, { 1.0f, 0 });
+    renderBlit(context, spec, commandBuffer);
     commandBuffer->endPass();
 
 #if RE_STATS_ENABLED
@@ -1104,12 +1104,12 @@ RenderEnginePrivate::render(const RenderEngine::Context& context, QRhiCommandBuf
 }
 
 void
-RenderEnginePrivate::renderScene(const RenderEngine::Context& renderContext, QRhiCommandBuffer* commandBuffer)
+RenderEnginePrivate::renderScene(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer)
 {
     if (!d.quadBuffer)
         return;
 
-    const QSize size = renderContext.size;
+    const QSize size = spec.size;
     const QSize targetSize = d.renderTexture->pixelSize();
     commandBuffer->setViewport({ 0, 0, float(targetSize.width()), float(targetSize.height()) });
 
@@ -1135,7 +1135,7 @@ RenderEnginePrivate::renderScene(const RenderEngine::Context& renderContext, QRh
 }
 
 void
-RenderEnginePrivate::renderBlit(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer)
+RenderEnginePrivate::renderBlit(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer)
 {
     if (!d.blitPipeline || !d.blitShaderBindings || !d.quadBuffer)
         return;
@@ -1143,10 +1143,10 @@ RenderEnginePrivate::renderBlit(const RenderEngine::Context& context, QRhiComman
     commandBuffer->setGraphicsPipeline(d.blitPipeline.get());
     commandBuffer->setShaderResources(d.blitShaderBindings.get());
 
-    const QSize size = context.size;
+    const QSize size = spec.size;
     commandBuffer->setViewport({ 0, 0, float(size.width()), float(size.height()) });
 
-    const QSize widgetSize = context.size;
+    const QSize widgetSize = spec.size;
     const QSize textureSize = d.renderTexture->pixelSize();
 
     commandBuffer->setViewport({ 0, 0, float(widgetSize.width()), float(widgetSize.height()) });
@@ -1701,35 +1701,35 @@ RenderEngine::initialized() const
 }
 
 bool
-RenderEngine::initialize(const Context& context)
+RenderEngine::initialize(const RenderContext& context, const RenderSpec& spec)
 {
     if (!context.isValid())
         return false;
 
     const bool deviceChanged = p->d.deviceRhi != context.rhi;
-
-    const bool blitContextChanged = p->d.deviceRenderPassDescriptor != context.renderPassDescriptor
-                                    || p->d.size != context.size;
+    const bool blitContextChanged = p->d.deviceRenderPassDescriptor
+                                        != spec.surface.renderTarget->renderPassDescriptor()
+                                    || p->d.size != spec.size;
 
     if (!p->d.valid || deviceChanged) {
         p->freeResources();
-        return p->initResources(context);
+        return p->initResources(context, spec);
     }
 
     if (blitContextChanged) {
-        return p->updateBlitResources(context);
+        return p->updateBlitResources(context, spec);
     }
 
     return true;
 }
 
 void
-RenderEngine::render(const RenderEngine::Context& context, QRhiCommandBuffer* commandBuffer)
+RenderEngine::render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer)
 {
     if (!p->d.valid || !context.isValid())
         return;
 
-    p->render(context, commandBuffer);
+    p->render(context, spec, commandBuffer);
 }
 
 QSize

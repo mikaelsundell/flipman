@@ -13,6 +13,5 @@ add_executable(${test_name} ${test_sources})
 
 target_link_libraries(${test_name} 
     flipmansdk
-    Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::Widgets
 )
 target_include_directories(${test_name} PRIVATE ${CMAKE_SOURCE_DIR})

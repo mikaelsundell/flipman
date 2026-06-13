@@ -145,9 +145,8 @@ configure_export_header(${sdk_name}
 
 target_link_libraries(${sdk_name}
     PUBLIC
-        Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::ShaderTools Qt6::Widgets
+        Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::GuiPrivate Qt6::ShaderTools Qt6::Widgets
     PRIVATE
-        Qt6::GuiPrivate
         Qt6::ShaderToolsPrivate
         OpenImageIO::OpenImageIO
         OpenImageIO::OpenImageIO_Util

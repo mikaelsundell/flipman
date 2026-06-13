@@ -5,8 +5,10 @@
 #pragma once
 
 #include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/core/error.h>
 #include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/render/renderengine.h>
+#include <flipmansdk/render/rendercontext.h>
+#include <flipmansdk/render/rendersurface.h>
 #include <QImage>
 #include <QObject>
 #include <QScopedPointer>
@@ -48,12 +50,12 @@ public:
      * @enum RenderTargetFormat
      * @brief Pixel format of the render target.
      */
-    enum RenderTargetFormat {
+    enum TargetFormat {
         Rgba8,    ///< 8-bit UNORM.
         Rgba16F,  ///< 16-bit floating point.
         Rgba32F   ///< 32-bit floating point.
     };
-    Q_ENUM(RenderTargetFormat)
+    Q_ENUM(TargetFormat)
 
 
 public:
@@ -78,8 +80,7 @@ public:
      * @param renderTargetFormat Render target pixel format.
      * @return true if creation succeeded.
      */
-    bool create(Backend backend, const QSize& size,
-                RenderTargetFormat renderTargetFormat = RenderTargetFormat::Rgba16F);
+    bool create(Backend backend, const QSize& size, TargetFormat targetFormat = TargetFormat::Rgba16F);
 
     /**
      * @brief Begins a rendering frame.
@@ -95,14 +96,19 @@ public:
     void endFrame();
 
     /**
-     * @brief Returns the current RenderEngine context.
+     * @brief Returns the current render context.
      */
-    RenderEngine::Context context() const;
+    RenderContext context() const;
 
     /**
-     * @brief Returns the render target pixel format.
+     * @brief Returns the current render surface.
      */
-    RenderTargetFormat renderTargetFormat() const;
+    RenderSurface surface() const;
+
+    /**
+     * @brief Returns the render target format.
+     */
+    TargetFormat targetFormat() const;
 
     /**
      * @brief Returns the active rendering backend.

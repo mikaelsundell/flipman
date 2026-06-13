@@ -6,8 +6,9 @@
 
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/render/imagelayer.h>
 #include <flipmansdk/render/render.h>
+#include <flipmansdk/render/imagelayer.h>
+#include <flipmansdk/render/renderengine.h>
 #include <QRhiWidget>
 #include <QScopedPointer>
 
@@ -47,32 +48,25 @@ public:
      */
     ~Viewer() override;
 
-    /** @name Configuration */
+    /** @name Render */
     ///@{
 
     /**
-     * @brief Returns the internal render resolution.
+     * @brief Returns the render engine used by the viewer.
+     *
+     * The viewer does not take ownership of the render engine.
      */
-    QSize resolution() const;
+    render::RenderEngine* renderEngine() const;
 
     /**
-     * @brief Sets the internal render resolution.
+     * @brief Sets the render engine used by the viewer.
+     *
+     * The viewer uses this engine to render into the QRhiWidget frame context.
+     * Ownership remains with the caller.
      */
-    void setResolution(const QSize& resolution);
-
-    /**
-     * @brief Sets the background clear color.
-     */
-    void setBackground(const QColor& background);
-
-    /**
-     * @brief Sets the layers to render.
-     */
-    void setImageLayers(const QList<render::ImageLayer>& imageLayers);
+    void setRenderEngine(render::RenderEngine* renderEngine);
 
     ///@}
-
-
 
     /** @name View State */
     ///@{

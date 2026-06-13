@@ -7,6 +7,7 @@
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/render/renderengine.h>
+#include <flipmansdk/render/renderspec.h>
 #include <QColorSpace>
 #include <QDebug>
 #include <QMouseEvent>
@@ -23,10 +24,12 @@ namespace flipman::sdk::widgets {
 class ViewerPrivate : public QObject {
 public:
     ViewerPrivate();
+
     void init();
     void clear();
-    void render(QRhiCommandBuffer* cb);
-    void updateContext(render::RenderEngine::Context& context);
+    void render(QRhiCommandBuffer* commandBuffer);
+    void updateContext(render::RenderContext& context);
+    render::RenderSpec renderSpec() const;
     void updateView();
     void updateDisplayColorSpace();
 
@@ -36,17 +39,15 @@ public:
     QColorSpace toDisplayColorSpace(render::ColorSpace colorSpace,
                                      render::TransferFunction transferFunction);
     void updateWidget(QWidget* widget, const render::DisplayTransform& transform);
+
     struct Data {
-        std::unique_ptr<render::RenderEngine> renderEngine;
-        QList<render::ImageLayer> imageLayers;
-        QColor background = core::style()->color(core::Style::Viewer);
-        QSize resolution = QSize(1920, 1080);
-        render::DisplayTransform displayTransform;
         QMatrix4x4 view;
         QPointF mousepos;
         QPointF pan;
-        Viewer::ZoomMode zoomMode = Viewer::FitToView;
         float zoom = 1.0f;
+        Viewer::ZoomMode zoomMode = Viewer::FitToView;
+        render::DisplayTransform displayTransform;
+        QPointer<render::RenderEngine> renderEngine;
         QPointer<Viewer> widget;
     };
 
@@ -58,7 +59,6 @@ ViewerPrivate::ViewerPrivate() {}
 void
 ViewerPrivate::init()
 {
-    d.renderEngine = std::make_unique<render::RenderEngine>(d.widget);
     d.zoomMode = Viewer::Manual;
     clear();
 }
@@ -79,17 +79,31 @@ ViewerPrivate::updateDisplayColorSpace()
 }
 
 void
-ViewerPrivate::updateContext(render::RenderEngine::Context& context)
+ViewerPrivate::updateContext(render::RenderContext& context)
 {
-    auto* renderTarget = d.widget->renderTarget();
-    if (!renderTarget)
-        return;
+    context.rhi = d.widget ? d.widget->rhi() : nullptr;
+}
 
-    context.rhi = d.widget->rhi();
-    context.renderTarget = renderTarget;
-    context.renderPassDescriptor = renderTarget->renderPassDescriptor();
-    context.view = d.view;
-    context.size = renderTarget->pixelSize();
+render::RenderSpec
+ViewerPrivate::renderSpec() const
+{
+    render::RenderSpec spec;
+
+    if (!d.widget)
+        return spec;
+
+    QRhiRenderTarget* renderTarget = d.widget->renderTarget();
+    if (!renderTarget)
+        return spec;
+
+    spec.surface.renderTarget = renderTarget;
+    spec.view = d.view;
+    spec.size = renderTarget->pixelSize();
+    spec.format = render::RenderSpec::Format::RGBA16F;
+    spec.enabled = true;
+    spec.readback = false;
+
+    return spec;
 }
 
 void
@@ -97,15 +111,24 @@ ViewerPrivate::updateView()
 {
     d.view.setToIdentity();
 
-    QSize widgetSize = d.widget->renderTarget()->pixelSize();
-    if (!widgetSize.isValid() || d.resolution.isEmpty())
+    if (!d.widget || !d.renderEngine)
+        return;
+
+    auto* renderTarget = d.widget->renderTarget();
+    if (!renderTarget)
+        return;
+
+    const QSize widgetSize = renderTarget->pixelSize();
+    const QSize resolution = d.renderEngine->resolution();
+
+    if (!widgetSize.isValid() || resolution.isEmpty())
         return;
 
     const float w = float(widgetSize.width());
     const float h = float(widgetSize.height());
 
-    const float imageW = float(d.resolution.width());
-    const float imageH = float(d.resolution.height());
+    const float imageW = float(resolution.width());
+    const float imageH = float(resolution.height());
 
     if (d.widget->zoomMode() == Viewer::FitToView) {
         const float sx = w / imageW;
@@ -123,6 +146,7 @@ ViewerPrivate::updateView()
         const float dpr = d.widget->devicePixelRatioF();
         const float panX = ((d.pan.x() * dpr) / w) * 2.0f;
         const float panY = -((d.pan.y() * dpr) / h) * 2.0f;
+
         d.view.translate(panX, panY);
         d.view.scale(d.zoom);
     }
@@ -338,20 +362,18 @@ ViewerPrivate::render(QRhiCommandBuffer* commandBuffer)
     if (!d.renderEngine)
         return;
 
-    render::RenderEngine::Context context;
+    render::RenderContext context;
     updateContext(context);
 
-    if (!context.isValid())
+    const render::RenderSpec spec = renderSpec();
+
+    if (!context.isValid() || !spec.isValid())
         return;
 
-    d.renderEngine->setBackground(d.background);
-    d.renderEngine->setResolution(d.resolution);
-    d.renderEngine->setImageLayers(d.imageLayers);
-
-    if (!d.renderEngine->initialize(context))
+    if (!d.renderEngine->initialize(context, spec))
         return;
 
-    d.renderEngine->render(context, commandBuffer);
+    d.renderEngine->render(context, spec, commandBuffer);
 }
 
 Viewer::Viewer(QWidget* parent)
@@ -377,30 +399,20 @@ Viewer::render(QRhiCommandBuffer* commandBuffer)
     p->render(commandBuffer);
 }
 
-QSize
-Viewer::resolution() const
+render::RenderEngine*
+Viewer::renderEngine() const
 {
-    return p->d.resolution;
+    return p->d.renderEngine;
 }
 
 void
-Viewer::setResolution(const QSize& resolution)
+Viewer::setRenderEngine(render::RenderEngine* renderEngine)
 {
-    p->d.resolution = resolution;
-    update();
-}
+    if (p->d.renderEngine == renderEngine)
+        return;
 
-void
-Viewer::setBackground(const QColor& background)
-{
-    p->d.background = background;
-    update();
-}
-
-void
-Viewer::setImageLayers(const QList<render::ImageLayer>& imageLayers)
-{
-    p->d.imageLayers = imageLayers;
+    p->d.renderEngine = renderEngine;
+    p->updateView();
     update();
 }
 

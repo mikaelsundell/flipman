@@ -18,9 +18,6 @@ target_link_libraries(${test_name}
     PRIVATE
         ${project_name}sdk
         DeckLinkSDK::DeckLinkSDK
-        Qt6::Core 
-        Qt6::Gui 
-        Qt6::Widgets
 )
 
 target_include_directories(${test_name}

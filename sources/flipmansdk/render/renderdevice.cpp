@@ -8,10 +8,11 @@ namespace flipman::sdk::render {
 
 class RenderDevicePrivate {
 public:
-    bool create(RenderDevice::Backend backend, const QSize& size, RenderDevice::RenderTargetFormat renderTargetFormat);
+    bool create(RenderDevice::Backend backend, const QSize& size, RenderDevice::TargetFormat renderTargetFormat);
     bool beginFrame(QRhiCommandBuffer*& commandBuffer);
     void endFrame();
-    RenderEngine::Context context() const;
+    RenderContext context() const;
+    RenderSurface surface() const;
     QImage readback() const;
     QRhi::Implementation toBackend(RenderDevice::Backend backend);
     struct Data {
@@ -24,7 +25,7 @@ public:
         QSize size;
         QColor clearColor = Qt::black;
         RenderDevice::Backend backend = RenderDevice::Null;
-        RenderDevice::RenderTargetFormat renderTargetFormat = RenderDevice::RenderTargetFormat::Rgba16F;
+        RenderDevice::TargetFormat targetFormat = RenderDevice::TargetFormat::Rgba16F;
         core::Error error;
         bool initialized = false;
     };
@@ -55,8 +56,7 @@ RenderDevicePrivate::toBackend(RenderDevice::Backend backend)
 }
 
 bool
-RenderDevicePrivate::create(RenderDevice::Backend backend, const QSize& size,
-                            RenderDevice::RenderTargetFormat renderTargetFormat)
+RenderDevicePrivate::create(RenderDevice::Backend backend, const QSize& size, RenderDevice::TargetFormat targetFormat)
 {
     if (size.isEmpty()) {
         d.error = core::Error("renderdevice", "create failed: invalid size");
@@ -64,7 +64,7 @@ RenderDevicePrivate::create(RenderDevice::Backend backend, const QSize& size,
     }
     d.size = size;
     d.backend = backend;
-    d.renderTargetFormat = renderTargetFormat;
+    d.targetFormat = targetFormat;
 
     const QRhi::Implementation rhiBackend = toBackend(backend);
     QRhiInitParams* params = nullptr;
@@ -113,7 +113,7 @@ RenderDevicePrivate::create(RenderDevice::Backend backend, const QSize& size,
         return false;
     }
     QRhiTexture::Format texFormat = QRhiTexture::RGBA16F;
-    switch (renderTargetFormat) {
+    switch (targetFormat) {
     case RenderDevice::Rgba8: texFormat = QRhiTexture::RGBA8; break;
     case RenderDevice::Rgba16F: texFormat = QRhiTexture::RGBA16F; break;
     case RenderDevice::Rgba32F: texFormat = QRhiTexture::RGBA32F; break;
@@ -172,18 +172,28 @@ RenderDevicePrivate::endFrame()
     d.currentCb = nullptr;
 }
 
-RenderEngine::Context
+RenderContext
 RenderDevicePrivate::context() const
 {
-    RenderEngine::Context context;
+    RenderContext context;
     if (!d.initialized)
         return context;
 
     context.rhi = d.rhi.get();
-    context.renderTarget = d.renderTarget.get();
-    context.renderPassDescriptor = d.renderPassDesc.get();
-    context.size = d.size;
     return context;
+}
+
+RenderSurface
+RenderDevicePrivate::surface() const
+{
+    RenderSurface surface;
+
+    if (!d.initialized)
+        return surface;
+
+    surface.renderTarget = d.renderTarget.get();
+
+    return surface;
 }
 
 RenderDevice::RenderDevice(QObject* parent)
@@ -194,9 +204,9 @@ RenderDevice::RenderDevice(QObject* parent)
 RenderDevice::~RenderDevice() {}
 
 bool
-RenderDevice::create(Backend backend, const QSize& size, RenderTargetFormat renderTargetFormat)
+RenderDevice::create(Backend backend, const QSize& size, TargetFormat targetFormat)
 {
-    return p->create(backend, size, renderTargetFormat);
+    return p->create(backend, size, targetFormat);
 }
 
 bool
@@ -211,16 +221,22 @@ RenderDevice::endFrame()
     return p->endFrame();
 }
 
-RenderEngine::Context
+RenderContext
 RenderDevice::context() const
 {
     return p->context();
 }
 
-RenderDevice::RenderTargetFormat
-RenderDevice::renderTargetFormat() const
+RenderSurface
+RenderDevice::surface() const
 {
-    return p->d.renderTargetFormat;
+    return p->surface();
+}
+
+RenderDevice::TargetFormat
+RenderDevice::targetFormat() const
+{
+    return p->d.targetFormat;
 }
 
 RenderDevice::Backend
@@ -246,12 +262,12 @@ RenderDevice::readback() const
     core::ImageFormat format;
     int channels = 4;
 
-    switch (p->d.renderTargetFormat) {
-    case RenderTargetFormat::Rgba8: format = core::ImageFormat(core::ImageFormat::UInt8); break;
+    switch (p->d.targetFormat) {
+    case TargetFormat::Rgba8: format = core::ImageFormat(core::ImageFormat::UInt8); break;
 
-    case RenderTargetFormat::Rgba16F: format = core::ImageFormat(core::ImageFormat::Half); break;
+    case TargetFormat::Rgba16F: format = core::ImageFormat(core::ImageFormat::Half); break;
 
-    case RenderTargetFormat::Rgba32F: format = core::ImageFormat(core::ImageFormat::Float); break;
+    case TargetFormat::Rgba32F: format = core::ImageFormat(core::ImageFormat::Float); break;
     }
 
     QRect dataWindow(0, 0, w, h);
