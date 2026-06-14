@@ -85,6 +85,7 @@ public:
         QString dataPath;
         QString currentShader;
         QPointer<Window> window;
+        QPointer<sdk::render::RenderEngine> renderEngine;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
@@ -992,11 +993,14 @@ WindowPrivate::init()
     frameLayout->setSpacing(0);
 
     QRect displayWindow = image.displayWindow();
+    
+    d.renderEngine = new sdk::render::RenderEngine(d.window);
+    d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
+    d.renderEngine->setImageLayers({ d.imageLayer });
 
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
-    d.viewer->setResolution(QSize(displayWindow.width(), displayWindow.height()));
+    d.viewer->setRenderEngine(d.renderEngine.data());
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    d.viewer->setImageLayers({ d.imageLayer });
 
     frameLayout->addWidget(d.viewer);
     leftLayout->addWidget(viewerFrame, 1);
@@ -1152,7 +1156,7 @@ WindowPrivate::update()
     if (!d.viewer)
         return;
 
-    d.viewer->setImageLayers({ d.imageLayer });
+    d.renderEngine->setImageLayers({ d.imageLayer });
     d.viewer->update();
 }
 
