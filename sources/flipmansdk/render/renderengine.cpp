@@ -50,6 +50,83 @@ reNoDebugStream()
 
 namespace flipman::sdk::render {
 
+namespace {
+
+    const QString texUniformNv12 = QStringLiteral(R"(
+layout(binding = 1) uniform sampler2D tex0;
+layout(binding = 2) uniform sampler2D tex1;
+)");
+
+    const QString texUniformTexture2D = QStringLiteral(R"(
+layout(binding = 1) uniform sampler2D tex;
+)");
+
+    const QString texCodeNv12 = QStringLiteral(R"(
+ivec2 _sampleSize()
+{
+    return textureSize(tex0, 0);
+}
+
+vec4 _sample(ivec2 pixel)
+{
+    ivec2 ySize = textureSize(tex0, 0);
+    ivec2 uvSize = textureSize(tex1, 0);
+    pixel = clamp(pixel, ivec2(0), ySize - ivec2(1));
+    ivec2 chromaPixel = clamp(pixel / 2, ivec2(0), uvSize - ivec2(1));
+    float y = texelFetch(tex0, pixel, 0).r;
+    vec2 uvv = texelFetch(tex1, chromaPixel, 0).rg;
+    vec3 rgb = _nv12ToRgb(y, uvv);
+    return vec4(rgb, 1.0);
+}
+)");
+
+    const QString texCodeTexture2D = QStringLiteral(R"(
+ivec2 _sampleSize()
+{
+    return textureSize(tex, 0);
+}
+
+vec4 _sample(ivec2 pixel)
+{
+    ivec2 size = _sampleSize();
+    pixel = clamp(pixel, ivec2(0), size - ivec2(1));
+    return texelFetch(tex, pixel, 0);
+}
+)");
+
+    const QString texCall = QStringLiteral(R"(
+    ivec2 size = _sampleSize();
+    ivec2 pixel = clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
+    vec4 color = _sample(pixel);
+)");
+
+    const QString lutLookupCode = QStringLiteral(R"(
+vec3 _lookup(sampler3D lut, vec3 rgb)
+{
+    ivec3 size = textureSize(lut, 0);
+    vec3 s = vec3(size);
+    vec3 v = clamp(rgb, vec3(0.0), vec3(1.0));
+    vec3 uvw = (v * (s - vec3(1.0)) + vec3(0.5)) / s;
+    return texture(lut, uvw).rgb;
+}
+)");
+
+    const QString idtCode = QStringLiteral(R"(
+vec4 idt(vec4 c)
+{
+    return c;
+}
+)");
+
+    const QString odtCode = QStringLiteral(R"(
+vec4 odt(vec4 c)
+{
+    return c;
+}
+)");
+
+}  // namespace
+
 class RenderEnginePrivate : public QSharedData {
 public:
     RenderEnginePrivate();
@@ -58,7 +135,7 @@ public:
     void update(QRhiResourceUpdateBatch* updates);
     void render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
     void renderScene(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
-    
+
 public:
     struct SceneState {
         std::unique_ptr<QRhiTexture> texture;
@@ -1098,7 +1175,6 @@ RenderEnginePrivate::renderScene(const RenderContext& context, const RenderSpec&
     }
 }
 
-
 bool
 RenderEnginePrivate::updateBlitState(BlitState& state, QRhiRenderTarget* renderTarget, const RenderSpec& spec)
 {
@@ -1489,19 +1565,6 @@ RenderEnginePrivate::std140BufferSize(const QList<ShaderDescriptor::ShaderParame
 QString
 RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, const ShaderDefinition* effectDefinition)
 {
-    const QString idtCode =
-        R"(
-vec4 idt(vec4 c)
-{
-    return c;
-})";
-
-    const QString odtCode =
-        R"(vec4 odt(vec4 c)
-{
-    return c;
-})";
-
     QString effectShaderCode;
     QString effectUniformBlock;
 
@@ -1545,12 +1608,6 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
     ShaderParser shaderParser;
     ShaderContract shaderContract;
 
-    const QString idtCode =
-        R"(vec4 idt(vec4 c)
-{
-    return c;
-})";
-
     const ShaderDefinition idtDefinition = shaderParser.parse(idtCode);
     if (!shaderParser.isValid()) {
         d.error = core::Error("renderengine", "failed to parse idt shader: " + shaderParser.error().message());
@@ -1562,12 +1619,6 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
         d.error = core::Error("renderengine", "idt shader does not satisfy " + shaderContract.name(idtType));
         return {};
     }
-
-    const QString odtCode =
-        R"(vec4 odt(vec4 c)
-{
-    return c;
-})";
 
     const ShaderDefinition odtDefinition = shaderParser.parse(odtCode);
     if (!shaderParser.isValid()) {
@@ -1583,69 +1634,14 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
 
     QString texUniformBlock;
     QString texCode;
-    QString texCall;
 
     if (textureType == ImageState::TextureType::Nv12) {
-        texUniformBlock =
-            R"(
-layout(binding = 1) uniform sampler2D tex0;
-layout(binding = 2) uniform sampler2D tex1;
-)";
-
-        texCode =
-            R"(
-ivec2 _sampleSize()
-{
-    return textureSize(tex0, 0);
-}
-
-vec4 _sample(ivec2 pixel)
-{
-    ivec2 ySize = textureSize(tex0, 0);
-    ivec2 uvSize = textureSize(tex1, 0);
-    pixel = clamp(pixel, ivec2(0), ySize - ivec2(1));
-    ivec2 chromaPixel = clamp(pixel / 2, ivec2(0), uvSize - ivec2(1));
-    float y = texelFetch(tex0, pixel, 0).r;
-    vec2 uvv = texelFetch(tex1, chromaPixel, 0).rg;
-    vec3 rgb = _nv12ToRgb(y, uvv);
-    return vec4(rgb, 1.0);
-}
-)";
-
-        texCall =
-            R"( 
-    ivec2 size = _sampleSize();
-    ivec2 pixel = clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
-    vec4 color = _sample(pixel);
-)";
+        texUniformBlock = texUniformNv12;
+        texCode = texCodeNv12;
     }
     else {
-        texUniformBlock =
-            R"(
-layout(binding = 1) uniform sampler2D tex;
-)";
-
-        texCode =
-            R"(
-ivec2 _sampleSize()
-{
-    return textureSize(tex, 0);
-}
-
-vec4 _sample(ivec2 pixel)
-{
-    ivec2 size = _sampleSize();
-    pixel = clamp(pixel, ivec2(0), size - ivec2(1));
-    return texelFetch(tex, pixel, 0);
-}
-)";
-
-        texCall =
-            R"(   
-    ivec2 size = _sampleSize();
-    ivec2 pixel = clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
-    vec4 color = _sample(pixel);
-)";
+        texUniformBlock = texUniformTexture2D;
+        texCode = texCodeTexture2D;
     }
 
     const int lutFirstBinding = 4;
@@ -1658,19 +1654,8 @@ vec4 _sample(ivec2 pixel)
             += QString("layout(binding = %1) uniform sampler3D %2;\n").arg(lutFirstBinding + i).arg(lutParams[i].name);
     }
 
-    if (!lutParams.isEmpty()) {
-        texCode += R"(
-vec3 _lookup(sampler3D lut, vec3 rgb)
-{
-    ivec3 size = textureSize(lut, 0);
-    vec3 s = vec3(size);
-    vec3 v = clamp(rgb, vec3(0.0), vec3(1.0));
-    // map 0..1 RGB into LUT texel centers.
-    vec3 uvw = (v * (s - vec3(1.0)) + vec3(0.5)) / s;
-    return texture(lut, uvw).rgb;
-}
-)";
-    }
+    if (!lutParams.isEmpty())
+        texCode += lutLookupCode;
 
     ShaderParser::Options options;
     options.injections.set("texUniform", texUniformBlock);
