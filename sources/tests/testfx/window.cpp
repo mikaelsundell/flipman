@@ -888,11 +888,11 @@ WindowPrivate::init()
     sdk::core::File file(d.inputFile);
 
     if (!file.exists()) {
-#if (1)
+#if (0)
         const QString filename = "23.967.00086400.exr";
         file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
 #else
-        const QString filename = "square export 23.976 512x512.mov";
+        const QString filename = "prores4444 alexa mini.mov";
         file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
 #endif
     }
@@ -993,7 +993,7 @@ WindowPrivate::init()
     frameLayout->setSpacing(0);
 
     QRect displayWindow = image.displayWindow();
-    
+
     d.renderEngine = new sdk::render::RenderEngine(d.window);
     d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
     d.renderEngine->setImageLayers({ d.imageLayer });

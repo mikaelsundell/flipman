@@ -99,7 +99,7 @@ public:
      * @brief Returns the current render context.
      */
     RenderContext context() const;
-    
+
     /**
      * @brief Returns the render target format.
      */

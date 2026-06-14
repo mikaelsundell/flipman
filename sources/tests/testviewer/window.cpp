@@ -76,7 +76,7 @@ WindowPrivate::init()
         const QString filename = "23.967.00086400.exr";
         file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
 #else
-        const QString filename = "square export 23.976 512x512.mov";
+        const QString filename = "prores4444 alexa mini.mov";
         file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
 #endif
     }

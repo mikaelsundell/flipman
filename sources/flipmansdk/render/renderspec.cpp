@@ -96,8 +96,7 @@ RenderSpec::operator=(const RenderSpec& other)
 bool
 RenderSpec::operator==(const RenderSpec& other) const
 {
-    return (p->d.view == other.p->d.view && p->d.size == other.p->d.size
-            && p->d.lut == other.p->d.lut);
+    return (p->d.view == other.p->d.view && p->d.size == other.p->d.size && p->d.lut == other.p->d.lut);
 }
 
 bool
