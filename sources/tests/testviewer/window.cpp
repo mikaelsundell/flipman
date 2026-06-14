@@ -165,8 +165,12 @@ WindowPrivate::init()
 
     d.renderOutput = new sdk::render::RenderOutput(d.window);
     d.renderOutput->setEnabled(true);
-    d.renderOutput->setFormat(sdk::render::RenderOutput::Format::UYVY8);
-
+    d.renderOutput->setFormat(sdk::render::RenderOutput::Format::RGBA8);
+    
+    sdk::render::RenderSpec spec;
+    spec.setSize(QSize(displayWindow.width(), displayWindow.height()));
+    d.renderOutput->setRenderSpec(spec);
+    
     d.renderEngine = new sdk::render::RenderEngine(d.window);
     d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
     d.renderEngine->setRenderOutputs({ d.renderOutput });
