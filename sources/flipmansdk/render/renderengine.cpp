@@ -16,6 +16,7 @@
 #include <QMatrix4x4>
 #include <QRegularExpression>
 #include <QTextStream>
+#include <limits>
 
 #undef RENDERENGINE_STATS
 #undef RENDERENGINE_TRACE
@@ -142,14 +143,12 @@ public:
         std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
         std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
     };
-
     struct QuadState {
         std::unique_ptr<QRhiBuffer> buffer;
         std::vector<float> vertices;
         QRhiVertexInputLayout layout;
         bool uploaded = false;
     };
-
     struct BlitState {
         QRhiRenderPassDescriptor* renderPassDescriptor = nullptr;
         std::unique_ptr<QRhiBuffer> mvpBuffer;
@@ -161,7 +160,6 @@ public:
     bool updateBlitState(BlitState& state, QRhiRenderTarget* renderTarget, const RenderSpec& spec);
     void updateBlitTransform(BlitState& state, const RenderSpec& spec, QRhiResourceUpdateBatch* updates);
     void renderBlit(BlitState& state, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
-
     struct OutputState {
         RenderOutput* output = nullptr;
         BlitState blitState;
@@ -192,7 +190,6 @@ public:
     void renderConvertState(OutputState& state, RenderOutput* output, QRhiCommandBuffer* commandBuffer);
     bool prepareReadbackState(OutputState& state, RenderOutput* output);
     void requestReadbackState(OutputState& state, RenderOutput* output, QRhiCommandBuffer* commandBuffer);
-    
     struct LutData {
         int size = 0;
         QByteArray rgba32f;
@@ -295,7 +292,6 @@ public:
         }
         bool isValid() const { return size > 1 && !rgba32f.isEmpty(); }
     };
-
     struct LutState {
         QString name;
         QString filename;
@@ -303,7 +299,6 @@ public:
         int size = 2;
         std::unique_ptr<QRhiTexture> texture;
     };
-
     struct ImageState {
         enum class TextureType { Unknown, UInt8, Half, Float, Nv12 };
         TextureType textureType = TextureType::Unknown;
@@ -513,7 +508,6 @@ public:
     };
     QByteArray fileHash(const QString& filename);
     QByteArray textHash(const QString& text) const;
-    
     struct FrameStats {
         quint64 frameIndex = 0;
         int layerCount = 0;
@@ -1154,11 +1148,10 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
     // additional output passes
     // sample the same internal RGBA16F target and draw it into each output-owned
     // RGBA16F render target, applying the output RenderSpec view transform.
-    
+
     RE_TRACE() << "renderengine: outputs"
-               << "configured" << d.renderOutputs.size()
-               << "states" << d.outputStates.size();
-    
+               << "configured" << d.renderOutputs.size() << "states" << d.outputStates.size();
+
     for (RenderOutput* output : d.renderOutputs) {
         if (!output || !output->enabled())
             continue;
@@ -1168,7 +1161,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
             continue;
 
         renderOutputState(*state, output, commandBuffer);
-        
+
         if (updateConvertState(*state, output)) {
             renderConvertState(*state, output, commandBuffer);
             if (prepareReadbackState(*state, output))
@@ -1360,8 +1353,7 @@ RenderEnginePrivate::outputState(RenderOutput* output)
     for (OutputState& state : d.outputStates) {
         if (state.output == output) {
             RE_TRACE() << "renderengine: output state reused"
-                       << "output" << output
-                       << "size" << state.size;
+                       << "output" << output << "size" << state.size;
             return &state;
         }
     }
@@ -1371,8 +1363,7 @@ RenderEnginePrivate::outputState(RenderOutput* output)
     d.outputStates.push_back(std::move(state));
 
     RE_TRACE() << "renderengine: output state created"
-               << "output" << output
-               << "stateCount" << d.outputStates.size();
+               << "output" << output << "stateCount" << d.outputStates.size();
 
     return &d.outputStates.back();
 }
@@ -1384,8 +1375,7 @@ RenderEnginePrivate::pruneOutputStates()
     while (it != d.outputStates.end()) {
         if (!it->output || !d.renderOutputs.contains(it->output)) {
             RE_TRACE() << "renderengine: output state pruned"
-                       << "output" << it->output
-                       << "size" << it->size;
+                       << "output" << it->output << "size" << it->size;
 
             it = d.outputStates.erase(it);
         }
@@ -1413,41 +1403,30 @@ RenderEnginePrivate::updateOutputState(OutputState& state, RenderOutput* output)
     const QSize size = outputSpec.size();
     if (size.isEmpty()) {
         RE_TRACE() << "renderengine: output update skipped empty size"
-                   << "output" << output
-                   << "size" << size;
+                   << "output" << output << "size" << size;
         return false;
     }
 
-    const bool recreateTarget =
-        !state.texture ||
-        !state.renderTarget ||
-        state.size != size ||
-        state.texture->pixelSize() != size ||
-        state.texture->format() != QRhiTexture::RGBA16F;
+    const bool recreateTarget = !state.texture || !state.renderTarget || state.size != size
+                                || state.texture->pixelSize() != size
+                                || state.texture->format() != QRhiTexture::RGBA16F;
 
     RE_TRACE() << "renderengine: output update"
-               << "output" << output
-               << "size" << size
-               << "currentSize" << state.size
-               << "recreateTarget" << recreateTarget;
+               << "output" << output << "size" << size << "currentSize" << state.size << "recreateTarget"
+               << recreateTarget;
 
     if (recreateTarget) {
         RE_TRACE() << "renderengine: output creating RGBA16F target"
-                   << "output" << output
-                   << "size" << size;
+                   << "output" << output << "size" << size;
 
-        state.texture.reset(d.deviceRhi->newTexture(
-            QRhiTexture::RGBA16F,
-            size,
-            1,
-            QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+        state.texture.reset(d.deviceRhi->newTexture(QRhiTexture::RGBA16F, size, 1,
+                                                    QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
 
         if (!state.texture || !state.texture->create()) {
             d.error = core::Error("renderengine", "could not create output render texture");
 
             RE_TRACE() << "renderengine: output texture create failed"
-                       << "output" << output
-                       << "size" << size;
+                       << "output" << output << "size" << size;
 
             state = {};
             state.output = output;
@@ -1464,8 +1443,7 @@ RenderEnginePrivate::updateOutputState(OutputState& state, RenderOutput* output)
             d.error = core::Error("renderengine", "could not create output render target");
 
             RE_TRACE() << "renderengine: output render target create failed"
-                       << "output" << output
-                       << "size" << size;
+                       << "output" << output << "size" << size;
 
             state = {};
             state.output = output;
@@ -1479,20 +1457,16 @@ RenderEnginePrivate::updateOutputState(OutputState& state, RenderOutput* output)
         state.blitState.bindings.reset();
 
         RE_TRACE() << "renderengine: output target created"
-                   << "output" << output
-                   << "texture" << state.texture.get()
-                   << "renderTarget" << state.renderTarget.get()
-                   << "renderPassDescriptor" << state.renderPassDescriptor.get()
-                   << "size" << state.size;
+                   << "output" << output << "texture" << state.texture.get() << "renderTarget"
+                   << state.renderTarget.get() << "renderPassDescriptor" << state.renderPassDescriptor.get() << "size"
+                   << state.size;
     }
 
     const bool ok = updateBlitState(state.blitState, state.renderTarget.get(), outputSpec);
 
     RE_TRACE() << "renderengine: output blit state"
-               << "output" << output
-               << "ok" << ok
-               << "pipeline" << state.blitState.pipeline.get()
-               << "bindings" << state.blitState.bindings.get();
+               << "output" << output << "ok" << ok << "pipeline" << state.blitState.pipeline.get() << "bindings"
+               << state.blitState.bindings.get();
 
     return ok;
 }
@@ -1515,16 +1489,13 @@ RenderEnginePrivate::renderOutputState(OutputState& state, RenderOutput* output,
 
     if (!state.renderTarget || !state.texture) {
         RE_TRACE() << "renderengine: output render skipped missing target"
-                   << "output" << output
-                   << "texture" << state.texture.get()
-                   << "renderTarget" << state.renderTarget.get();
+                   << "output" << output << "texture" << state.texture.get() << "renderTarget"
+                   << state.renderTarget.get();
         return;
     }
 
     RE_TRACE() << "renderengine: output render begin"
-               << "output" << output
-               << "size" << outputSpec.size()
-               << "texture" << state.texture.get()
+               << "output" << output << "size" << outputSpec.size() << "texture" << state.texture.get()
                << "renderTarget" << state.renderTarget.get();
 
     commandBuffer->beginPass(state.renderTarget.get(), Qt::transparent, { 1.0f, 0 });
@@ -1540,7 +1511,7 @@ RenderEnginePrivate::convertShaderName(RenderOutput::Format format) const
 {
     switch (format) {
     case RenderOutput::Format::RGBA8: return QStringLiteral("rgba8");
-    case RenderOutput::Format::UYVY8: return QStringLiteral("cuyvy8");
+    case RenderOutput::Format::UYVY8: return QStringLiteral("uyvy8");
     case RenderOutput::Format::V210: return QStringLiteral("v210");
     case RenderOutput::Format::RGBA16F: break;
     }
@@ -1568,17 +1539,12 @@ RenderEnginePrivate::updateConvertState(OutputState& state, RenderOutput* output
     if (byteSize <= 0)
         return false;
 
-    const bool recreate =
-        !state.convertBuffer ||
-        state.convertSize != size ||
-        state.convertFormat != format ||
-        state.convertBuffer->size() != quint32(byteSize);
+    const bool recreate = !state.convertBuffer || state.convertSize != size || state.convertFormat != format
+                          || state.convertBuffer->size() != quint32(byteSize);
 
     if (recreate) {
-        state.convertBuffer.reset(d.deviceRhi->newBuffer(
-            QRhiBuffer::Static,
-            QRhiBuffer::StorageBuffer,
-            quint32(byteSize)));
+        state.convertBuffer.reset(
+            d.deviceRhi->newBuffer(QRhiBuffer::Static, QRhiBuffer::StorageBuffer, quint32(byteSize)));
 
         if (!state.convertBuffer || !state.convertBuffer->create()) {
             d.error = core::Error("renderengine", "could not create output convert buffer");
@@ -1586,10 +1552,7 @@ RenderEnginePrivate::updateConvertState(OutputState& state, RenderOutput* output
             return false;
         }
 
-        state.convertUniformBuffer.reset(d.deviceRhi->newBuffer(
-            QRhiBuffer::Dynamic,
-            QRhiBuffer::UniformBuffer,
-            16));
+        state.convertUniformBuffer.reset(d.deviceRhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, 16));
 
         if (!state.convertUniformBuffer || !state.convertUniformBuffer->create()) {
             d.error = core::Error("renderengine", "could not create output convert uniform buffer");
@@ -1603,30 +1566,20 @@ RenderEnginePrivate::updateConvertState(OutputState& state, RenderOutput* output
         state.convertPipeline.reset();
 
         RE_TRACE() << "renderengine: output convert buffer created"
-                   << "output" << output
-                   << "format" << int(format)
-                   << "size" << size
-                   << "bytes" << byteSize;
+                   << "output" << output << "format" << int(format) << "size" << size << "bytes" << byteSize;
     }
 
     if (!state.convertBindings) {
         state.convertBindings.reset(d.deviceRhi->newShaderResourceBindings());
         state.convertBindings->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(
-                0,
-                QRhiShaderResourceBinding::ComputeStage,
-                state.convertUniformBuffer.get()),
+            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::ComputeStage,
+                                                     state.convertUniformBuffer.get()),
 
-            QRhiShaderResourceBinding::sampledTexture(
-                1,
-                QRhiShaderResourceBinding::ComputeStage,
-                state.texture.get(),
-                d.sampler.get()),
+            QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::ComputeStage, state.texture.get(),
+                                                      d.sampler.get()),
 
-            QRhiShaderResourceBinding::bufferLoadStore(
-                2,
-                QRhiShaderResourceBinding::ComputeStage,
-                state.convertBuffer.get()),
+            QRhiShaderResourceBinding::bufferLoadStore(2, QRhiShaderResourceBinding::ComputeStage,
+                                                       state.convertBuffer.get()),
         });
 
         if (!state.convertBindings->create()) {
@@ -1659,9 +1612,7 @@ RenderEnginePrivate::updateConvertState(OutputState& state, RenderOutput* output
         }
 
         RE_TRACE() << "renderengine: output convert pipeline created"
-                   << "output" << output
-                   << "format" << int(format)
-                   << "shader" << shaderName;
+                   << "output" << output << "format" << int(format) << "shader" << shaderName;
     }
 
     return true;
@@ -1704,11 +1655,8 @@ RenderEnginePrivate::renderConvertState(OutputState& state, RenderOutput* output
     const int groupsY = (size.height() + groupSize - 1) / groupSize;
 
     RE_TRACE() << "renderengine: output convert dispatch"
-               << "output" << output
-               << "format" << int(format)
-               << "size" << size
-               << "stride" << stride
-               << "groups" << QSize(groupsX, groupsY);
+               << "output" << output << "format" << int(format) << "size" << size << "stride" << stride << "groups"
+               << QSize(groupsX, groupsY);
 
     commandBuffer->beginComputePass();
     commandBuffer->setComputePipeline(state.convertPipeline.get());
@@ -1738,28 +1686,21 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
     if (stride <= 0 || byteSize <= 0)
         return false;
 
-    const bool changed =
-        !state.image.isValid() ||
-        !state.image.isAllocated() ||
-        state.readbackFormat != format ||
-        state.readbackSize != size ||
-        state.readbackStride != stride ||
-        qsizetype(state.image.byteSize()) != byteSize;
+    const bool changed = !state.image.isValid() || !state.image.isAllocated() || state.readbackFormat != format
+                         || state.readbackSize != size || state.readbackStride != stride
+                         || qsizetype(state.image.byteSize()) != byteSize;
 
     if (!changed)
         return true;
 
-    state.image.reset();
+    state.image = core::ImageBuffer();
 
     const QRect displayWindow(0, 0, size.width(), size.height());
 
     switch (format) {
     case RenderOutput::Format::RGBA16F: {
-        state.image = core::ImageBuffer(
-            displayWindow,
-            displayWindow,
-            core::ImageFormat(core::ImageFormat::Type::Half),
-            4);
+        state.image = core::ImageBuffer(displayWindow, displayWindow, core::ImageFormat(core::ImageFormat::Type::Half),
+                                        4);
 
         state.image.setPacking(core::ImageBuffer::Packing::Interleaved);
         state.image.setSubsampling(core::ImageBuffer::Subsampling::None);
@@ -1767,11 +1708,8 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
     }
 
     case RenderOutput::Format::RGBA8: {
-        state.image = core::ImageBuffer(
-            displayWindow,
-            displayWindow,
-            core::ImageFormat(core::ImageFormat::Type::UInt8),
-            4);
+        state.image = core::ImageBuffer(displayWindow, displayWindow, core::ImageFormat(core::ImageFormat::Type::UInt8),
+                                        4);
 
         state.image.setPacking(core::ImageBuffer::Packing::Interleaved);
         state.image.setSubsampling(core::ImageBuffer::Subsampling::None);
@@ -1782,14 +1720,13 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
     case RenderOutput::Format::V210: {
         const QRect dataWindow(0, 0, int(stride), size.height());
 
-        state.image = core::ImageBuffer(
-            dataWindow,
-            displayWindow,
-            core::ImageFormat(core::ImageFormat::Type::UInt8),
-            1);
+        state.image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::Type::UInt8),
+                                        1);
 
         state.image.setPacking(core::ImageBuffer::Packing::Packed);
-        state.image.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+
+        // do not call setSubsampling(CS422) here unless ImageBuffer
+        // explicitly supports subsampling metadata for Packed layouts.
         break;
     }
     }
@@ -1798,12 +1735,10 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
 
     if (!state.image.isValid() || !state.image.isAllocated()) {
         RE_TRACE() << "renderengine: readback image create failed"
-                   << "output" << output
-                   << "format" << int(format)
-                   << "size" << size
-                   << "stride" << stride
-                   << "bytes" << byteSize;
-        state.image.reset();
+                   << "output" << output << "format" << int(format) << "size" << size << "stride" << stride << "bytes"
+                   << byteSize;
+
+        state.image = core::ImageBuffer();
         return false;
     }
 
@@ -1812,12 +1747,9 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
     state.readbackStride = stride;
 
     RE_TRACE() << "renderengine: readback image prepared"
-               << "output" << output
-               << "format" << int(format)
-               << "dataWindow" << state.image.dataWindow()
-               << "displayWindow" << state.image.displayWindow()
-               << "stride" << state.image.strideSize()
-               << "bytes" << state.image.byteSize();
+               << "output" << output << "format" << int(format) << "dataWindow" << state.image.dataWindow()
+               << "displayWindow" << state.image.displayWindow() << "stride" << state.image.strideSize() << "bytes"
+               << state.image.byteSize();
 
     return true;
 }
@@ -1844,15 +1776,11 @@ RenderEnginePrivate::requestReadbackState(OutputState& state, RenderOutput* outp
         const qsizetype dstSize = qsizetype(state.image.byteSize());
 
         RE_TRACE() << "renderengine: readback complete"
-                   << "output" << output
-                   << "frame" << state.readbackFrameIndex
-                   << "srcBytes" << srcSize
-                   << "dstBytes" << dstSize;
+                   << "output" << output << "frame" << state.readbackFrameIndex << "srcBytes" << srcSize << "dstBytes"
+                   << dstSize;
 
         if (srcSize >= dstSize) {
-            memcpy(state.image.data(),
-                   state.readbackResult.data.constData(),
-                   size_t(dstSize));
+            memcpy(state.image.data(), state.readbackResult.data.constData(), size_t(dstSize));
 
             output->enqueueFrame(state.image, state.readbackFrameIndex);
         }
@@ -1861,18 +1789,12 @@ RenderEnginePrivate::requestReadbackState(OutputState& state, RenderOutput* outp
     };
 
     QRhiResourceUpdateBatch* updates = d.deviceRhi->nextResourceUpdateBatch();
-    updates->readBackBuffer(
-        state.convertBuffer.get(),
-        0,
-        quint32(byteSize),
-        &state.readbackResult);
+    updates->readBackBuffer(state.convertBuffer.get(), 0, quint32(byteSize), &state.readbackResult);
 
     commandBuffer->resourceUpdate(updates);
 
     RE_TRACE() << "renderengine: readback requested"
-               << "output" << output
-               << "frame" << state.readbackFrameIndex
-               << "bytes" << byteSize;
+               << "output" << output << "frame" << state.readbackFrameIndex << "bytes" << byteSize;
 }
 
 void
@@ -2110,11 +2032,9 @@ RenderEnginePrivate::formatStride(RenderOutput::Format format, int width) const
         return 0;
 
     switch (format) {
-    case RenderOutput::Format::RGBA16F:
-        return qsizetype(width) * 4 * qsizetype(sizeof(quint16));
+    case RenderOutput::Format::RGBA16F: return qsizetype(width) * 4 * qsizetype(sizeof(quint16));
 
-    case RenderOutput::Format::RGBA8:
-        return qsizetype(width) * 4;
+    case RenderOutput::Format::RGBA8: return qsizetype(width) * 4;
 
     case RenderOutput::Format::UYVY8:
         // 4:2:2 packed: 2 pixels = 4 bytes.

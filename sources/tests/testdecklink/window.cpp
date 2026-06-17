@@ -4,21 +4,33 @@
 
 #include "window.h"
 #include <DeckLinkAPI.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/render/render.h>
+#include <flipmansdk/widgets/viewer.h>
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDoubleSpinBox>
+#include <QFileInfo>
 #include <QFrame>
 #include <QGroupBox>
 #include <QLabel>
 #include <QPointer>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSlider>
+#include <QSplitter>
 #include <QTimer>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <functional>
 
 namespace flipman {
 
@@ -51,6 +63,7 @@ struct YCbCr8 {
 };
 
 enum class TestPattern { Bars, ColorPatches, GrayRamp, GrayRampMidWhite, GrayRampThreeWhitePatches };
+enum class OutputSource { Pattern, Image };
 
 struct PatternOptions {
     TestPattern pattern = TestPattern::GrayRampMidWhite;
@@ -137,9 +150,7 @@ colorPatchRgbAt(int x, int y, int width, int height, const PatternOptions& optio
 
     if (y >= topHeight) {
         constexpr std::array<double, 8> grays = { 0.0, 0.05, 0.10, 0.18, 0.25, 0.50, 0.75, 1.0 };
-
         const int index = std::clamp((x * int(grays.size())) / std::max(1, width), 0, int(grays.size()) - 1);
-
         return makeGray(grays[index], options);
     }
 
@@ -180,7 +191,6 @@ patternRgbAt(int x, int y, int width, int height, const PatternOptions& options)
                                                 { 0.00, 0.00, 0.00 } } };
 
         const int index = std::min<int>(x * int(bars.size()) / std::max(1, width), int(bars.size()) - 1);
-
         return bars[index];
     }
 
@@ -297,27 +307,63 @@ fillRec709Pattern8Bit(IDeckLinkMutableVideoFrame* frame, int width, int height, 
     }
 }
 
+class DeckLinkRenderOutput : public sdk::render::RenderOutput {
+public:
+    using FrameCallback = std::function<void(const sdk::core::ImageBuffer&, qint64)>;
+    explicit DeckLinkRenderOutput(QObject* parent = nullptr)
+        : sdk::render::RenderOutput(parent)
+    {}
+    void setFrameCallback(FrameCallback callback) { m_callback = std::move(callback); }
+    void enqueueFrame(const sdk::core::ImageBuffer& image, qint64 frame) override
+    {
+        qDebug() << "decklink renderoutput: enqueueFrame"
+                 << "frame" << frame << "valid" << image.isValid() << "allocated" << image.isAllocated() << "dataWindow"
+                 << image.dataWindow() << "displayWindow" << image.displayWindow() << "format"
+                 << int(image.imageFormat().type()) << "channels" << image.channels() << "packing"
+                 << int(image.packing()) << "stride" << image.strideSize() << "bytes" << image.byteSize();
+
+        if (m_callback)
+            m_callback(image, frame);
+    }
+
+private:
+    FrameCallback m_callback;
+};
+
 class WindowPrivate : public QObject {
 public:
     WindowPrivate();
     ~WindowPrivate() override;
-
     void init();
     void closeDeckLink();
     bool openDeckLink();
     void populateDevices();
     void resendFrame();
+    void send();
     void sendPattern();
+    void sendImage();
     void setControlsEnabled(bool enabled);
     void setGammaAndSend(double gamma);
     void stopOutput();
     void updateStatus(const QString& text);
-
+    bool createDeckLinkFrame(BMDPixelFormat pixelFormat, int width, int height, int rowBytes);
+    bool configureDeckLinkOutput();
+    bool copyImageToDeckLinkFrame(const sdk::core::ImageBuffer& image);
+    void receiveRenderedImage(const sdk::core::ImageBuffer& image, qint64 frame);
+    void updateRenderOutputFormat();
+    void updateRenderOutputSpec();
+    void updateViewer();
+    void loadImage();
+    OutputSource currentSource() const;
     PatternOptions patternOptions() const;
     TestPattern currentPattern() const;
 
+public:
     struct Data {
+        QString inputFile;
+        QString dataPath;
         QPointer<Window> window;
+        QPointer<QComboBox> sourceCombo;
         QPointer<QComboBox> deviceCombo;
         QPointer<QComboBox> formatCombo;
         QPointer<QComboBox> modeCombo;
@@ -332,23 +378,24 @@ public:
         QPointer<QLabel> statusLabel;
         QPointer<QTimer> outputTimer;
         QPointer<QWidget> controlsWidget;
-
+        QPointer<sdk::widgets::Viewer> viewer;
+        QPointer<sdk::render::RenderEngine> renderEngine;
+        QPointer<DeckLinkRenderOutput> renderOutput;
+        sdk::render::ImageLayer imageLayer;
+        sdk::av::Media media;
         IDeckLinkIterator* iterator = nullptr;
         IDeckLink* deckLink = nullptr;
         IDeckLinkOutput* output = nullptr;
         IDeckLinkMutableVideoFrame* frame = nullptr;
-
         int width = 1920;
         int height = 1080;
         int rowBytes = 5120;
-
         BMDDisplayMode displayMode = bmdModeHD1080p25;
         BMDDisplayMode activeDisplayMode = bmdModeUnknown;
         BMDPixelFormat pixelFormat = bmdFormat10BitYUV;
-
         bool outputEnabled = false;
+        bool waitingForImageFrame = false;
     };
-
     Data d;
 };
 
@@ -361,6 +408,13 @@ WindowPrivate::updateStatus(const QString& text)
 {
     if (d.statusLabel)
         d.statusLabel->setText(text);
+}
+
+OutputSource
+WindowPrivate::currentSource() const
+{
+    const int index = d.sourceCombo ? d.sourceCombo->currentIndex() : 0;
+    return index == 1 ? OutputSource::Image : OutputSource::Pattern;
 }
 
 void
@@ -469,7 +523,8 @@ WindowPrivate::setGammaAndSend(double gamma)
         d.gammaSpin->setValue(gamma);
     }
 
-    sendPattern();
+    if (currentSource() == OutputSource::Pattern)
+        sendPattern();
 }
 
 bool
@@ -545,6 +600,8 @@ WindowPrivate::stopOutput()
         d.activeDisplayMode = bmdModeUnknown;
         updateStatus("Output stopped.");
     }
+
+    d.waitingForImageFrame = false;
 }
 
 void
@@ -556,11 +613,11 @@ WindowPrivate::resendFrame()
     d.output->DisplayVideoFrameSync(d.frame);
 }
 
-void
-WindowPrivate::sendPattern()
+bool
+WindowPrivate::configureDeckLinkOutput()
 {
     if (!openDeckLink())
-        return;
+        return false;
 
     if (d.modeCombo) {
         const QVariant modeData = d.modeCombo->currentData();
@@ -573,6 +630,9 @@ WindowPrivate::sendPattern()
         if (formatData.isValid())
             d.pixelFormat = BMDPixelFormat(formatData.toInt());
     }
+
+    d.width = 1920;
+    d.height = 1080;
 
     const bool needEnable = !d.outputEnabled || d.activeDisplayMode != d.displayMode;
 
@@ -590,26 +650,61 @@ WindowPrivate::sendPattern()
 
         if (d.output->EnableVideoOutput(d.displayMode, bmdVideoOutputFlagDefault) != S_OK) {
             updateStatus("Failed to enable selected DeckLink video output mode.");
-            return;
+            return false;
         }
 
         d.outputEnabled = true;
         d.activeDisplayMode = d.displayMode;
     }
 
+    return true;
+}
+
+bool
+WindowPrivate::createDeckLinkFrame(BMDPixelFormat pixelFormat, int width, int height, int rowBytes)
+{
+    if (!d.output)
+        return false;
+
     safeRelease(d.frame);
+
+    if (d.output->CreateVideoFrame(width, height, rowBytes, pixelFormat, bmdFrameFlagDefault, &d.frame) != S_OK
+        || !d.frame) {
+        updateStatus("Failed to create DeckLink video frame.");
+        stopOutput();
+        return false;
+    }
+
+    d.width = width;
+    d.height = height;
+    d.rowBytes = rowBytes;
+    d.pixelFormat = pixelFormat;
+
+    return true;
+}
+
+void
+WindowPrivate::send()
+{
+    if (currentSource() == OutputSource::Image)
+        sendImage();
+    else
+        sendPattern();
+}
+
+void
+WindowPrivate::sendPattern()
+{
+    if (!configureDeckLinkOutput())
+        return;
 
     if (d.pixelFormat == bmdFormat10BitYUV)
         d.rowBytes = ((d.width + 47) / 48) * 128;
     else
         d.rowBytes = d.width * 2;
 
-    if (d.output->CreateVideoFrame(d.width, d.height, d.rowBytes, d.pixelFormat, bmdFrameFlagDefault, &d.frame) != S_OK
-        || !d.frame) {
-        updateStatus("Failed to create DeckLink video frame.");
-        stopOutput();
+    if (!createDeckLinkFrame(d.pixelFormat, d.width, d.height, d.rowBytes))
         return;
-    }
 
     const PatternOptions options = patternOptions();
 
@@ -631,8 +726,178 @@ WindowPrivate::sendPattern()
 }
 
 void
+WindowPrivate::sendImage()
+{
+    if (!configureDeckLinkOutput())
+        return;
+
+    updateRenderOutputFormat();
+    updateRenderOutputSpec();
+
+    d.waitingForImageFrame = true;
+
+    if (d.renderEngine)
+        d.renderEngine->setImageLayers({ d.imageLayer });
+
+    if (d.viewer)
+        d.viewer->update();
+
+    updateStatus("Rendering image and waiting for YUV readback...");
+}
+
+bool
+WindowPrivate::copyImageToDeckLinkFrame(const sdk::core::ImageBuffer& image)
+{
+    if (!image.isValid() || !image.isAllocated())
+        return false;
+
+    const QRect displayWindow = image.displayWindow();
+    const int width = displayWindow.width();
+    const int height = displayWindow.height();
+    const int imageRowBytes = int(image.strideSize());
+
+    if (width <= 0 || height <= 0 || imageRowBytes <= 0)
+        return false;
+
+    BMDPixelFormat pixelFormat = bmdFormat8BitYUV;
+    int deckLinkRowBytes = imageRowBytes;
+
+    if (d.pixelFormat == bmdFormat10BitYUV) {
+        pixelFormat = bmdFormat10BitYUV;
+        deckLinkRowBytes = ((width + 47) / 48) * 128;
+    }
+    else {
+        pixelFormat = bmdFormat8BitYUV;
+        deckLinkRowBytes = width * 2;
+    }
+
+    if (imageRowBytes != deckLinkRowBytes) {
+        qWarning() << "DeckLink row bytes mismatch"
+                   << "image" << imageRowBytes << "decklink" << deckLinkRowBytes;
+        return false;
+    }
+
+    if (!createDeckLinkFrame(pixelFormat, width, height, deckLinkRowBytes))
+        return false;
+
+    void* frameBytes = nullptr;
+    d.frame->GetBytes(&frameBytes);
+
+    if (!frameBytes)
+        return false;
+
+    auto* dst = static_cast<uint8_t*>(frameBytes);
+    const auto* src = static_cast<const uint8_t*>(image.data());
+
+    for (int y = 0; y < height; ++y)
+        std::memcpy(dst + size_t(y) * deckLinkRowBytes, src + size_t(y) * imageRowBytes, size_t(deckLinkRowBytes));
+
+    return true;
+}
+
+void
+WindowPrivate::receiveRenderedImage(const sdk::core::ImageBuffer& image, qint64 frame)
+{
+    if (!d.waitingForImageFrame)
+        return;
+
+    d.waitingForImageFrame = false;
+
+    if (!copyImageToDeckLinkFrame(image)) {
+        updateStatus("Failed to copy rendered image to DeckLink frame.");
+        return;
+    }
+
+    resendFrame();
+
+    if (d.outputTimer && !d.outputTimer->isActive())
+        d.outputTimer->start(40);
+
+    updateStatus(QString("Sending rendered image frame %1 as %2.")
+                     .arg(frame)
+                     .arg(d.pixelFormat == bmdFormat10BitYUV ? "v210 / 10-bit YUV" : "2vuy / UYVY8"));
+}
+
+void
+WindowPrivate::updateRenderOutputFormat()
+{
+    if (!d.renderOutput)
+        return;
+
+    if (d.pixelFormat == bmdFormat10BitYUV)
+        d.renderOutput->setFormat(sdk::render::RenderOutput::Format::V210);
+    else
+        d.renderOutput->setFormat(sdk::render::RenderOutput::Format::UYVY8);
+}
+
+void
+WindowPrivate::updateRenderOutputSpec()
+{
+    if (!d.renderOutput || !d.renderEngine)
+        return;
+
+    sdk::render::RenderSpec spec;
+    spec.setSize(QSize(d.width, d.height));
+
+    QMatrix4x4 view;
+    view.setToIdentity();
+    spec.setView(view);
+
+    d.renderOutput->setRenderSpec(spec);
+    d.renderEngine->setResolution(QSize(d.width, d.height));
+}
+
+void
+WindowPrivate::updateViewer()
+{
+    if (!d.viewer || !d.renderEngine)
+        return;
+
+    d.renderEngine->setImageLayers({ d.imageLayer });
+    d.viewer->update();
+}
+
+void
+WindowPrivate::loadImage()
+{
+    const QStringList args = QCoreApplication::arguments();
+    if (args.size() > 1)
+        d.inputFile = args.at(1);
+
+    d.dataPath = sdk::core::Environment::resourcePath("../../../data");
+
+    sdk::core::File file(d.inputFile);
+    if (!file.exists()) {
+        const QString filename = "prores4444 alexa mini.mov";
+        file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
+    }
+
+    if (!file.exists()) {
+        qWarning() << "testdecklink: image/media file does not exist:" << d.inputFile;
+        return;
+    }
+
+    if (!d.media.open(file) || !d.media.waitForOpened() || !d.media.isValid()) {
+        qWarning() << "testdecklink: could not open media:" << file;
+        return;
+    }
+
+    d.media.read();
+
+    const sdk::core::ImageBuffer image = d.media.image();
+    if (!image.isValid()) {
+        qWarning() << "testdecklink: invalid media image";
+        return;
+    }
+
+    d.imageLayer.setImage(image);
+}
+
+void
 WindowPrivate::init()
 {
+    loadImage();
+
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
     mainLayout->setContentsMargins(0, 0, 0, 0);
@@ -660,10 +925,37 @@ WindowPrivate::init()
     contentLayout->setContentsMargins(12, 12, 12, 12);
     contentLayout->setSpacing(12);
 
-    QLabel* infoLabel
-        = new QLabel("Generates Rec.709 patterns and continuously sends them to the UltraStudio / DeckLink output.",
-                     contentWidget);
+    QLabel* infoLabel = new QLabel(
+        "Generates Rec.709 patterns or renders an image and sends YUV frames to the UltraStudio / DeckLink output.",
+        contentWidget);
     infoLabel->setWordWrap(true);
+
+    QGroupBox* imageBox = new QGroupBox("Image", contentWidget);
+    QVBoxLayout* imageLayout = new QVBoxLayout(imageBox);
+    imageLayout->setContentsMargins(10, 10, 10, 10);
+    imageLayout->setSpacing(8);
+
+    d.renderOutput = new DeckLinkRenderOutput(d.window);
+    d.renderOutput->setEnabled(true);
+    d.renderOutput->setFormat(sdk::render::RenderOutput::Format::UYVY8);
+    d.renderOutput->setFrameCallback(
+        [this](const sdk::core::ImageBuffer& image, qint64 frame) { receiveRenderedImage(image, frame); });
+
+    sdk::render::RenderSpec outputSpec;
+    outputSpec.setSize(QSize(d.width, d.height));
+    d.renderOutput->setRenderSpec(outputSpec);
+
+    d.renderEngine = new sdk::render::RenderEngine(d.window);
+    d.renderEngine->setResolution(QSize(d.width, d.height));
+    d.renderEngine->setRenderOutputs({ d.renderOutput });
+
+    d.viewer = new sdk::widgets::Viewer(imageBox);
+    d.viewer->setRenderEngine(d.renderEngine.data());
+    d.viewer->setDisplayTransform({ sdk::render::ColorSpace::Rec709, sdk::render::TransferFunction::Gamma24 });
+    d.viewer->setMinimumHeight(180);
+    d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    imageLayout->addWidget(d.viewer);
 
     QGroupBox* outputBox = new QGroupBox("Output", contentWidget);
     QVBoxLayout* outputLayout = new QVBoxLayout(outputBox);
@@ -676,6 +968,10 @@ WindowPrivate::init()
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(10);
 
+    d.sourceCombo = new QComboBox(d.controlsWidget);
+    d.sourceCombo->addItem("Pattern", int(OutputSource::Pattern));
+    d.sourceCombo->addItem("Image", int(OutputSource::Image));
+
     d.modeCombo = new QComboBox(d.controlsWidget);
     d.modeCombo->addItem("1080p25", QVariant::fromValue(int(bmdModeHD1080p25)));
     d.modeCombo->addItem("1080p24", QVariant::fromValue(int(bmdModeHD1080p24)));
@@ -685,7 +981,7 @@ WindowPrivate::init()
     d.formatCombo = new QComboBox(d.controlsWidget);
     d.formatCombo->addItem("10-bit YUV", QVariant::fromValue(int(bmdFormat10BitYUV)));
     d.formatCombo->addItem("8-bit UYVY", QVariant::fromValue(int(bmdFormat8BitYUV)));
-    d.formatCombo->setCurrentIndex(0);
+    d.formatCombo->setCurrentIndex(1);
 
     d.patternCombo = new QComboBox(d.controlsWidget);
     d.patternCombo->addItem("Color bars 75%");
@@ -733,6 +1029,7 @@ WindowPrivate::init()
         parentLayout->addWidget(row);
     };
 
+    addRow(controlsLayout, "Source", d.sourceCombo, true);
     addRow(controlsLayout, "Device", d.deviceCombo, true);
     addRow(controlsLayout, "Mode", d.modeCombo, true);
     addRow(controlsLayout, "Format", d.formatCombo, true);
@@ -748,7 +1045,7 @@ WindowPrivate::init()
     buttonsLayout->setContentsMargins(0, 0, 0, 0);
     buttonsLayout->setSpacing(8);
 
-    d.sendButton = new QPushButton("Send Pattern", buttonsRow);
+    d.sendButton = new QPushButton("Send", buttonsRow);
     d.stopButton = new QPushButton("Stop Output", buttonsRow);
     d.gamma22Button = new QPushButton("2.2", buttonsRow);
     d.gamma24Button = new QPushButton("2.4", buttonsRow);
@@ -774,10 +1071,10 @@ WindowPrivate::init()
     d.outputTimer->setTimerType(Qt::PreciseTimer);
 
     contentLayout->addWidget(infoLabel);
-    contentLayout->addWidget(outputBox);
-    contentLayout->addWidget(buttonsRow);
-    contentLayout->addWidget(statusFrame);
-    contentLayout->addStretch();
+    contentLayout->addWidget(imageBox, 1);
+    contentLayout->addWidget(outputBox, 0);
+    contentLayout->addWidget(buttonsRow, 0);
+    contentLayout->addWidget(statusFrame, 0);
 
     mainLayout->addWidget(toolbar);
     mainLayout->addWidget(contentWidget, 1);
@@ -789,33 +1086,73 @@ WindowPrivate::init()
         setControlsEnabled(d.deviceCombo && d.deviceCombo->currentData().toInt() >= 0);
     });
 
-    QObject::connect(d.sendButton, &QPushButton::clicked, this, [this]() { sendPattern(); });
+    QObject::connect(d.sendButton, &QPushButton::clicked, this, [this]() { send(); });
     QObject::connect(d.stopButton, &QPushButton::clicked, this, [this]() { stopOutput(); });
     QObject::connect(d.gamma22Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.20); });
     QObject::connect(d.gamma24Button, &QPushButton::clicked, this, [this]() { setGammaAndSend(2.40); });
 
-    QObject::connect(d.gammaSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this,
-                     [this](double) { sendPattern(); });
+    QObject::connect(d.gammaSpin, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double) {
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+    });
 
-    QObject::connect(d.gammaCheck, &QCheckBox::toggled, this, [this](bool) { sendPattern(); });
+    QObject::connect(d.gammaCheck, &QCheckBox::toggled, this, [this](bool) {
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+    });
 
-    QObject::connect(d.patternCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
-                     [this](int) { sendPattern(); });
+    QObject::connect(d.patternCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+    });
 
-    QObject::connect(d.legalRangeCheck, &QCheckBox::toggled, this, [this](bool) { sendPattern(); });
+    QObject::connect(d.legalRangeCheck, &QCheckBox::toggled, this, [this](bool) {
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+    });
 
-    QObject::connect(d.modeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
-                     [this](int) { sendPattern(); });
+    QObject::connect(d.modeCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+        else
+            updateRenderOutputSpec();
+    });
 
-    QObject::connect(d.formatCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
-                     [this](int) { sendPattern(); });
+    QObject::connect(d.formatCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        updateRenderOutputFormat();
+
+        if (currentSource() == OutputSource::Pattern)
+            sendPattern();
+    });
+
+    QObject::connect(d.sourceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        const bool pattern = currentSource() == OutputSource::Pattern;
+
+        if (d.patternCombo)
+            d.patternCombo->setEnabled(pattern);
+        if (d.gammaSpin)
+            d.gammaSpin->setEnabled(pattern);
+        if (d.gammaCheck)
+            d.gammaCheck->setEnabled(pattern);
+        if (d.legalRangeCheck)
+            d.legalRangeCheck->setEnabled(pattern);
+        if (d.sendButton)
+            d.sendButton->setText(pattern ? "Send Pattern" : "Send Image");
+
+        updateStatus(pattern ? "Pattern output selected." : "Image output selected.");
+    });
 
     setControlsEnabled(false);
     populateDevices();
 
+    updateViewer();
+
+    if (d.sourceCombo)
+        d.sourceCombo->setCurrentIndex(0);
+
     d.window->setWindowTitle("testdecklink");
     d.window->setCentralWidget(centralWidget);
-    d.window->resize(720, 390);
+    d.window->resize(720, 720);
 }
 
 Window::Window(QWidget* parent)

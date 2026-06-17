@@ -85,18 +85,11 @@ void
 RenderOutput::enqueueFrame(const core::ImageBuffer& image, qint64 frame)
 {
     qDebug() << "renderoutput: enqueueFrame"
-             << "frame" << frame
-             << "valid" << image.isValid()
-             << "allocated" << image.isAllocated()
-             << "dataWindow" << image.dataWindow()
-             << "displayWindow" << image.displayWindow()
-             << "format" << int(image.imageFormat().type())
-             << "channels" << image.channels()
-             << "packing" << int(image.packing())
-             << "subsampling" << int(image.subsampling())
-             << "stride" << image.strideSize()
-             << "bytes" << image.byteSize()
-             << "data" << static_cast<const void*>(image.data());
+             << "frame" << frame << "valid" << image.isValid() << "allocated" << image.isAllocated() << "dataWindow"
+             << image.dataWindow() << "displayWindow" << image.displayWindow() << "format"
+             << int(image.imageFormat().type()) << "channels" << image.channels() << "packing" << int(image.packing())
+             << "subsampling" << int(image.subsampling()) << "stride" << image.strideSize() << "bytes"
+             << image.byteSize() << "data" << static_cast<const void*>(image.data());
 
     static bool written = false;
     if (written)

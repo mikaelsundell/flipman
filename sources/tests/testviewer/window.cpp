@@ -47,7 +47,6 @@ public:
         QString dataPath;
         QPointer<Window> window;
         QPointer<sdk::render::RenderEngine> renderEngine;
-        QPointer<sdk::render::RenderOutput> renderOutput;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
         QPointer<QLabel> timelineLabel;
@@ -55,7 +54,6 @@ public:
         sdk::av::TimeRange timeRange;
         sdk::render::ImageLayer imageLayer;
     };
-
     Data d;
 };
 
@@ -163,17 +161,8 @@ WindowPrivate::init()
 
     QRect displayWindow = image.displayWindow();
 
-    d.renderOutput = new sdk::render::RenderOutput(d.window);
-    d.renderOutput->setEnabled(true);
-    d.renderOutput->setFormat(sdk::render::RenderOutput::Format::RGBA8);
-    
-    sdk::render::RenderSpec spec;
-    spec.setSize(QSize(displayWindow.width(), displayWindow.height()));
-    d.renderOutput->setRenderSpec(spec);
-    
     d.renderEngine = new sdk::render::RenderEngine(d.window);
     d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
-    d.renderEngine->setRenderOutputs({ d.renderOutput });
 
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
     d.viewer->setRenderEngine(d.renderEngine.data());
