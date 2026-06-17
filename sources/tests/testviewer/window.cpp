@@ -33,14 +33,12 @@ public:
     void updateTimeline();
     bool eventFilter(QObject* object, QEvent* event);
     void seekFrame(int frame);
-
 public:
     struct DisplayTransform {
         QString label;
         sdk::render::DisplayTransform transform;
     };
     QVector<DisplayTransform> displayTransforms();
-
 public:
     struct Data {
         QString inputFile;

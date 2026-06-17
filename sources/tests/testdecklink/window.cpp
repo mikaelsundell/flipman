@@ -357,12 +357,18 @@ public:
     OutputSource currentSource() const;
     PatternOptions patternOptions() const;
     TestPattern currentPattern() const;
-
+public:
+    struct DisplayTransform {
+        QString label;
+        sdk::render::DisplayTransform transform;
+    };
+    QVector<DisplayTransform> displayTransforms();
 public:
     struct Data {
         QString inputFile;
         QString dataPath;
         QPointer<Window> window;
+        QPointer<QComboBox> displayCombo;
         QPointer<QComboBox> sourceCombo;
         QPointer<QComboBox> deviceCombo;
         QPointer<QComboBox> formatCombo;
@@ -868,7 +874,7 @@ WindowPrivate::loadImage()
 
     sdk::core::File file(d.inputFile);
     if (!file.exists()) {
-        const QString filename = "prores4444 alexa mini.mov";
+        const QString filename = "iphone17pro rec709 gamma2.4 ProRes 4444.mov";
         file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
     }
 
@@ -967,6 +973,31 @@ WindowPrivate::init()
     QVBoxLayout* controlsLayout = new QVBoxLayout(d.controlsWidget);
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(10);
+    
+    d.displayCombo = new QComboBox(d.controlsWidget);
+    d.displayCombo->setMinimumWidth(220);
+
+    const QVector<DisplayTransform> transforms = displayTransforms();
+
+    for (int i = 0; i < transforms.size(); ++i)
+        d.displayCombo->addItem(transforms[i].label, i);
+
+    int displayIndex = 0;
+    const sdk::render::DisplayTransform defaultDisplayTransform {
+        sdk::render::ColorSpace::Rec709,
+        sdk::render::TransferFunction::Gamma24
+    };
+
+    for (int i = 0; i < transforms.size(); ++i) {
+        if (transforms[i].transform.colorSpace == defaultDisplayTransform.colorSpace
+            && transforms[i].transform.transferFunction == defaultDisplayTransform.transferFunction) {
+            displayIndex = i;
+            break;
+        }
+    }
+
+    d.displayCombo->setCurrentIndex(displayIndex);
+    d.viewer->setDisplayTransform(defaultDisplayTransform);
 
     d.sourceCombo = new QComboBox(d.controlsWidget);
     d.sourceCombo->addItem("Pattern", int(OutputSource::Pattern));
@@ -1029,6 +1060,7 @@ WindowPrivate::init()
         parentLayout->addWidget(row);
     };
 
+    addRow(controlsLayout, "Display", d.displayCombo, true);
     addRow(controlsLayout, "Source", d.sourceCombo, true);
     addRow(controlsLayout, "Device", d.deviceCombo, true);
     addRow(controlsLayout, "Mode", d.modeCombo, true);
@@ -1124,6 +1156,29 @@ WindowPrivate::init()
         if (currentSource() == OutputSource::Pattern)
             sendPattern();
     });
+    
+    QObject::connect(d.displayCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+                     [this, transforms](int index) {
+                         if (index < 0)
+                             return;
+
+                         const int transformIndex = d.displayCombo->itemData(index).toInt();
+                         if (transformIndex < 0 || transformIndex >= transforms.size())
+                             return;
+
+                         const DisplayTransform& displayTransform = transforms[transformIndex];
+
+                         if (d.viewer) {
+                             d.viewer->setDisplayTransform({
+                                 displayTransform.transform.colorSpace,
+                                 displayTransform.transform.transferFunction
+                             });
+                             d.viewer->update();
+                         }
+
+                         if (currentSource() == OutputSource::Image)
+                             sendImage();
+                     });
 
     QObject::connect(d.sourceCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
         const bool pattern = currentSource() == OutputSource::Pattern;
@@ -1153,6 +1208,24 @@ WindowPrivate::init()
     d.window->setWindowTitle("testdecklink");
     d.window->setCentralWidget(centralWidget);
     d.window->resize(720, 720);
+}
+
+QVector<WindowPrivate::DisplayTransform>
+WindowPrivate::displayTransforms()
+{
+    using ColorSpace = sdk::render::ColorSpace;
+    using TransferFunction = sdk::render::TransferFunction;
+    return {
+        { "sRGB", { ColorSpace::Rec709, TransferFunction::SRGB } },
+        { "Rec.709 Gamma 2.2", { ColorSpace::Rec709, TransferFunction::Gamma22 } },
+        { "Rec.709 Gamma 2.4", { ColorSpace::Rec709, TransferFunction::Gamma24 } },
+        { "Rec.709 Gamma 2.6", { ColorSpace::Rec709, TransferFunction::Gamma26 } },
+        { "Display P3 sRGB", { ColorSpace::DisplayP3, TransferFunction::SRGB } },
+        { "Display P3 Gamma 2.2", { ColorSpace::DisplayP3, TransferFunction::Gamma22 } },
+        { "Display P3 Gamma 2.4", { ColorSpace::DisplayP3, TransferFunction::Gamma24 } },
+        { "DCI-P3 Gamma 2.6", { ColorSpace::DCIP3, TransferFunction::Gamma26 } },
+        { "Rec.2020 Gamma 2.4", { ColorSpace::Rec2020, TransferFunction::Gamma24 } },
+    };
 }
 
 Window::Window(QWidget* parent)

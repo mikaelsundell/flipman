@@ -1,18 +1,24 @@
 /*
- * UYVY8 Conversion Compute Shader
+ * UYVY8 Packing Compute Shader
  *
- * Converts an RGBA floating-point source texture into an 8-bit
- * 4:2:2 UYVY / 2vuy output buffer.
+ * Packs an already display-transformed Rec.709 RGB source texture into
+ * an 8-bit 4:2:2 UYVY / 2vuy output buffer.
+ *
+ * The shader expects the source texture to contain normalized Rec.709
+ * display RGB values, with the display transfer already applied
+ * upstream, for example Rec.709 Gamma 2.4. It does not perform color
+ * management, tone mapping, gamut conversion, or transfer-function
+ * conversion.
  *
  * The shader reads two horizontally adjacent RGB pixels per compute
- * invocation, converts them to Rec.709 YCbCr, averages chroma between
- * the two pixels, and writes one packed 32-bit UYVY word to the
- * destination storage buffer.
+ * invocation, derives YCbCr values using Rec.709 luma coefficients,
+ * averages chroma between the two pixels, and writes one packed 32-bit
+ * UYVY word to the destination storage buffer.
  *
  * Pipeline:
- *   1. Read two neighboring RGBA pixels from the source texture.
+ *   1. Read two neighboring Rec.709 RGB pixels from the source texture.
  *   2. Clamp RGB values to the normalized 0–1 range.
- *   3. Convert both pixels from RGB to Rec.709 YCbCr.
+ *   3. Derive Y, Cb and Cr from Rec.709 RGB.
  *   4. Average Cb and Cr between the two pixels for 4:2:2 chroma.
  *   5. Quantize Y, Cb and Cr to 8-bit legal-range video levels.
  *   6. Pack the result as UYVY:
@@ -25,6 +31,7 @@
  *   - Uses one compute invocation per two horizontal output pixels.
  *   - Supports arbitrary row stride through the Convert uniform block.
  *   - Outputs 8-bit 4:2:2 YUV in UYVY / 2vuy byte order.
+ *   - Assumes Rec.709 display RGB input.
  *   - Uses Rec.709 luma coefficients.
  *   - Uses legal video range:
  *       Y  = 16–235
@@ -38,7 +45,7 @@
  *               stride = output row stride in bytes.
  *
  *   binding 1 - Source RGBA texture.
- *               Expected to contain normalized floating-point RGB data.
+ *               Expected to contain normalized Rec.709 display RGB data.
  *
  *   binding 2 - Destination storage buffer.
  *               Receives packed 32-bit UYVY words.
@@ -70,7 +77,7 @@ layout(std430, binding = 2) buffer Dst
     uint data[];
 } dst;
 
-vec3 rgbToRec709Ycbcr(vec3 rgb)
+vec3 rec709RgbToYcbcr(vec3 rgb)
 {
     rgb = clamp(rgb, 0.0, 1.0);
 
@@ -106,8 +113,8 @@ void main()
     vec3 rgb0 = texelFetch(src, ivec2(x0, y), 0).rgb;
     vec3 rgb1 = texelFetch(src, ivec2(x1, y), 0).rgb;
 
-    vec3 ycc0 = rgbToRec709Ycbcr(rgb0);
-    vec3 ycc1 = rgbToRec709Ycbcr(rgb1);
+    vec3 ycc0 = rec709RgbToYcbcr(rgb0);
+    vec3 ycc1 = rec709RgbToYcbcr(rgb1);
 
     uint y0 = quantizeYLegal(ycc0.x);
     uint y1 = quantizeYLegal(ycc1.x);
