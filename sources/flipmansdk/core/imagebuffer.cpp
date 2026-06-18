@@ -8,6 +8,7 @@
 #if defined(__ARM_NEON)
 #    include <arm_neon.h>
 #endif
+
 #include <cstring>
 #include <limits>
 
@@ -55,10 +56,11 @@ convertScalar(const S& src)
 {
     if constexpr (std::is_same_v<S, D>)
         return src;
+
     using F = typename BigEnoughFloat<D>::type;
 
-    // normalize integer -> [0..1], leave floats unscaled
     F scale = std::numeric_limits<S>::is_integer ? (F(1) / F(std::numeric_limits<S>::max())) : F(1);
+
     if constexpr (std::numeric_limits<D>::is_integer) {
         F min = static_cast<F>(std::numeric_limits<D>::min());
         F max = static_cast<F>(std::numeric_limits<D>::max());
@@ -78,6 +80,7 @@ convertBuffer(const S* src, D* dst, size_t count)
         std::memcpy(dst, src, count * sizeof(D));
         return;
     }
+
     for (size_t i = 0; i < count; ++i)
         dst[i] = convertScalar<S, D>(src[i]);
 }
@@ -87,6 +90,7 @@ inline void
 dispatchByFormat(ImageFormat::Type t, F&& fn)
 {
     using T = ImageFormat::Type;
+
     switch (t) {
     case T::UInt8: fn(uint8_t {}); break;
     case T::Int8: fn(int8_t {}); break;
@@ -112,15 +116,20 @@ public:
     size_t pixelSize() const;
     size_t strideSize() const;
     size_t size() const;
+    static ImageBuffer::PixelLayout pixelLayout(ImageBuffer::PixelLayout layout, int channels);
     static void convert(const ImageFormat& fromformat, const quint8* from, const ImageFormat& toformat, quint8* to,
                         int count);
     struct Data {
         ImageFormat format;
         QRect dataWindow;
         QRect displayWindow;
-        int channels;
+        int channels = 0;
         ImageBuffer::Packing packing = ImageBuffer::Packing::Interleaved;
         ImageBuffer::Subsampling subsampling = ImageBuffer::Subsampling::None;
+        ImageBuffer::PixelLayout pixelLayout = ImageBuffer::PixelLayout::Unknown;
+        ImageBuffer::PixelRange pixelRange = ImageBuffer::PixelRange::Unknown;
+        render::ColorSpace colorSpace = render::ColorSpace::Auto;
+        render::TransferFunction transferFunction = render::TransferFunction::Unknown;
         QByteArray data;
     };
     Data d;
@@ -136,16 +145,20 @@ ImageBufferPrivate::alloc()
     const int w = d.dataWindow.width();
     const int h = d.dataWindow.height();
     const size_t comp = d.format.size();
+
     size_t total = 0;
 
     switch (d.packing) {
     case ImageBuffer::Packing::Interleaved:
-    case ImageBuffer::Packing::Packed: total = w * h * d.channels * comp; break;
-    case ImageBuffer::Packing::Planar: total = w * h * d.channels * comp; break;
+    case ImageBuffer::Packing::Packed:
+    case ImageBuffer::Packing::Planar: total = size_t(w) * size_t(h) * size_t(d.channels) * comp; break;
+
     case ImageBuffer::Packing::BiPlanar: {
-        size_t y = w * h * comp;
+        size_t y = size_t(w) * size_t(h) * comp;
+
         int cw = w;
         int ch = h;
+
         if (d.subsampling == ImageBuffer::Subsampling::CS420) {
             cw /= 2;
             ch /= 2;
@@ -153,39 +166,89 @@ ImageBufferPrivate::alloc()
         else if (d.subsampling == ImageBuffer::Subsampling::CS422) {
             cw /= 2;
         }
-        size_t uv = cw * ch * 2 * comp;
+
+        size_t uv = size_t(cw) * size_t(ch) * 2 * comp;
         total = y + uv;
         break;
     }
-    default: total = 0;
+
+    default: total = 0; break;
     }
-    d.data.resize(total);
+
+    d.data.resize(qsizetype(total));
 }
 
 size_t
 ImageBufferPrivate::byteSize() const
 {
-    return pixelSize() * size();
+    if (!d.data.isEmpty())
+        return size_t(d.data.size());
+
+    switch (d.packing) {
+    case ImageBuffer::Packing::Interleaved:
+    case ImageBuffer::Packing::Packed:
+    case ImageBuffer::Packing::Planar:
+        return size_t(d.dataWindow.width()) * size_t(d.dataWindow.height()) * size_t(d.channels) * d.format.size();
+
+    case ImageBuffer::Packing::BiPlanar: {
+        const int w = d.dataWindow.width();
+        const int h = d.dataWindow.height();
+
+        int cw = w;
+        int ch = h;
+
+        if (d.subsampling == ImageBuffer::Subsampling::CS420) {
+            cw /= 2;
+            ch /= 2;
+        }
+        else if (d.subsampling == ImageBuffer::Subsampling::CS422) {
+            cw /= 2;
+        }
+
+        const size_t y = size_t(w) * size_t(h) * d.format.size();
+        const size_t uv = size_t(cw) * size_t(ch) * 2 * d.format.size();
+
+        return y + uv;
+    }
+    }
+
+    return 0;
 }
 
 size_t
 ImageBufferPrivate::pixelSize() const
 {
-    return d.format.size() * d.channels;
+    return d.format.size() * size_t(d.channels);
 }
 
 size_t
 ImageBufferPrivate::strideSize() const
 {
     Q_ASSERT(!d.dataWindow.isEmpty() && "datawindow is empty");
-    return d.dataWindow.width() * pixelSize();
+    return size_t(d.dataWindow.width()) * pixelSize();
 }
 
 size_t
 ImageBufferPrivate::size() const
 {
     Q_ASSERT(!d.dataWindow.isEmpty() && "datawindow is empty");
-    return d.dataWindow.width() * d.dataWindow.height();
+    return size_t(d.dataWindow.width()) * size_t(d.dataWindow.height());
+}
+
+ImageBuffer::PixelLayout
+ImageBufferPrivate::pixelLayout(ImageBuffer::PixelLayout layout, int channels)
+{
+    switch (layout) {
+    case ImageBuffer::PixelLayout::RGB:
+    case ImageBuffer::PixelLayout::RGBA:
+        return channels == 4 ? ImageBuffer::PixelLayout::RGBA : ImageBuffer::PixelLayout::RGB;
+
+    case ImageBuffer::PixelLayout::BGR:
+    case ImageBuffer::PixelLayout::BGRA:
+        return channels == 4 ? ImageBuffer::PixelLayout::BGRA : ImageBuffer::PixelLayout::BGR;
+
+    default: return layout;
+    }
 }
 
 void
@@ -259,6 +322,13 @@ ImageBuffer::displayWindow() const
     return p->d.displayWindow;
 }
 
+void
+ImageBuffer::setDisplayWindow(const QRect& displayWindow)
+{
+    detach();
+    p->d.displayWindow = displayWindow;
+}
+
 int
 ImageBuffer::channels() const
 {
@@ -300,9 +370,13 @@ ImageBuffer::setPacking(Packing packing)
 {
     if (p->d.packing != packing) {
         detach();
+
         p->d.packing = packing;
-        if (packing == Packing::Interleaved)
+
+        if (packing == Packing::Interleaved) {
             p->d.subsampling = Subsampling::None;
+        }
+
         p->d.data.clear();
     }
 }
@@ -314,30 +388,136 @@ ImageBuffer::subsampling() const
 }
 
 void
-ImageBuffer::setSubsampling(Subsampling s)
+ImageBuffer::setSubsampling(Subsampling subsampling)
 {
-    Q_ASSERT(s == Subsampling::None || p->d.packing == Packing::Planar || p->d.packing == Packing::BiPlanar);
-    if (p->d.subsampling != s) {
+    Q_ASSERT(subsampling == Subsampling::None || p->d.packing == Packing::Planar || p->d.packing == Packing::BiPlanar
+             || p->d.packing == Packing::Packed);
+
+    if (p->d.subsampling != subsampling) {
         detach();
-        p->d.subsampling = s;
+        p->d.subsampling = subsampling;
         p->d.data.clear();
+    }
+}
+
+ImageBuffer::PixelLayout
+ImageBuffer::pixelLayout() const
+{
+    return p->d.pixelLayout;
+}
+
+void
+ImageBuffer::setPixelLayout(PixelLayout pixelLayout)
+{
+    if (p->d.pixelLayout != pixelLayout) {
+        detach();
+        p->d.pixelLayout = pixelLayout;
+    }
+}
+
+ImageBuffer::PixelRange
+ImageBuffer::pixelRange() const
+{
+    return p->d.pixelRange;
+}
+
+void
+ImageBuffer::setPixelRange(PixelRange pixelRange)
+{
+    if (p->d.pixelRange != pixelRange) {
+        detach();
+        p->d.pixelRange = pixelRange;
+    }
+}
+
+bool
+ImageBuffer::requiresDecode() const
+{
+    if (isYCbCr())
+        return true;
+
+    return p->d.packing == Packing::Planar || p->d.packing == Packing::BiPlanar || p->d.packing == Packing::Packed;
+}
+
+bool
+ImageBuffer::isYCbCr() const
+{
+    switch (p->d.pixelLayout) {
+    case PixelLayout::NV12:
+    case PixelLayout::NV21:
+    case PixelLayout::UYVY:
+    case PixelLayout::YUYV:
+    case PixelLayout::YVYU:
+    case PixelLayout::VYUY:
+    case PixelLayout::V210: return true;
+
+    default: return false;
+    }
+}
+
+bool
+ImageBuffer::isRgb() const
+{
+    switch (p->d.pixelLayout) {
+    case PixelLayout::RGB:
+    case PixelLayout::BGR:
+    case PixelLayout::RGBA:
+    case PixelLayout::BGRA: return true;
+
+    case PixelLayout::Unknown:
+        return p->d.packing == Packing::Interleaved && p->d.subsampling == Subsampling::None
+               && (p->d.channels == 3 || p->d.channels == 4);
+
+    default: return false;
+    }
+}
+
+render::ColorSpace
+ImageBuffer::colorSpace() const
+{
+    return p->d.colorSpace;
+}
+
+void
+ImageBuffer::setColorSpace(render::ColorSpace colorSpace)
+{
+    if (p->d.colorSpace != colorSpace) {
+        detach();
+        p->d.colorSpace = colorSpace;
+    }
+}
+
+render::TransferFunction
+ImageBuffer::transferFunction() const
+{
+    return p->d.transferFunction;
+}
+
+void
+ImageBuffer::setTransferFunction(render::TransferFunction transferFunction)
+{
+    if (p->d.transferFunction != transferFunction) {
+        detach();
+        p->d.transferFunction = transferFunction;
     }
 }
 
 quint8*
 ImageBuffer::data() const
 {
-    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
+    Q_ASSERT(!p->d.data.isEmpty() && "imagebuffer not allocated. Call allocate() before accessing data.");
     return reinterpret_cast<quint8*>(p->d.data.data());
 }
 
 quint8*
 ImageBuffer::data(const QPoint& pos) const
 {
-    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
+    Q_ASSERT(!p->d.data.isEmpty() && "imagebuffer not allocated. Call allocate() before accessing data.");
     Q_ASSERT(p->d.packing == Packing::Interleaved);
+
     QPoint pixel = pos - p->d.dataWindow.topLeft();
     size_t offset = size_t(pixel.y()) * strideSize() + size_t(pixel.x()) * pixelSize();
+
     Q_ASSERT(offset < static_cast<size_t>(p->d.data.size()));
     return reinterpret_cast<quint8*>(p->d.data.data()) + offset;
 }
@@ -348,8 +528,11 @@ ImageBuffer::planeCount() const
     switch (p->d.packing) {
     case Packing::Interleaved:
     case Packing::Packed: return 1;
+
     case Packing::Planar: return p->d.channels;
+
     case Packing::BiPlanar: return 2;
+
     default: return 0;
     }
 }
@@ -358,25 +541,29 @@ size_t
 ImageBuffer::planeStride(int plane) const
 {
     Q_ASSERT(plane >= 0 && plane < planeCount());
+
     const int width = p->d.dataWindow.width();
 
     switch (p->d.packing) {
     case Packing::Interleaved:
-    case Packing::Packed: return width * pixelSize();
-    case Packing::Planar: return width * p->d.format.size();
+    case Packing::Packed: return size_t(width) * pixelSize();
+
+    case Packing::Planar: return size_t(width) * p->d.format.size();
+
     case Packing::BiPlanar:
         if (plane == 0) {
-            // y plane
-            return width * p->d.format.size();
+            return size_t(width) * p->d.format.size();
         }
         else {
-            // uv plane
             int chromaWidth = width;
+
             if (p->d.subsampling == Subsampling::CS420 || p->d.subsampling == Subsampling::CS422)
                 chromaWidth /= 2;
-            return chromaWidth * 2 * p->d.format.size();  // interleaved UV
+
+            return size_t(chromaWidth) * 2 * p->d.format.size();
         }
     }
+
     return 0;
 }
 
@@ -384,6 +571,7 @@ QSize
 ImageBuffer::planeSize(int plane) const
 {
     Q_ASSERT(plane >= 0 && plane < planeCount() && "planeSize: plane index out of range.");
+
     const int width = p->d.dataWindow.width();
     const int height = p->d.dataWindow.height();
 
@@ -391,17 +579,13 @@ ImageBuffer::planeSize(int plane) const
     case Packing::Interleaved:
     case Packing::Packed: return QSize(width, height);
 
-    case Packing::Planar:
-        // each channel is full resolution
-        return QSize(width, height);
+    case Packing::Planar: return QSize(width, height);
 
     case Packing::BiPlanar:
         if (plane == 0) {
-            // y plane (full resolution)
             return QSize(width, height);
         }
         else {
-            // uv plane (subsampled depending on mode)
             int chromaWidth = width;
             int chromaHeight = height;
 
@@ -416,16 +600,19 @@ ImageBuffer::planeSize(int plane) const
             case Subsampling::CS444:
             case Subsampling::None: break;
             }
+
             return QSize(chromaWidth, chromaHeight);
         }
     }
+
     return QSize();
 }
 
 size_t
 ImageBuffer::planeByteSize(int plane) const
 {
-    Q_ASSERT(plane >= 0 && plane < planeCount() && "Iplane index out of range.");
+    Q_ASSERT(plane >= 0 && plane < planeCount() && "plane index out of range.");
+
     const QSize size = planeSize(plane);
     const size_t stride = planeStride(plane);
 
@@ -435,11 +622,10 @@ ImageBuffer::planeByteSize(int plane) const
 quint8*
 ImageBuffer::planeData(int plane) const
 {
-    Q_ASSERT(!p->d.data.isEmpty() && "ImageBuffer not allocated. Call allocate() before accessing data.");
+    Q_ASSERT(!p->d.data.isEmpty() && "imagebuffer not allocated. Call allocate() before accessing data.");
 
     Q_ASSERT(plane >= 0 && plane < planeCount()
-             && "planeData/planeStride: plane index out of range. "
-                "Valid range is [0, planeCount()).");
+             && "planeData/planeStride: plane index out of range. Valid range is [0, planeCount()).");
 
     quint8* base = reinterpret_cast<quint8*>(p->d.data.data());
 
@@ -448,15 +634,15 @@ ImageBuffer::planeData(int plane) const
     case Packing::Packed: return base;
 
     case Packing::Planar: {
-        size_t planeSize = p->d.dataWindow.width() * p->d.dataWindow.height() * p->d.format.size();
-
-        return base + plane * planeSize;
+        size_t planeSize = size_t(p->d.dataWindow.width()) * size_t(p->d.dataWindow.height()) * p->d.format.size();
+        return base + size_t(plane) * planeSize;
     }
 
     case Packing::BiPlanar: {
         if (plane == 0)
             return base;
-        size_t yPlaneSize = p->d.dataWindow.width() * p->d.dataWindow.height() * p->d.format.size();
+
+        size_t yPlaneSize = size_t(p->d.dataWindow.width()) * size_t(p->d.dataWindow.height()) * p->d.format.size();
         return base + yPlaneSize;
     }
     }
@@ -471,6 +657,7 @@ ImageBuffer::detach()
         p.detach();
         p->d.data = QByteArray(p->d.data);
     }
+
     return *this;
 }
 
@@ -488,20 +675,17 @@ ImageBuffer::isValid() const
 
 void
 ImageBuffer::reset()
-{}
-
-void
-ImageBuffer::setDisplayWindow(const QRect& displayWindow)
 {
-    p->d.displayWindow = displayWindow;
+    detach();
+    p->d = ImageBufferPrivate::Data();
 }
 
 ImageBuffer&
 ImageBuffer::operator=(const ImageBuffer& other)
 {
-    if (this != &other) {
+    if (this != &other)
         p = other.p;
-    }
+
     return *this;
 }
 
@@ -520,13 +704,17 @@ ImageBuffer::operator!=(const ImageBuffer& other) const
 ImageBuffer
 ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels)
 {
+    Q_ASSERT(!imagebuffer.requiresDecode()
+             && "imagebuffer::convert only supports native RGB-like interleaved images. "
+                "YCbCr, planar, biplanar, and packed formats must be decoded first.");
+
+    Q_ASSERT(imagebuffer.isRgb() && "ImageBuffer::convert only supports RGB-like image layouts.");
+
     Q_ASSERT(imagebuffer.p->d.packing == Packing::Interleaved
-             && "ImageBuffer::convert currently only supports interleaved packing. "
-                "Planar and BiPlanar formats must be converted to interleaved first.");
+             && "imagebuffer::convert currently only supports interleaved packing.");
 
     Q_ASSERT(imagebuffer.p->d.subsampling == Subsampling::None
-             && "ImageBuffer::convert does not support chroma subsampled images "
-                "(CS420/CS422). Convert to full-resolution interleaved format before calling.");
+             && "imagebuffer::convert does not support chroma subsampled images.");
 
     if (imagebuffer.imageFormat().type() == type && imagebuffer.channels() == channels) {
         ImageBuffer copy = imagebuffer;
@@ -534,16 +722,16 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
     }
 
     ImageBuffer copy(imagebuffer.dataWindow(), imagebuffer.displayWindow(), type, channels);
+    copy.setPacking(imagebuffer.packing());
+    copy.setSubsampling(imagebuffer.subsampling());
+    copy.setPixelLayout(ImageBufferPrivate::pixelLayout(imagebuffer.pixelLayout(), channels));
+    copy.setPixelRange(imagebuffer.pixelRange());
+    copy.setColorSpace(imagebuffer.colorSpace());
+    copy.setTransferFunction(imagebuffer.transferFunction());
     copy.allocate();
 
     const quint8* src = imagebuffer.data();
     quint8* dst = copy.data();
-
-    const size_t srcRowBytes = size_t(imagebuffer.dataWindow().width()) * size_t(imagebuffer.channels())
-                               * imagebuffer.imageFormat().size();
-
-    const size_t dstRowBytes = size_t(copy.dataWindow().width()) * size_t(copy.channels()) * copy.imageFormat().size();
-    const bool contiguous = (imagebuffer.strideSize() == srcRowBytes) && (copy.strideSize() == dstRowBytes);
 
     for (int y = 0; y < imagebuffer.dataWindow().height(); ++y) {
         const quint8* from = src + size_t(y) * imagebuffer.strideSize();
@@ -551,7 +739,9 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
 
         for (int x = 0; x < imagebuffer.dataWindow().width(); ++x) {
             const int copyChannels = std::min(imagebuffer.channels(), copy.channels());
+
             ImageBufferPrivate::convert(imagebuffer.imageFormat(), from, copy.imageFormat(), to, copyChannels);
+
             if (copy.channels() > imagebuffer.channels()) {
                 dispatchByFormat(copy.imageFormat().type(), [&](auto tag) {
                     using D = decltype(tag);
@@ -561,17 +751,29 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
                         dstPixel[c] = std::numeric_limits<D>::is_integer ? std::numeric_limits<D>::max() : D(1);
                 });
             }
+
             from += imagebuffer.pixelSize();
             to += copy.pixelSize();
         }
     }
+
     return copy;
 }
 
 ImageBuffer
 ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
 {
-    Q_ASSERT(imageBuffer.p->d.packing == Packing::Interleaved);
+    Q_ASSERT(!imageBuffer.requiresDecode()
+             && "imagebuffer::convert only supports native RGB-like interleaved images. "
+                "YCbCr, planar, biplanar, and packed formats must be decoded first.");
+
+    Q_ASSERT(imageBuffer.isRgb() && "ImageBuffer::convert only supports RGB-like image layouts.");
+
+    Q_ASSERT(imageBuffer.p->d.packing == Packing::Interleaved
+             && "imagebuffer::convert currently only supports interleaved packing.");
+
+    Q_ASSERT(imageBuffer.p->d.subsampling == Subsampling::None
+             && "imagebuffer::convert does not support chroma subsampled images.");
 
     if (imageBuffer.channels() == channels)
         return imageBuffer;
@@ -580,6 +782,12 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
     const int height = imageBuffer.dataWindow().height();
 
     ImageBuffer dst(imageBuffer.dataWindow(), imageBuffer.displayWindow(), imageBuffer.imageFormat(), channels);
+    dst.setPacking(imageBuffer.packing());
+    dst.setSubsampling(imageBuffer.subsampling());
+    dst.setPixelLayout(ImageBufferPrivate::pixelLayout(imageBuffer.pixelLayout(), channels));
+    dst.setPixelRange(imageBuffer.pixelRange());
+    dst.setColorSpace(imageBuffer.colorSpace());
+    dst.setTransferFunction(imageBuffer.transferFunction());
     dst.allocate();
 
     const int srcChannels = imageBuffer.channels();
@@ -637,6 +845,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
 #endif
             return dst;
         }
+
         if (type == ImageFormat::Half) {
             static_assert(sizeof(half) == sizeof(uint16_t), "OIIO::half must be 16-bit");
 
@@ -741,8 +950,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
             return dst;
         }
     }
-
-    const size_t compSize = imageBuffer.imageFormat().size();
+    
     if (type == ImageFormat::UInt8) {
         for (int y = 0; y < height; ++y) {
             const uint8_t* s = reinterpret_cast<const uint8_t*>(srcBase + y * imageBuffer.strideSize());
@@ -761,9 +969,9 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
         }
         return dst;
     }
+    
     if (type == ImageFormat::Half) {
         const half alpha = half(1.0f);
-
         for (int y = 0; y < height; ++y) {
             const half* s = reinterpret_cast<const half*>(srcBase + y * imageBuffer.strideSize());
             half* d = reinterpret_cast<half*>(dstBase + y * dst.strideSize());
@@ -781,9 +989,9 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
         }
         return dst;
     }
+    
     if (type == ImageFormat::Float) {
         const float alpha = 1.0f;
-
         for (int y = 0; y < height; ++y) {
             const float* s = reinterpret_cast<const float*>(srcBase + y * imageBuffer.strideSize());
             float* d = reinterpret_cast<float*>(dstBase + y * dst.strideSize());
@@ -801,6 +1009,8 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
         }
         return dst;
     }
+    Q_ASSERT(false && "ImageBuffer::convert unsupported image format");
+    return {};
 }
 
 }  // namespace flipman::sdk::core

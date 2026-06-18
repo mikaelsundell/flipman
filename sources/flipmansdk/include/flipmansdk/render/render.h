@@ -18,8 +18,9 @@ namespace flipman::sdk::render {
  * display-referred. That is described separately by TransferFunction.
  */
 enum class ColorSpace {
-    Auto,       ///< Infer the color space from metadata or defaults.
+    Unknown,    ///< Infer the color space from metadata or defaults.
     Raw,        ///< Do not interpret the color space; pass values through unchanged.
+    Rec601,     ///< Rec.601 / BT.601 color primaries.
     Rec709,     ///< Rec.709 / BT.709 color primaries.
     DisplayP3,  ///< Display P3 color primaries.
     DCIP3,      ///< DCI-P3 color primaries.
@@ -39,7 +40,7 @@ enum class ColorSpace {
  * complete color encoding.
  */
 enum class TransferFunction {
-    Auto,                 ///< Infer the transfer function from metadata or defaults.
+    Unknown,              ///< Infer the transfer function from metadata or defaults.
     Raw,                  ///< Do not apply transfer interpretation; pass values through unchanged.
     Linear,               ///< Scene-linear or display-linear values.
     SRGB,                 ///< sRGB transfer function.
@@ -74,6 +75,8 @@ enum class TransferFunction {
  * represent display-referred or log-encoded image encodings.
  */
 enum class WorkingSpace {
+    Unknown,           ///< Infer the working space from metadata or defaults.
+    Rec601,            ///< Rec.601 / BT.601.
     Rec709,            ///< Rec.709 / BT.709.
     DisplayP3,         ///< Display P3 / D65.
     DCIP3,             ///< DCI-P3.

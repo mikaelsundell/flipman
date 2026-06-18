@@ -51,24 +51,27 @@ public:
     ///@{
 
     /**
-     * @brief Returns the render engine used by the viewer.
+     * @brief Returns the render engine used by the offscreen renderer.
      *
-     * The viewer does not take ownership of the render engine.
+     * The offscreen renderer does not take ownership of the render engine.
      */
     render::RenderEngine* renderEngine() const;
 
     /**
-     * @brief Sets the render engine used by the viewer.
+     * @brief Sets the render engine used by the offscreen renderer.
      *
-     * The viewer uses this engine to render into the QRhiWidget frame context.
-     * Ownership remains with the caller.
+     * The offscreen renderer uses this engine to render into an offscreen render
+     * target. Ownership remains with the caller.
      */
     void setRenderEngine(render::RenderEngine* renderEngine);
 
     ///@}
 
     /**
-     * @brief Executes a render pass and returns the resulting image.
+     * @brief Executes an offscreen render pass and returns a native RGB image.
+     *
+     * Source layers may use encoded or planar video formats, but the returned image
+     * is always an interleaved RGB-like ImageBuffer that does not require decode.
      *
      * @return Rendered image.
      */

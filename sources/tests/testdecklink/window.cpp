@@ -357,12 +357,14 @@ public:
     OutputSource currentSource() const;
     PatternOptions patternOptions() const;
     TestPattern currentPattern() const;
+
 public:
     struct DisplayTransform {
         QString label;
         sdk::render::DisplayTransform transform;
     };
     QVector<DisplayTransform> displayTransforms();
+
 public:
     struct Data {
         QString inputFile;
@@ -973,7 +975,7 @@ WindowPrivate::init()
     QVBoxLayout* controlsLayout = new QVBoxLayout(d.controlsWidget);
     controlsLayout->setContentsMargins(0, 0, 0, 0);
     controlsLayout->setSpacing(10);
-    
+
     d.displayCombo = new QComboBox(d.controlsWidget);
     d.displayCombo->setMinimumWidth(220);
 
@@ -983,10 +985,8 @@ WindowPrivate::init()
         d.displayCombo->addItem(transforms[i].label, i);
 
     int displayIndex = 0;
-    const sdk::render::DisplayTransform defaultDisplayTransform {
-        sdk::render::ColorSpace::Rec709,
-        sdk::render::TransferFunction::Gamma24
-    };
+    const sdk::render::DisplayTransform defaultDisplayTransform { sdk::render::ColorSpace::Rec709,
+                                                                  sdk::render::TransferFunction::Gamma24 };
 
     for (int i = 0; i < transforms.size(); ++i) {
         if (transforms[i].transform.colorSpace == defaultDisplayTransform.colorSpace
@@ -1156,7 +1156,7 @@ WindowPrivate::init()
         if (currentSource() == OutputSource::Pattern)
             sendPattern();
     });
-    
+
     QObject::connect(d.displayCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
                      [this, transforms](int index) {
                          if (index < 0)
@@ -1169,10 +1169,8 @@ WindowPrivate::init()
                          const DisplayTransform& displayTransform = transforms[transformIndex];
 
                          if (d.viewer) {
-                             d.viewer->setDisplayTransform({
-                                 displayTransform.transform.colorSpace,
-                                 displayTransform.transform.transferFunction
-                             });
+                             d.viewer->setDisplayTransform({ displayTransform.transform.colorSpace,
+                                                             displayTransform.transform.transferFunction });
                              d.viewer->update();
                          }
 

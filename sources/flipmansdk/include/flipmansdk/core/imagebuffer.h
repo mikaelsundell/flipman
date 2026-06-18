@@ -6,6 +6,7 @@
 
 #include <flipmansdk/core/imageformat.h>
 #include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/render.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QRect>
@@ -19,7 +20,8 @@ class ImageBufferPrivate;
  * @class ImageBuffer
  * @brief Explicitly shared 2D image container.
  *
- * Provides data and display windows, pixel format, and memory layout control.
+ * Provides data and display windows, pixel format, memory layout control,
+ * pixel layout tags, and color interpretation metadata.
  */
 class FLIPMANSDK_EXPORT ImageBuffer {
     Q_GADGET
@@ -35,6 +37,24 @@ public:
      */
     enum class Subsampling { None, CS420, CS422, CS444 };
     Q_ENUM(Subsampling)
+
+    /**
+     * @brief Exact pixel storage layout.
+     *
+     * Packing describes the broad memory organization. PixelLayout describes
+     * the exact byte/component interpretation inside that organization.
+     */
+    enum class PixelLayout { Unknown, RGB, BGR, RGBA, BGRA, NV12, NV21, UYVY, YUYV, YVYU, VYUY, V210 };
+    Q_ENUM(PixelLayout)
+
+    /**
+     * @brief Numeric range of pixel values.
+     *
+     * Used primarily for YCbCr formats where video range and full range require
+     * different decode paths.
+     */
+    enum class PixelRange { Unknown, Full, Video };
+    Q_ENUM(PixelRange)
 
     /**
      * @brief Constructs an empty ImageBuffer.
@@ -144,6 +164,74 @@ public:
      * @brief Sets chroma subsampling.
      */
     void setSubsampling(Subsampling subsampling);
+
+    /**
+     * @brief Returns exact pixel storage layout.
+     */
+    PixelLayout pixelLayout() const;
+
+    /**
+     * @brief Sets exact pixel storage layout.
+     */
+    void setPixelLayout(PixelLayout pixelLayout);
+
+    /**
+     * @brief Returns pixel value range.
+     */
+    PixelRange pixelRange() const;
+
+    /**
+     * @brief Sets pixel value range.
+     */
+    void setPixelRange(PixelRange pixelRange);
+
+    ///@}
+
+    /** @name Classification */
+    ///@{
+
+    /**
+     * @brief Returns true if the image stores YCbCr or encoded video data.
+     *
+     * Decode-required images must be interpreted by the render/video pipeline
+     * before they become RGB pixels.
+     */
+    bool requiresDecode() const;
+
+    /**
+     * @brief Returns true if the image layout represents a YCbCr format.
+     */
+    bool isYCbCr() const;
+
+    /**
+     * @brief Returns true if the image layout represents an RGB-like format.
+     */
+    bool isRgb() const;
+
+    ///@}
+
+    /** @name Color Interpretation */
+    ///@{
+
+    /**
+     * @brief Returns source color space tag.
+     */
+    render::ColorSpace colorSpace() const;
+
+    /**
+     * @brief Sets source color space tag.
+     */
+    void setColorSpace(render::ColorSpace colorSpace);
+
+    /**
+     * @brief Returns source transfer function tag.
+     */
+    render::TransferFunction transferFunction() const;
+
+    /**
+     * @brief Sets source transfer function tag.
+     */
+    void setTransferFunction(render::TransferFunction transferFunction);
 
     ///@}
 
@@ -255,3 +343,7 @@ private:
  * @note Registering the type for use in signals/slots and QVariant.
  */
 Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer)
+Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer::Packing)
+Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer::Subsampling)
+Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer::PixelLayout)
+Q_DECLARE_METATYPE(flipman::sdk::core::ImageBuffer::PixelRange)

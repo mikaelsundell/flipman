@@ -241,7 +241,7 @@ ViewerPrivate::toDisplayColorSpace(render::ColorSpace colorSpace,
     case render::TransferFunction::SRGB:
         return QColorSpace(primaries, QColorSpace::TransferFunction::SRgb);
 
-    case render::TransferFunction::Auto:
+    case render::TransferFunction::Unknown:
     case render::TransferFunction::Raw:
         qWarning() << "viewer: transfer function cannot be represented as a display color space,"
                    << "falling back to sRGB"

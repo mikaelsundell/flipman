@@ -33,12 +33,14 @@ public:
     void updateTimeline();
     bool eventFilter(QObject* object, QEvent* event);
     void seekFrame(int frame);
+
 public:
     struct DisplayTransform {
         QString label;
         sdk::render::DisplayTransform transform;
     };
     QVector<DisplayTransform> displayTransforms();
+
 public:
     struct Data {
         QString inputFile;
@@ -72,7 +74,7 @@ WindowPrivate::init()
         const QString filename = "23.967.00086400.exr";
         file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
 #else
-        const QString filename = "prores4444 alexa mini.mov";
+        const QString filename = "iphone17pro bathroom HQ RAW.mov";  //prores4444 alexa mini.mov";
         file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
 #endif
     }

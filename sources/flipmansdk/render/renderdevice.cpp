@@ -243,27 +243,35 @@ RenderDevice::readback() const
     if (result.data.isEmpty())
         return {};
 
+    Q_ASSERT(p->d.targetFormat == TargetFormat::Rgba16F
+             && "renderdevice::readback expects the offscreen render target to be RGBA16F.");
+
+    if (p->d.targetFormat != TargetFormat::Rgba16F)
+        return {};
+
     const int w = result.pixelSize.width();
     const int h = result.pixelSize.height();
 
-    core::ImageFormat format;
-    int channels = 4;
+    if (w <= 0 || h <= 0)
+        return {};
 
-    switch (p->d.targetFormat) {
-    case TargetFormat::Rgba8: format = core::ImageFormat(core::ImageFormat::UInt8); break;
+    const QRect dataWindow(0, 0, w, h);
+    const QRect displayWindow = dataWindow;
 
-    case TargetFormat::Rgba16F: format = core::ImageFormat(core::ImageFormat::Half); break;
-
-    case TargetFormat::Rgba32F: format = core::ImageFormat(core::ImageFormat::Float); break;
-    }
-
-    QRect dataWindow(0, 0, w, h);
-    QRect displayWindow = dataWindow;
-
-    core::ImageBuffer buffer(dataWindow, displayWindow, format, channels);
+    core::ImageBuffer buffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::Half), 4);
+    buffer.setPacking(core::ImageBuffer::Packing::Interleaved);
+    buffer.setSubsampling(core::ImageBuffer::Subsampling::None);
+    buffer.setPixelLayout(core::ImageBuffer::PixelLayout::RGBA);
+    buffer.setPixelRange(core::ImageBuffer::PixelRange::Full);
     buffer.allocate();
 
-    std::memcpy(buffer.data(), result.data.constData(), buffer.byteSize());
+    const qsizetype dstSize = qsizetype(buffer.byteSize());
+    const qsizetype srcSize = result.data.size();
+
+    if (srcSize < dstSize)
+        return {};
+
+    std::memcpy(buffer.data(), result.data.constData(), size_t(dstSize));
     return buffer;
 }
 
