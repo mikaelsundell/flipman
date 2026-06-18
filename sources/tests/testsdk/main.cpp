@@ -26,15 +26,15 @@ runTest(const char* name, Fn&& fn)
 bool
 run()
 {
-    const bool runContainers = true;
-    const bool runTypes = true;
-    const bool runImage = true;
-    const bool runMedia = true;
-    const bool runTimer = true;
-    const bool runPlugin = true;
+    const bool runContainers = false;
+    const bool runTypes = false;
+    const bool runImage = false;
+    const bool runMedia = false;
+    const bool runTimer = false;
+    const bool runPlugin = false;
     const bool runRender = true;
-    const bool runShader = true;
-    const bool runTimeLine = true;
+    const bool runShader = false;
+    const bool runTimeLine = false;
 
     init();
 

@@ -58,6 +58,10 @@ layout(binding = 1) uniform sampler2D tex0;
 layout(binding = 2) uniform sampler2D tex1;
 )");
 
+    const QString texUniformUyvy = QStringLiteral(R"(
+layout(binding = 1) uniform sampler2D tex;
+)");
+
     const QString texUniformTexture2D = QStringLiteral(R"(
 layout(binding = 1) uniform sampler2D tex;
 )");
@@ -77,6 +81,26 @@ vec4 _sample(ivec2 pixel)
     float y = texelFetch(tex0, pixel, 0).r;
     vec2 uvv = texelFetch(tex1, chromaPixel, 0).rg;
     vec3 rgb = _nv12ToRgb(y, uvv);
+    return vec4(rgb, 1.0);
+}
+)");
+
+    const QString texCodeUyvy = QStringLiteral(R"(
+ivec2 _sampleSize()
+{
+    ivec2 packedSize = textureSize(tex, 0);
+    return ivec2(packedSize.x * 2, packedSize.y);
+}
+
+vec4 _sample(ivec2 pixel)
+{
+    ivec2 size = _sampleSize();
+
+    pixel = clamp(pixel, ivec2(0), size - ivec2(1));
+
+    vec4 uyvy = texelFetch(tex, ivec2(pixel.x / 2, pixel.y), 0);
+    vec3 rgb = _uyvyToRgb(uyvy, pixel.x);
+
     return vec4(rgb, 1.0);
 }
 )");
@@ -300,7 +324,7 @@ public:
         std::unique_ptr<QRhiTexture> texture;
     };
     struct ImageState {
-        enum class TextureType { Unknown, UInt8, Half, Float, Nv12 };
+        enum class TextureType { Unknown, UInt8, Half, Float, Nv12, Uyvy };
         TextureType textureType = TextureType::Unknown;
         std::unique_ptr<QRhiTexture> texture0;
         std::unique_ptr<QRhiTexture> texture1;
@@ -347,6 +371,7 @@ public:
         {
             if (!rhi || !image.isValid())
                 return false;
+
             if (textureType == TextureType::Nv12) {
                 const QSize ySize = image.planeSize(0);
                 const QSize uvSize = image.planeSize(1);
@@ -355,6 +380,7 @@ public:
                     if (!texture0->create())
                         return false;
                 }
+
                 if (!texture1 || texture1->pixelSize() != uvSize || texture1->format() != QRhiTexture::RG8) {
                     texture1.reset(rhi->newTexture(QRhiTexture::RG8, uvSize));
                     if (!texture1->create())
@@ -362,6 +388,18 @@ public:
                 }
                 return true;
             }
+            if (textureType == TextureType::Uyvy) {
+                const QSize size(image.dataWindow().width() / 2, image.dataWindow().height());
+
+                if (!texture0 || texture0->pixelSize() != size || texture0->format() != QRhiTexture::RGBA8) {
+                    texture0.reset(rhi->newTexture(QRhiTexture::RGBA8, size));
+                    if (!texture0->create())
+                        return false;
+                }
+                texture1.reset();
+                return true;
+            }
+
             const core::ImageBuffer& uploadImage = imageData0.isValid() ? imageData0 : image;
             const QSize size(uploadImage.dataWindow().width(), uploadImage.dataWindow().height());
             const QRhiTexture::Format format = toTextureFormat(textureType);
@@ -371,6 +409,7 @@ public:
                 if (!texture0->create())
                     return false;
             }
+
             texture1.reset();
             return true;
         }
@@ -378,20 +417,50 @@ public:
         {
             imageData0.reset();
             imageData1.reset();
-            if (!image.isValid())
+
+            if (!image.isValid()) {
+                qWarning() << "renderengine: prepareTextures failed, invalid image";
                 return false;
+            }
 
             if (textureType == TextureType::Nv12) {
                 imageData0 = image;
                 imageData1 = image;
                 return true;
             }
-            if (image.channels() == 4) {
+
+            if (textureType == TextureType::Uyvy) {
                 imageData0 = image;
+                return true;
             }
-            else {
+
+            if (image.requiresDecode()) {
+                qWarning() << "renderengine: prepareTextures failed, unsupported decode-required image"
+                           << "textureType" << int(textureType) << "pixelLayout" << int(image.pixelLayout())
+                           << "packing" << int(image.packing()) << "subsampling" << int(image.subsampling()) << "format"
+                           << int(image.imageFormat().type()) << "channels" << image.channels() << "dataWindow"
+                           << image.dataWindow() << "displayWindow" << image.displayWindow() << "byteSize"
+                           << image.byteSize() << "stride" << image.strideSize();
+
+                return false;
+            }
+
+            if (!image.isRgb()) {
+                qWarning() << "renderengine: prepareTextures failed, non-rgb image"
+                           << "textureType" << int(textureType) << "pixelLayout" << int(image.pixelLayout())
+                           << "packing" << int(image.packing()) << "subsampling" << int(image.subsampling()) << "format"
+                           << int(image.imageFormat().type()) << "channels" << image.channels() << "dataWindow"
+                           << image.dataWindow() << "displayWindow" << image.displayWindow() << "byteSize"
+                           << image.byteSize() << "stride" << image.strideSize();
+
+                return false;
+            }
+
+            if (image.channels() == 4)
+                imageData0 = image;
+            else
                 imageData0 = core::ImageBuffer::convert(image, image.imageFormat().type(), 4);
-            }
+
             return imageData0.isValid();
         }
         quint64 uploadTextures(QRhiResourceUpdateBatch* updates)
@@ -420,6 +489,23 @@ public:
                                        QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, uvUpload) }));
 
                 return quint64(imageData0.planeByteSize(0)) + quint64(imageData1.planeByteSize(1));
+            }
+
+            if (textureType == TextureType::Uyvy) {
+                if (!imageData0.isValid())
+                    return 0;
+
+                const QSize sourceSize(imageData0.dataWindow().width() / 2, imageData0.dataWindow().height());
+
+                QRhiTextureSubresourceUploadDescription subres(imageData0.data(),
+                                                               static_cast<quint32>(imageData0.byteSize()));
+                subres.setDataStride(static_cast<quint32>(imageData0.strideSize()));
+                subres.setSourceSize(sourceSize);
+
+                updates->uploadTexture(texture0.get(),
+                                       QRhiTextureUploadDescription({ QRhiTextureUploadEntry(0, 0, subres) }));
+
+                return quint64(imageData0.byteSize());
             }
 
             if (!imageData0.isValid())
@@ -465,8 +551,10 @@ public:
             case TextureType::UInt8: return QRhiTexture::RGBA8;
             case TextureType::Half: return QRhiTexture::RGBA16F;
             case TextureType::Float: return QRhiTexture::RGBA32F;
-            case TextureType::Unknown:
+
             case TextureType::Nv12:
+            case TextureType::Uyvy:
+            case TextureType::Unknown:
             default: return QRhiTexture::RGBA16F;
             }
         }
@@ -474,10 +562,28 @@ public:
         {
             if (!image.isValid())
                 return TextureType::Unknown;
-            if (image.packing() == core::ImageBuffer::Packing::BiPlanar && image.planeCount() == 2
-                && image.subsampling() == core::ImageBuffer::Subsampling::CS420) {
+
+            if (image.pixelLayout() == core::ImageBuffer::PixelLayout::NV12)
+                return TextureType::Nv12;
+
+            if (image.pixelLayout() == core::ImageBuffer::PixelLayout::UYVY)
+                return TextureType::Uyvy;
+
+            if (image.packing() == core::ImageBuffer::Packing::BiPlanar
+                && image.subsampling() == core::ImageBuffer::Subsampling::CS420 && image.planeCount() == 2
+                && image.imageFormat().type() == core::ImageFormat::Type::UInt8 && image.channels() == 1) {
                 return TextureType::Nv12;
             }
+
+            if (image.packing() == core::ImageBuffer::Packing::Packed
+                && image.subsampling() == core::ImageBuffer::Subsampling::CS422
+                && image.imageFormat().type() == core::ImageFormat::Type::UInt8 && image.channels() == 2) {
+                return TextureType::Uyvy;
+            }
+
+            if (image.requiresDecode())
+                return TextureType::Unknown;
+
             switch (image.imageFormat().type()) {
             case core::ImageFormat::Type::UInt8: return TextureType::UInt8;
             case core::ImageFormat::Type::Half: return TextureType::Half;
@@ -498,9 +604,12 @@ public:
     int std140BufferSize(const QList<ShaderDescriptor::ShaderParameter>& params, QVector<int>* offsets);
     qsizetype formatSize(RenderOutput::Format format, const QSize& size) const;
     qsizetype formatStride(RenderOutput::Format format, int width) const;
-    QString buildLayerShaderKey(ImageState::TextureType textureType, const ShaderDefinition* effectDefinition);
+    QString ycbcrFunctionName(ImageState::TextureType textureType, ColorSpace colorSpace) const;
+    QString buildLayerShaderKey(ImageState::TextureType textureType, ColorSpace colorSpace,
+                                const ShaderDefinition* effectDefinition);
+    QString buildLayerShaderSource(ImageState::TextureType textureType, ColorSpace colorSpace,
+                                   const ShaderDefinition* effectDefinition);
     QString buildLutShaderKey(const ShaderDefinition* effectDefinition);
-    QString buildLayerShaderSource(ImageState::TextureType textureType, const ShaderDefinition* effectDefinition);
     struct FileHash {
         qint64 size = -1;
         qint64 modified = -1;
@@ -819,7 +928,8 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
         d.stats.globalBufferUploadBytes += sizeof(Global);
 #endif
 
-        const QString newShaderKey = buildLayerShaderKey(imageState.textureType, effectDefinitionPtr);
+        const QString newShaderKey = buildLayerShaderKey(imageState.textureType, image.colorSpace(),
+                                                         effectDefinitionPtr);
         const bool shaderChanged = imageState.shaderKey != newShaderKey;
 
         if (shaderChanged) {
@@ -998,7 +1108,8 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
             imageState.pipeline.reset(d.deviceRhi->newGraphicsPipeline());
             imageState.pipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
 
-            const QString fragmentSource = buildLayerShaderSource(imageState.textureType, effectDefinitionPtr);
+            const QString fragmentSource = buildLayerShaderSource(imageState.textureType, image.colorSpace(),
+                                                                  effectDefinitionPtr);
             if (fragmentSource.isEmpty()) {
                 qWarning() << "renderengine: failed to build layer shader source:" << d.error.message();
                 imageState.pipeline.reset();
@@ -1704,6 +1815,8 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
 
         state.image.setPacking(core::ImageBuffer::Packing::Interleaved);
         state.image.setSubsampling(core::ImageBuffer::Subsampling::None);
+        state.image.setPixelLayout(core::ImageBuffer::PixelLayout::RGBA);
+        state.image.setPixelRange(core::ImageBuffer::PixelRange::Full);
         break;
     }
 
@@ -1713,10 +1826,24 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
 
         state.image.setPacking(core::ImageBuffer::Packing::Interleaved);
         state.image.setSubsampling(core::ImageBuffer::Subsampling::None);
+        state.image.setPixelLayout(core::ImageBuffer::PixelLayout::RGBA);
+        state.image.setPixelRange(core::ImageBuffer::PixelRange::Full);
         break;
     }
 
-    case RenderOutput::Format::UYVY8:
+    case RenderOutput::Format::UYVY8: {
+        const QRect dataWindow(0, 0, int(stride / 2), size.height());
+
+        state.image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::Type::UInt8),
+                                        2);
+
+        state.image.setPacking(core::ImageBuffer::Packing::Packed);
+        state.image.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+        state.image.setPixelLayout(core::ImageBuffer::PixelLayout::UYVY);
+        state.image.setPixelRange(core::ImageBuffer::PixelRange::Video);
+        break;
+    }
+
     case RenderOutput::Format::V210: {
         const QRect dataWindow(0, 0, int(stride), size.height());
 
@@ -1724,9 +1851,9 @@ RenderEnginePrivate::prepareReadbackState(OutputState& state, RenderOutput* outp
                                         1);
 
         state.image.setPacking(core::ImageBuffer::Packing::Packed);
-
-        // do not call setSubsampling(CS422) here unless ImageBuffer
-        // explicitly supports subsampling metadata for Packed layouts.
+        state.image.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+        state.image.setPixelLayout(core::ImageBuffer::PixelLayout::V210);
+        state.image.setPixelRange(core::ImageBuffer::PixelRange::Video);
         break;
     }
     }
@@ -2058,7 +2185,39 @@ RenderEnginePrivate::formatSize(RenderOutput::Format format, const QSize& size) 
 }
 
 QString
-RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, const ShaderDefinition* effectDefinition)
+RenderEnginePrivate::ycbcrFunctionName(ImageState::TextureType textureType, ColorSpace colorSpace) const
+{
+    QString prefix;
+    switch (textureType) {
+    case ImageState::TextureType::Nv12:
+        prefix = QStringLiteral("_nv12ToRgb");
+        break;
+    case ImageState::TextureType::Uyvy:
+        prefix = QStringLiteral("_uyvyToRgb");
+        break;
+
+    default:
+        return {};
+    }
+    switch (colorSpace) {
+    case ColorSpace::Rec601:
+        return prefix + QStringLiteral("601");
+    case ColorSpace::Rec2020:
+        return prefix + QStringLiteral("2020");
+    case ColorSpace::Rec709:
+    case ColorSpace::Unknown:
+    case ColorSpace::Raw:
+    case ColorSpace::DisplayP3:
+    case ColorSpace::DCIP3:
+    case ColorSpace::ACEScg:
+    default:
+        return prefix + QStringLiteral("709");
+    }
+}
+
+QString
+RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, ColorSpace colorSpace,
+                                         const ShaderDefinition* effectDefinition)
 {
     QString effectShaderCode;
     QString effectUniformBlock;
@@ -2068,8 +2227,9 @@ RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, co
         effectUniformBlock = effectDefinition->uniformBlock(3);
     }
 
-    return QString("layer:%1:%2:%3:%4:%5:%6")
+    return QString("layer:%1:%2:%3:%4:%5:%6:%7")
         .arg(int(textureType))
+        .arg(int(colorSpace))
         .arg(QString::fromLatin1(textHash(idtCode)))
         .arg(QString::fromLatin1(textHash(odtCode)))
         .arg(QString::fromLatin1(textHash(effectShaderCode)))
@@ -2078,11 +2238,12 @@ RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, co
 }
 
 QString
-RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
+RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType, ColorSpace colorSpace,
                                             const ShaderDefinition* effectDefinition)
 {
-    const QString shaderKey = buildLayerShaderKey(textureType, effectDefinition);
+    const QString shaderKey = buildLayerShaderKey(textureType, colorSpace, effectDefinition);
     const auto it = d.generatedShaderSourceCache.constFind(shaderKey);
+
     if (it != d.generatedShaderSourceCache.constEnd()) {
 #if RE_STATS_ENABLED
         ++d.stats.generatedShaderSourceCacheHits;
@@ -2130,9 +2291,18 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
     QString texUniformBlock;
     QString texCode;
 
+    const QString ycbcrFunction = ycbcrFunctionName(textureType, colorSpace);
     if (textureType == ImageState::TextureType::Nv12) {
         texUniformBlock = texUniformNv12;
         texCode = texCodeNv12;
+        texCode.replace(QStringLiteral("_nv12ToRgb(y, uvv)"),
+                        QStringLiteral("%1(y, uvv)").arg(ycbcrFunction));
+    }
+    else if (textureType == ImageState::TextureType::Uyvy) {
+        texUniformBlock = texUniformUyvy;
+        texCode = texCodeUyvy;
+        texCode.replace(QStringLiteral("_uyvyToRgb(uyvy, pixel.x)"),
+                        QStringLiteral("%1(uyvy, pixel.x)").arg(ycbcrFunction));
     }
     else {
         texUniformBlock = texUniformTexture2D;
@@ -2141,6 +2311,7 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
 
     const int lutFirstBinding = 4;
     QList<ShaderDescriptor::ShaderParameter> lutParams;
+
     if (effectDefinition)
         lutParams = effectDefinition->descriptor().lutParameters();
 
@@ -2175,6 +2346,7 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
 
     ShaderParser layerParser;
     const ShaderDefinition layerDefinition = layerParser.parse(layerSource, options);
+
     if (!layerParser.isValid()) {
         d.error = core::Error("renderengine", "failed to parse layer shader: " + layerParser.error().message());
         return {};
@@ -2182,6 +2354,7 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
 
     const QString generatedSource = layerDefinition.shaderCode();
     d.generatedShaderSourceCache.insert(shaderKey, generatedSource);
+
     return generatedSource;
 }
 

@@ -299,6 +299,131 @@ testFps()
 }
 
 bool
+testImageClassification()
+{
+    core::logOut() << "test image classification" << Qt::endl;
+
+    const QRect rect(0, 0, 1920, 1080);
+    core::ImageFormat format(core::ImageFormat::UInt8);
+
+    {
+        core::ImageBuffer image(rect, rect, format, 4);
+        image.setPacking(core::ImageBuffer::Packing::Interleaved);
+        image.setPixelLayout(core::ImageBuffer::PixelLayout::RGBA);
+
+        if (!image.isRgb() || image.isYCbCr() || image.requiresDecode()) {
+            core::logErr() << "RGBA classification failed" << Qt::endl;
+            return false;
+        }
+    }
+
+    {
+        core::ImageBuffer image(rect, rect, format, 1);
+        image.setPacking(core::ImageBuffer::Packing::BiPlanar);
+        image.setSubsampling(core::ImageBuffer::Subsampling::CS420);
+        image.setPixelLayout(core::ImageBuffer::PixelLayout::NV12);
+        image.setPixelRange(core::ImageBuffer::PixelRange::Video);
+
+        if (image.isRgb() || !image.isYCbCr() || !image.requiresDecode()) {
+            core::logErr() << "NV12 classification failed" << Qt::endl;
+            return false;
+        }
+    }
+
+    {
+        core::ImageBuffer image(rect, rect, format, 2);
+        image.setPacking(core::ImageBuffer::Packing::Packed);
+        image.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+        image.setPixelLayout(core::ImageBuffer::PixelLayout::UYVY);
+        image.setPixelRange(core::ImageBuffer::PixelRange::Video);
+
+        if (image.isRgb() || !image.isYCbCr() || !image.requiresDecode()) {
+            core::logErr() << "UYVY classification failed" << Qt::endl;
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool
+testImageNV12Layout()
+{
+    core::logOut() << "test image nv12 layout" << Qt::endl;
+
+    const QRect rect(0, 0, 1920, 1080);
+    core::ImageBuffer image(rect, rect, core::ImageFormat(core::ImageFormat::UInt8), 1);
+
+    image.setPacking(core::ImageBuffer::Packing::BiPlanar);
+    image.setSubsampling(core::ImageBuffer::Subsampling::CS420);
+    image.setPixelLayout(core::ImageBuffer::PixelLayout::NV12);
+    image.setPixelRange(core::ImageBuffer::PixelRange::Video);
+    image.allocate();
+
+    bool ok = true;
+
+    ok &= testValue(image.planeCount(), 2, "nv12 planeCount");
+
+    if (image.planeSize(0) != QSize(1920, 1080)) {
+        core::logErr() << "nv12 y plane size failed: expected 1920x1080, got " << image.planeSize(0).width() << "x"
+                       << image.planeSize(0).height() << Qt::endl;
+        ok = false;
+    }
+
+    if (image.planeSize(1) != QSize(960, 540)) {
+        core::logErr() << "nv12 uv plane size failed: expected 960x540, got " << image.planeSize(1).width() << "x"
+                       << image.planeSize(1).height() << Qt::endl;
+        ok = false;
+    }
+
+    ok &= testValue(image.planeStride(0), size_t(1920), "nv12 y stride");
+    ok &= testValue(image.planeStride(1), size_t(1920), "nv12 uv stride");
+    ok &= testValue(image.planeByteSize(0), size_t(1920 * 1080), "nv12 y bytes");
+    ok &= testValue(image.planeByteSize(1), size_t(1920 * 540), "nv12 uv bytes");
+    ok &= testValue(image.byteSize(), size_t(1920 * 1080 + 1920 * 540), "nv12 total bytes");
+
+    if (image.planeData(0) == image.planeData(1)) {
+        core::logErr() << "nv12 planes overlap" << Qt::endl;
+        ok = false;
+    }
+
+    return ok;
+}
+
+bool
+testImagePackedLayout()
+{
+    core::logOut() << "test image packed layout" << Qt::endl;
+
+    const QRect rect(0, 0, 1920, 1080);
+    core::ImageBuffer uyvy(rect, rect, core::ImageFormat(core::ImageFormat::UInt8), 2);
+
+    uyvy.setPacking(core::ImageBuffer::Packing::Packed);
+    uyvy.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+    uyvy.setPixelLayout(core::ImageBuffer::PixelLayout::UYVY);
+    uyvy.setPixelRange(core::ImageBuffer::PixelRange::Video);
+    uyvy.allocate();
+
+    bool ok = true;
+
+    ok &= testValue(uyvy.planeCount(), 1, "uyvy planeCount");
+    if (uyvy.planeSize(0) != QSize(1920, 1080)) {
+        core::logErr() << "uyvy plane size failed: expected 1920x1080, got " << uyvy.planeSize(0).width() << "x"
+                       << uyvy.planeSize(0).height() << Qt::endl;
+        ok = false;
+    }
+    ok &= testValue(uyvy.planeStride(0), size_t(3840), "uyvy stride");
+    ok &= testValue(uyvy.byteSize(), size_t(1920 * 1080 * 2), "uyvy byteSize");
+
+    if (!uyvy.requiresDecode() || !uyvy.isYCbCr() || uyvy.isRgb()) {
+        core::logErr() << "uyvy decode classification failed" << Qt::endl;
+        ok = false;
+    }
+
+    return ok;
+}
+
+bool
 testImageUint16()
 {
     core::logOut() << "test image convert uint16" << Qt::endl;
@@ -643,16 +768,21 @@ testImageNV12()
             }
 
             render::RenderOffscreen renderOffscreen;
+
+
             if (!renderOffscreen.initialize(media.image().dataWindow().size())) {
                 core::logErr() << "render offscreen initialization failed" << Qt::endl;
                 ok = false;
                 return;
             }
 
-            renderOffscreen.setBackground(Qt::red);
             sdk::render::ImageLayer imageLayer;
             imageLayer.setImage(media.image());
-            renderOffscreen.setImageLayers({ imageLayer });
+
+            render::RenderEngine renderEngine;
+            renderEngine.setImageLayers({ imageLayer });
+            renderEngine.setBackground(Qt::black);
+            renderOffscreen.setRenderEngine(&renderEngine);
 
             core::ImageBuffer image = renderOffscreen.render();
 
@@ -988,13 +1118,12 @@ testImageThreaded()
     return ok.load();
 }
 
-
-
 bool
 testImage()
 {
-    return /*testImageUint16() && testImageDouble() && testImagePlanar() && testImageInterleaved() && testImageNV12() && */
-        testImageAverage() && testImageThreaded();
+    return testImageClassification() && testImageNV12Layout() && testImagePackedLayout() && testImageUint16()
+           && testImageDouble() && testImagePlanar() && testImageInterleaved() && testImageAverage()
+           && testImageThreaded();
 }
 
 bool
@@ -1071,7 +1200,7 @@ testMedia()
 }
 
 bool
-testRender()
+testRenderOffscreen()
 {
     core::logOut() << "test render" << Qt::endl;
     QList<QString> filenames = { "quicktime/23 967 fps 24 fps timecode.mp4" };
@@ -1135,15 +1264,37 @@ testRender()
                 return;
             }
 
-            renderOffscreen.setBackground(Qt::red);
             sdk::render::ImageLayer imageLayer;
             imageLayer.setImage(media.image());
-            renderOffscreen.setImageLayers({ imageLayer });
+
+            render::RenderEngine renderEngine;
+            renderEngine.setImageLayers({ imageLayer });
+            renderEngine.setBackground(Qt::black);
+            renderOffscreen.setRenderEngine(&renderEngine);
 
             core::ImageBuffer image = renderOffscreen.render();
 
             if (!image.isValid()) {
                 core::logErr() << "failed when trying to render image" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (image.requiresDecode()) {
+                core::logErr() << "offscreen render returned decode-required image" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (!image.isRgb()) {
+                core::logErr() << "offscreen render returned non-rgb image" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (image.packing() != core::ImageBuffer::Packing::Interleaved
+                || image.subsampling() != core::ImageBuffer::Subsampling::None) {
+                core::logErr() << "offscreen render returned non-native layout" << Qt::endl;
                 ok = false;
                 return;
             }
@@ -1166,6 +1317,7 @@ testRender()
             writer->setTimeRange(range);
             if (!writer->write(image)) {
                 core::logErr() << "could not write image" << Qt::endl;
+                ok = false;
                 return;
             }
 
@@ -1223,6 +1375,271 @@ testRender()
     }
     group.wait();
     return ok.load();
+}
+
+bool
+testRenderRoundtrip()
+{
+    core::logOut() << "test render roundtrip" << Qt::endl;
+
+    class TestRenderOutput : public render::RenderOutput {
+    public:
+        explicit TestRenderOutput(QObject* parent = nullptr)
+            : render::RenderOutput(parent)
+        {}
+
+        void enqueueFrame(const core::ImageBuffer& image, qint64 frame) override
+        {
+            Q_UNUSED(frame);
+
+            captured = image;
+            received.store(true);
+        }
+
+        core::ImageBuffer captured;
+        std::atomic<bool> received { false };
+    };
+
+    auto renderImage = [](const core::ImageBuffer& source, const QSize& size) -> core::ImageBuffer {
+        render::RenderOffscreen renderOffscreen;
+        if (!renderOffscreen.initialize(size)) {
+            core::logErr() << "roundtrip render offscreen initialization failed" << Qt::endl;
+            return {};
+        }
+
+        render::ImageLayer imageLayer;
+        imageLayer.setImage(source);
+
+        render::RenderEngine renderEngine;
+        renderEngine.setImageLayers({ imageLayer });
+        renderEngine.setBackground(Qt::black);
+
+        renderOffscreen.setRenderEngine(&renderEngine);
+
+        return renderOffscreen.render();
+    };
+
+    auto validateNativeRender = [](const core::ImageBuffer& image, const QString& label) -> bool {
+        if (!image.isValid()) {
+            core::logErr() << label << " invalid image" << Qt::endl;
+            return false;
+        }
+
+        if (!image.isAllocated()) {
+            core::logErr() << label << " image not allocated" << Qt::endl;
+            return false;
+        }
+
+        if (image.requiresDecode()) {
+            core::logErr() << label << " returned decode-required image" << Qt::endl;
+            return false;
+        }
+
+        if (!image.isRgb()) {
+            core::logErr() << label << " returned non-rgb image" << Qt::endl;
+            return false;
+        }
+
+        if (image.packing() != core::ImageBuffer::Packing::Interleaved
+            || image.subsampling() != core::ImageBuffer::Subsampling::None) {
+            core::logErr() << label << " returned non-native layout" << Qt::endl;
+            return false;
+        }
+
+        return true;
+    };
+
+    auto compareImages = [](const core::ImageBuffer& reference, const core::ImageBuffer& roundtrip,
+                            const QString& label) -> bool {
+        if (reference.dataWindow().size() != roundtrip.dataWindow().size()) {
+            core::logErr() << label << " size mismatch" << Qt::endl;
+            return false;
+        }
+
+        if (reference.channels() != 4 || roundtrip.channels() != 4) {
+            core::logErr() << label << " expected 4-channel images" << Qt::endl;
+            return false;
+        }
+
+        const core::ImageBuffer a = core::ImageBuffer::convert(reference, core::ImageFormat::UInt8, 4);
+        const core::ImageBuffer b = core::ImageBuffer::convert(roundtrip, core::ImageFormat::UInt8, 4);
+
+        const int width = a.dataWindow().width();
+        const int height = a.dataWindow().height();
+        const size_t components = size_t(width) * size_t(height) * 4;
+
+        const quint8* ap = a.data();
+        const quint8* bp = b.data();
+
+        quint64 sum = 0;
+        int maxDiff = 0;
+        int diffCount = 0;
+
+        for (size_t i = 0; i < components; ++i) {
+            const int diff = std::abs(int(ap[i]) - int(bp[i]));
+            sum += quint64(diff);
+            maxDiff = std::max(maxDiff, diff);
+
+            if (diff > 3)
+                ++diffCount;
+        }
+
+        const double meanDiff = double(sum) / double(components);
+
+        core::logOut() << label << " mean diff: " << meanDiff << ", max diff: " << maxDiff
+                       << ", differing components: " << diffCount << Qt::endl;
+
+        // UYVY8 is 8-bit 4:2:2, so chroma subsampling and quantization are expected.
+        if (meanDiff > 2.0 || maxDiff > 32) {
+            core::logErr() << label << " roundtrip mismatch" << Qt::endl;
+            return false;
+        }
+
+        return true;
+    };
+
+    QList<QString> filenames = { "quicktime/23 967 fps 24 fps timecode.mp4" };
+
+    std::atomic<bool> ok { true };
+    core::DispatchGroup group;
+
+    for (const QString& filename : filenames) {
+        group.async([filename, &ok, renderImage, validateNativeRender, compareImages]() {
+            sdk::core::File file(QString("%1/%2").arg(dataPath).arg(filename));
+
+            if (!file.exists()) {
+                core::logErr() << "file does not exist: " << file << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            sdk::av::Media media;
+            if (!media.open(file)) {
+                core::logErr() << "could not open media: " << file << ", error: " << media.error() << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (!media.waitForOpened(-1)) {
+                core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            const av::Time time = media.read();
+            if (!time.isValid()) {
+                core::logErr() << "read failed" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            const core::ImageBuffer source = media.image();
+            if (!source.isValid()) {
+                core::logErr() << "media returned invalid source image" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            const QSize size = source.displayWindow().isValid() ? source.displayWindow().size()
+                                                                : source.dataWindow().size();
+
+            if (size.isEmpty()) {
+                core::logErr() << "source image has empty size" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            const core::ImageBuffer reference = renderImage(source, size);
+            if (!validateNativeRender(reference, "reference render")) {
+                ok = false;
+                return;
+            }
+
+            TestRenderOutput output;
+            output.setEnabled(true);
+            output.setFormat(render::RenderOutput::Format::UYVY8);
+
+            render::RenderSpec outputSpec;
+            outputSpec.setSize(size);
+
+            QMatrix4x4 view;
+            view.setToIdentity();
+            outputSpec.setView(view);
+
+            output.setRenderSpec(outputSpec);
+
+            render::RenderOffscreen renderOffscreen;
+            if (!renderOffscreen.initialize(size)) {
+                core::logErr() << "roundtrip output render offscreen initialization failed" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            render::ImageLayer imageLayer;
+            imageLayer.setImage(source);
+
+            render::RenderEngine renderEngine;
+            renderEngine.setImageLayers({ imageLayer });
+            renderEngine.setBackground(Qt::black);
+            renderEngine.setResolution(size);
+            renderEngine.setRenderOutputs({ &output });
+
+            renderOffscreen.setRenderEngine(&renderEngine);
+
+            const core::ImageBuffer rendered = renderOffscreen.render();
+            if (!validateNativeRender(rendered, "output render")) {
+                ok = false;
+                return;
+            }
+
+            const int timeoutMs = 5000;
+            QElapsedTimer timer;
+            timer.start();
+
+            while (!output.received.load()) {
+                if (timer.elapsed() > timeoutMs) {
+                    core::logErr() << "timed out waiting for render output readback" << Qt::endl;
+                    ok = false;
+                    return;
+                }
+
+                QThread::msleep(1);
+            }
+
+            const core::ImageBuffer encoded = output.captured;
+            if (!encoded.isValid() || !encoded.isAllocated()) {
+                core::logErr() << "encoded output image invalid" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            if (!encoded.requiresDecode() || !encoded.isYCbCr()) {
+                core::logErr() << "encoded output image was not classified as decode-required YCbCr" << Qt::endl;
+                ok = false;
+                return;
+            }
+
+            const core::ImageBuffer roundtrip = renderImage(encoded, size);
+            if (!validateNativeRender(roundtrip, "roundtrip render")) {
+                ok = false;
+                return;
+            }
+
+            if (!compareImages(reference, roundtrip, "UYVY8")) {
+                ok = false;
+                return;
+            }
+        });
+    }
+
+    group.wait();
+    return ok.load();
+}
+
+bool
+testRender()
+{
+    return testRenderOffscreen() && testRenderRoundtrip();
 }
 
 bool

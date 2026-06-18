@@ -128,7 +128,7 @@ public:
         ImageBuffer::Subsampling subsampling = ImageBuffer::Subsampling::None;
         ImageBuffer::PixelLayout pixelLayout = ImageBuffer::PixelLayout::Unknown;
         ImageBuffer::PixelRange pixelRange = ImageBuffer::PixelRange::Unknown;
-        render::ColorSpace colorSpace = render::ColorSpace::Auto;
+        render::ColorSpace colorSpace = render::ColorSpace::Unknown;
         render::TransferFunction transferFunction = render::TransferFunction::Unknown;
         QByteArray data;
     };
@@ -950,7 +950,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
             return dst;
         }
     }
-    
+
     if (type == ImageFormat::UInt8) {
         for (int y = 0; y < height; ++y) {
             const uint8_t* s = reinterpret_cast<const uint8_t*>(srcBase + y * imageBuffer.strideSize());
@@ -969,7 +969,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
         }
         return dst;
     }
-    
+
     if (type == ImageFormat::Half) {
         const half alpha = half(1.0f);
         for (int y = 0; y < height; ++y) {
@@ -989,7 +989,7 @@ ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
         }
         return dst;
     }
-    
+
     if (type == ImageFormat::Float) {
         const float alpha = 1.0f;
         for (int y = 0; y < height; ++y) {

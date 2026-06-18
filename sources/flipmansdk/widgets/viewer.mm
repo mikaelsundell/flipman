@@ -174,7 +174,7 @@ QColorSpace::Primaries
 ViewerPrivate::toPrimaries(render::ColorSpace colorSpace)
 {
     switch (colorSpace) {
-    case render::ColorSpace::Auto:
+    case render::ColorSpace::Unknown:
     case render::ColorSpace::Raw:
     case render::ColorSpace::Rec709:
         return QColorSpace::Primaries::SRgb;
@@ -209,13 +209,13 @@ ViewerPrivate::toDisplayColorSpace(render::ColorSpace colorSpace,
     }
 
     if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Auto) &&
+         colorSpace == render::ColorSpace::Unknown) &&
         transferFunction == render::TransferFunction::SRGB) {
         return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
     }
 
     if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Auto) &&
+         colorSpace == render::ColorSpace::Unknown) &&
         transferFunction == render::TransferFunction::Linear) {
         return QColorSpace(QColorSpace::NamedColorSpace::SRgbLinear);
     }
