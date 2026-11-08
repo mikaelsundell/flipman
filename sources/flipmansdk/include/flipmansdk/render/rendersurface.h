@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/flipmansdk.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -21,9 +21,8 @@ class RenderSurfacePrivate;
  * destination for a render pass. It does not own the referenced QRhi objects
  * and does not manage their lifetime.
  *
- * @note Because it uses QExplicitlySharedDataPointer, it is designed for cheap
- * value copies and safe handoffs between UI/output configuration and rendering
- * code.
+ * @note Copies share the descriptor and do not extend the lifetime of the QRhi
+ * objects. Shared data does not make the descriptor or GPU resources thread-safe.
  */
 class FLIPMANSDK_EXPORT RenderSurface {
 public:
@@ -39,12 +38,15 @@ public:
 
     /**
      * @brief Destroys the RenderSurface.
+     *
      * @note Required for the PIMPL pattern to safely delete RenderSurfacePrivate.
      */
     ~RenderSurface();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the external non-owned render target.
@@ -56,10 +58,14 @@ public:
      */
     void setRenderTarget(QRhiRenderTarget* renderTarget);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if the surface references a render target.
@@ -71,10 +77,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy of the shared data.
@@ -91,10 +101,15 @@ public:
      */
     bool operator!=(const RenderSurface& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<RenderSurfacePrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<RenderSurfacePrivate> p;
 };
 
 }  // namespace flipman::sdk::render

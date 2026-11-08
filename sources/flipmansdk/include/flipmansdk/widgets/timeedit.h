@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/time.h>
 #include <QScopedPointer>
 #include <QWidget>
+#include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::widgets {
 
@@ -29,9 +29,20 @@ public:
      * @brief Display format for the time value.
      */
     enum TimeCode {
-        Frames,  ///< Displays total frame count.
-        Time,    ///< Displays absolute time.
-        SMPTE    ///< Displays SMPTE timecode.
+        /**
+         * @brief Displays total frame count.
+         */
+        Frames,
+
+        /**
+         * @brief Displays absolute time.
+         */
+        Time,
+
+        /**
+         * @brief Displays SMPTE timecode.
+         */
+        SMPTE
     };
     Q_ENUM(TimeCode)
 
@@ -48,8 +59,10 @@ public:
      */
     ~TimeEdit() override;
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the current time value.
@@ -61,12 +74,16 @@ public:
      */
     TimeCode timeCode() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 public Q_SLOTS:
 
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the current time value.
@@ -78,7 +95,9 @@ public Q_SLOTS:
      */
     void setTimeCode(TimeEdit::TimeCode timeCode);
 
-    ///@}
+    /**
+     * @}
+     */
 
 protected:
     /**
@@ -88,7 +107,10 @@ protected:
 
 private:
     Q_DISABLE_COPY_MOVE(TimeEdit)
-    QScopedPointer<TimeEditPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<TimeEditPrivate> p;
 };
 
 }  // namespace flipman::sdk::widgets

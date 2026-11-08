@@ -2,21 +2,23 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/plugins/mediareader.h>
-#include <flipmansdk/plugins/pluginregistry.h>
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QPointer>
 #include <QTimer>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
+#include <flipmansdk/plugins/mediareader.h>
+#include <flipmansdk/plugins/pluginregistry.h>
 
 namespace flipman::sdk::av {
 class MediaPrivate : public QSharedData {
 public:
     plugins::MediaReader* reader(const QString& extension);
     struct Data {
-        bool open;
+        bool open = false;
         core::File file;
         core::Error error;
         QScopedPointer<plugins::MediaReader> reader;
@@ -29,6 +31,7 @@ MediaPrivate::reader(const QString& extension)
 {
     plugins::MediaReader* reader = core::pluginRegistry()->getPlugin<plugins::MediaReader>(extension);
     if (!reader) {
+        d.reader.reset();
         d.error = core::Error("media", QStringLiteral("No MediaReader registered for extension: %1").arg(extension));
         return nullptr;
     }
@@ -49,6 +52,14 @@ Media::~Media() {}
 bool
 Media::open(const core::File& file)
 {
+    return open(file, plugins::MediaReader::Options());
+}
+
+bool
+Media::open(const core::File& file, const plugins::MediaReader::Options& options)
+{
+    FM_PROFILE_SCOPE("media", "open");
+    core::PerfScope phase("media.open");
     p->d.file = file;
     p->d.open = false;
     p->d.error.reset();
@@ -62,7 +73,7 @@ Media::open(const core::File& file)
         p->d.open = true;
         Q_EMIT opened();
     });
-    const bool started = reader->open(file);
+    const bool started = reader->open(file, options);
     if (started && reader->isOpen()) {
         p->d.open = true;
         Q_EMIT opened();
@@ -76,14 +87,18 @@ Media::open(const core::File& file)
 bool
 Media::close()
 {
-    return p->d.reader->close();
+    if (!p->d.reader)
+        return true;
+    const bool closed = p->d.reader->close();
+    if (closed)
+        p->d.open = false;
+    return closed;
 }
 
 bool
 Media::isOpen() const
 {
-    p->d.reader->isOpen();
-    return true;
+    return p->d.open && p->d.reader && p->d.reader->isOpen();
 }
 
 bool
@@ -95,12 +110,14 @@ Media::isSupported(const QString& extension) const
 bool
 Media::isValid() const
 {
-    return p->d.reader ? true : false;
+    return isOpen();
 }
 
 Time
 Media::read()
 {
+    FM_PROFILE_SCOPE("media", "read");
+    core::PerfScope phase("media.read");
     Q_ASSERT("media is not open" && isOpen());
     return p->d.reader->read();
 }
@@ -108,6 +125,8 @@ Media::read()
 Time
 Media::seek(const TimeRange& range) const
 {
+    FM_PROFILE_SCOPE("media", "seek");
+    core::PerfScope phase("media.seek");
     Q_ASSERT("media is not open" && isOpen());
     return p->d.reader->seek(range);
 }
@@ -170,7 +189,9 @@ Media::metaData() const
 core::Error
 Media::error() const
 {
-    return p->d.reader->error();
+    if (p->d.error.hasError())
+        return p->d.error;
+    return p->d.reader ? p->d.reader->error() : core::Error();
 }
 
 void
@@ -203,6 +224,10 @@ Media::operator!=(const Media& other) const
 bool
 Media::waitForOpened(int msecs)
 {
+    FM_PROFILE_SCOPE("media", "wait_open");
+    core::PerfScope phase("media.wait_open");
+    if (!p->d.reader || p->d.error.hasError())
+        return false;
     if (p->d.open)
         return true;
     QEventLoop loop;

@@ -2,8 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/core/imagebuffer.h>
 #include <OpenImageIO/half.h>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
 
 #if defined(__ARM_NEON)
 #    include <arm_neon.h>
@@ -704,6 +706,8 @@ ImageBuffer::operator!=(const ImageBuffer& other) const
 ImageBuffer
 ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int channels)
 {
+    FM_PROFILE_SCOPE("image", "convert_format");
+    PerfScope phase("image.convert_format");
     Q_ASSERT(!imagebuffer.requiresDecode()
              && "imagebuffer::convert only supports native RGB-like interleaved images. "
                 "YCbCr, planar, biplanar, and packed formats must be decoded first.");
@@ -763,6 +767,8 @@ ImageBuffer::convert(const ImageBuffer& imagebuffer, ImageFormat::Type type, int
 ImageBuffer
 ImageBuffer::convert(const ImageBuffer& imageBuffer, int channels)
 {
+    FM_PROFILE_SCOPE("image", "convert_channels");
+    PerfScope phase("image.convert_channels");
     Q_ASSERT(!imageBuffer.requiresDecode()
              && "imagebuffer::convert only supports native RGB-like interleaved images. "
                 "YCbCr, planar, biplanar, and packed formats must be decoded first.");

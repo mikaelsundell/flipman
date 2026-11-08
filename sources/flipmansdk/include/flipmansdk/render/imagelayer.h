@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/render/imageeffect.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMatrix4x4>
 #include <QMetaType>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imageeffect.h>
 
 namespace flipman::sdk::render {
 
@@ -40,12 +40,16 @@ public:
 
     /**
      * @brief Destroys the ImageLayer.
+     *
      * @note Required for the PIMPL pattern to safely delete ImageLayerPrivate.
      */
     ~ImageLayer();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
+
     /**
      * @brief Returns the decoded pixel data associated with this layer.
      */
@@ -75,12 +79,16 @@ public:
      * @brief Sets the 4x4 transformation matrix.
      */
     void setTransform(const QMatrix4x4& transform);
-    ///@}
 
+    /**
+     * @}
+     */
 
+    /**
+     * @name Status
+     * @{
+     */
 
-    /** @name Status */
-    ///@{
     /**
      * @brief Returns any error associated with the layer data or buffers.
      */
@@ -90,10 +98,16 @@ public:
      * @brief Resets the layer to an empty, uninitialized state.
      */
     void reset();
-    ///@}
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @}
+     */
+
+    /**
+     * @name Operators
+     * @{
+     */
+
     /**
      * @brief Assignment operator. Performs a shallow copy of the shared data.
      */
@@ -108,10 +122,16 @@ public:
      * @brief Inequality operator.
      */
     bool operator!=(const ImageLayer& other) const;
-    ///@}
+
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<ImageLayerPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<ImageLayerPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

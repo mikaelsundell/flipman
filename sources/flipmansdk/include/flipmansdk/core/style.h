@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QColor>
 #include <QColorSpace>
 #include <QObject>
 #include <QPixmap>
 #include <QScopedPointer>
 #include <QString>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 class StylePrivate;
@@ -71,8 +71,10 @@ public:
      */
     ~Style() override;
 
-    /** @name Theme */
-    ///@{
+    /**
+     * @name Theme
+     * @{
+     */
 
     /**
      * @brief Returns color for a role.
@@ -124,10 +126,14 @@ public:
      */
     void update();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Rendering */
-    ///@{
+    /**
+     * @name Rendering
+     * @{
+     */
 
     /**
      * @brief Sets rendering color space.
@@ -139,7 +145,9 @@ public:
      */
     QColorSpace colorSpace() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 

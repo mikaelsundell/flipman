@@ -12,6 +12,7 @@ class Window : public QMainWindow {
 public:
     Window(QWidget* parent = nullptr);
     virtual ~Window();
+    bool isValid() const;
 
 private:
     QScopedPointer<WindowPrivate> p;

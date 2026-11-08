@@ -3,25 +3,30 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/environment.h>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/render/render.h>
-#include <flipmansdk/widgets/viewer.h>
 #include <QBoxLayout>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileInfo>
 #include <QFrame>
 #include <QLabel>
+#include <QMimeData>
 #include <QPointer>
 #include <QPushButton>
 #include <QSignalBlocker>
 #include <QSlider>
+#include <QStatusBar>
 #include <QTimer>
+#include <QUrl>
 #include <algorithm>
 #include <cmath>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/render/render.h>
+#include <flipmansdk/widgets/viewer.h>
+#include <limits>
 
 namespace flipman {
 
@@ -29,6 +34,8 @@ class WindowPrivate : public QObject {
 public:
     WindowPrivate();
     void init();
+    bool loadFile(const QString& path);
+    QString dropFile(const QMimeData* mime) const;
     void update();
     void updateTimeline();
     bool eventFilter(QObject* object, QEvent* event);
@@ -44,7 +51,6 @@ public:
 public:
     struct Data {
         QString inputFile;
-        QString dataPath;
         QPointer<Window> window;
         QPointer<sdk::render::RenderEngine> renderEngine;
         QPointer<sdk::widgets::Viewer> viewer;
@@ -65,31 +71,6 @@ WindowPrivate::init()
     const QStringList args = QCoreApplication::arguments();
     if (args.size() > 1)
         d.inputFile = args.at(1);
-
-    d.dataPath = sdk::core::Environment::resourcePath("../../../data");
-
-    sdk::core::File file(d.inputFile);
-    if (!file.exists()) {
-#if (0)
-        const QString filename = "23.967.00086400.exr";
-        file = sdk::core::File(QString("%1/exr/%2").arg(d.dataPath).arg(filename));
-#else
-        const QString filename = "iphone17pro bathroom HQ RAW.mov";  //prores4444 alexa mini.mov";
-        file = sdk::core::File(QString("%1/quicktime/%2").arg(d.dataPath).arg(filename));
-#endif
-    }
-
-    Q_ASSERT_X(file.exists(), "testviewer::loadFile", "file does not exist");
-    Q_ASSERT(d.media.open(file) && d.media.waitForOpened() && "could not open media");
-    Q_ASSERT(d.media.isValid() && "error opening media");
-
-    d.timeRange = d.media.timeRange();
-    d.media.read();
-
-    const sdk::core::ImageBuffer image = d.media.image();
-    Q_ASSERT(image.isValid() && "image not valid");
-
-    d.imageLayer.setImage(image);
 
     QWidget* centralWidget = new QWidget(d.window);
     QVBoxLayout* mainLayout = new QVBoxLayout(centralWidget);
@@ -159,12 +140,11 @@ WindowPrivate::init()
     frameLayout->setContentsMargins(0, 0, 0, 0);
     frameLayout->setSpacing(0);
 
-    QRect displayWindow = image.displayWindow();
-
     d.renderEngine = new sdk::render::RenderEngine(d.window);
-    d.renderEngine->setResolution(QSize(displayWindow.width(), displayWindow.height()));
 
     d.viewer = new sdk::widgets::Viewer(viewerFrame);
+    d.viewer->setAcceptDrops(true);
+    d.viewer->installEventFilter(this);
     d.viewer->setRenderEngine(d.renderEngine.data());
     d.viewer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
@@ -193,11 +173,8 @@ WindowPrivate::init()
 
     d.timelineSlider = new QSlider(Qt::Horizontal, timelineWidget);
 
-    const qint64 frameCount = d.timeRange.isValid() ? d.timeRange.duration().frames() : 1;
-    const int lastFrame = int(std::max<qint64>(0, frameCount - 1));
-
-    d.timelineSlider->setRange(0, lastFrame);
-    d.timelineSlider->setValue(0);
+    d.timelineSlider->setRange(0, 0);
+    d.timelineSlider->setEnabled(false);
     d.timelineSlider->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     d.timelineSlider->setFixedHeight(28);
 
@@ -211,6 +188,7 @@ WindowPrivate::init()
     contentLayout->addWidget(timelineWidget);
     mainLayout->addWidget(contentWidget, 1);
 
+    d.window->setAcceptDrops(true);
     d.window->installEventFilter(this);
 
     connect(fitButton, &QPushButton::clicked, this,
@@ -249,8 +227,60 @@ WindowPrivate::init()
     d.window->setCentralWidget(centralWidget);
     d.window->resize(1200, 700);
 
+    if (!d.inputFile.isEmpty())
+        loadFile(d.inputFile);
+    else {
+        d.window->statusBar()->showMessage("Drop a movie or image here to open it");
+        updateTimeline();
+    }
+}
+
+bool
+WindowPrivate::loadFile(const QString& path)
+{
+    // Decode before replacing the current media, so failed drops leave it usable.
+    sdk::av::Media media;
+    if (!media.open(sdk::core::File(path)) || !media.waitForOpened(5000) || !media.isValid()) {
+        d.window->statusBar()->showMessage(QString("Could not open %1: %2").arg(path, media.error().message()));
+        return false;
+    }
+    const auto time = media.read();
+    const auto image = media.image();
+    if (!time.isValid() || !image.isValid() || !image.isAllocated()) {
+        d.window->statusBar()->showMessage(QString("Could not decode %1").arg(path));
+        return false;
+    }
+    d.media = media;
+    d.inputFile = path;
+    d.timeRange = media.timeRange();
+    d.imageLayer.setImage(image);
+    d.renderEngine->setResolution(image.displayWindow().size());
+    {
+        const QSignalBlocker blocker(d.timelineSlider);
+        const qint64 frameCount = d.timeRange.isValid() ? d.timeRange.duration().frames() : 1;
+        const int lastFrame = int(std::clamp<qint64>(frameCount - 1, 0, std::numeric_limits<int>::max() - 1));
+        d.timelineSlider->setRange(0, lastFrame);
+        d.timelineSlider->setValue(0);
+        d.timelineSlider->setEnabled(lastFrame > 0);
+    }
+    d.viewer->setZoomMode(sdk::widgets::Viewer::FitToView);
+    d.window->setWindowTitle(QString("testviewer — %1").arg(QFileInfo(path).fileName()));
+    d.window->statusBar()->clearMessage();
     updateTimeline();
     update();
+    return true;
+}
+
+QString
+WindowPrivate::dropFile(const QMimeData* mime) const
+{
+    if (!mime || !mime->hasUrls() || mime->urls().size() != 1)
+        return {};
+    const auto url = mime->urls().first();
+    const QFileInfo file(url.toLocalFile());
+    if (!url.isLocalFile() || !file.isFile() || !d.media.isSupported(file.suffix()))
+        return {};
+    return file.absoluteFilePath();
 }
 
 void
@@ -267,19 +297,42 @@ WindowPrivate::updateTimeline()
     Q_ASSERT(d.timelineLabel);
 
     const int frame = d.timelineSlider ? d.timelineSlider->value() : 0;
-    const int total = d.timelineSlider ? d.timelineSlider->maximum() + 1 : 0;
+    const int total = d.media.isValid() ? d.timelineSlider->maximum() + 1 : 0;
 
     if (d.media.isValid() && d.media.time().isValid()) {
         d.timelineLabel->setText(QString("%1 / %2  %3").arg(frame + 1).arg(total).arg(d.media.time().toString()));
     }
     else {
-        d.timelineLabel->setText(QString("%1 / %2").arg(frame + 1).arg(total));
+        d.timelineLabel->setText(QString("%1 / %2").arg(total > 0 ? frame + 1 : 0).arg(total));
     }
 }
 
 bool
 WindowPrivate::eventFilter(QObject* object, QEvent* event)
 {
+    if (object == d.window || object == d.viewer) {
+        if (event->type() == QEvent::DragEnter) {
+            auto* drag = static_cast<QDragEnterEvent*>(event);
+            if (!dropFile(drag->mimeData()).isEmpty() && drag->possibleActions().testFlag(Qt::CopyAction)) {
+                drag->setDropAction(Qt::CopyAction);
+                drag->accept();
+            }
+            else
+                drag->ignore();
+            return true;
+        }
+        if (event->type() == QEvent::Drop) {
+            auto* drop = static_cast<QDropEvent*>(event);
+            const auto path = dropFile(drop->mimeData());
+            if (!path.isEmpty() && drop->possibleActions().testFlag(Qt::CopyAction) && loadFile(path)) {
+                drop->setDropAction(Qt::CopyAction);
+                drop->accept();
+            }
+            else
+                drop->ignore();
+            return true;
+        }
+    }
     if (object != d.window)
         return QObject::eventFilter(object, event);
 
@@ -306,10 +359,9 @@ WindowPrivate::seekFrame(int frame)
     if (!d.media.isValid() || !d.timeRange.isValid())
         return;
 
-    const sdk::av::Fps fps = d.media.fps();
-    const sdk::av::Time frameOffset = sdk::av::Time::fromFrames(frame, fps);
-    const sdk::av::Time target = d.timeRange.start() + frameOffset;
-    const sdk::av::Time duration = sdk::av::Time::fromFrames(1, fps);
+    const sdk::av::Time start = d.timeRange.start();
+    const sdk::av::Time target(start, start.ticks() + start.ticks(frame));
+    const sdk::av::Time duration(start, start.ticks(1));
     const sdk::av::TimeRange range(target, duration);
 
     const sdk::av::Time seekTime = d.media.seek(range);
@@ -363,5 +415,11 @@ Window::Window(QWidget* parent)
 }
 
 Window::~Window() {}
+
+bool
+Window::isValid() const
+{
+    return p->d.media.isValid() && p->d.imageLayer.image().isAllocated();
+}
 
 }  // namespace flipman

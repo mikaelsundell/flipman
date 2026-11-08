@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/render/render.h>
-#include <flipmansdk/render/imagelayer.h>
-#include <flipmansdk/render/renderengine.h>
 #include <QRhiWidget>
 #include <QScopedPointer>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imagelayer.h>
+#include <flipmansdk/render/render.h>
+#include <flipmansdk/render/renderengine.h>
 
 namespace flipman::sdk::widgets {
 
@@ -31,8 +31,15 @@ public:
      * @brief Defines zoom behavior.
      */
     enum ZoomMode {
-        Manual,    ///< Uses interactive zoom and pan.
-        FitToView  ///< Automatically fits content to viewport.
+        /**
+         * @brief Uses interactive zoom and pan.
+         */
+        Manual,
+
+        /**
+         * @brief Automatically fits content to viewport.
+         */
+        FitToView
     };
 
 public:
@@ -48,8 +55,10 @@ public:
      */
     ~Viewer() override;
 
-    /** @name Render */
-    ///@{
+    /**
+     * @name Render
+     * @{
+     */
 
     /**
      * @brief Returns the render engine used by the viewer.
@@ -66,10 +75,14 @@ public:
      */
     void setRenderEngine(render::RenderEngine* renderEngine);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name View State */
-    ///@{
+    /**
+     * @name View State
+     * @{
+     */
 
     /**
      * @brief Returns the current zoom factor.
@@ -103,10 +116,14 @@ public:
      */
     void resetView();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Display Transform */
-    ///@{
+    /**
+     * @name Display Transform
+     * @{
+     */
 
     /**
      * @brief Returns the display/surface tag used for viewer output.
@@ -126,11 +143,15 @@ public:
      */
     void setDisplayTransform(const render::DisplayTransform& transform);
 
-    ///@}
+    /**
+     * @}
+     */
 
 protected:
-    /** @name RHI Lifecycle */
-    ///@{
+    /**
+     * @name RHI Lifecycle
+     * @{
+     */
 
     /**
      * @brief Initializes GPU resources.
@@ -142,18 +163,23 @@ protected:
      */
     void render(QRhiCommandBuffer* cb) override;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Interaction */
-    ///@{
-
+    /**
+     * @name Interaction
+     * @{
+     */
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
     void resizeEvent(QResizeEvent* e) override;
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 
@@ -165,7 +191,11 @@ Q_SIGNALS:
 private:
     Q_DISABLE_COPY_MOVE(Viewer)
     friend class ViewerPrivate;
-    QScopedPointer<ViewerPrivate> p;  ///< Private implementation.
+
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<ViewerPrivate> p;
 };
 
 }  // namespace flipman::sdk::widgets

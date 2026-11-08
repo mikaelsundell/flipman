@@ -2,9 +2,9 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/core/environment.h>
 #include <QCoreApplication>
 #include <QDir>
+#include <flipmansdk/core/environment.h>
 
 namespace flipman::sdk::core {
 class EnvironmentPrivate {

@@ -4,10 +4,27 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QLoggingCategory>
 #include <QTextStream>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
+
+/**
+ * @brief Media diagnostics; debug messages are disabled by default.
+ *
+ * Enable with QT_LOGGING_RULES="flipman.media.debug=true".
+ */
+FLIPMANSDK_EXPORT const QLoggingCategory&
+mediaLog();
+
+/**
+ * @brief Rendering diagnostics; debug messages are disabled by default.
+ *
+ * Enable with QT_LOGGING_RULES="flipman.render.debug=true".
+ */
+FLIPMANSDK_EXPORT const QLoggingCategory&
+renderLog();
 
 /**
  * @brief Returns the standard output stream.

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QMetaType>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::render {
 
@@ -18,14 +18,45 @@ namespace flipman::sdk::render {
  * display-referred. That is described separately by TransferFunction.
  */
 enum class ColorSpace {
-    Unknown,    ///< Infer the color space from metadata or defaults.
-    Raw,        ///< Do not interpret the color space; pass values through unchanged.
-    Rec601,     ///< Rec.601 / BT.601 color primaries.
-    Rec709,     ///< Rec.709 / BT.709 color primaries.
-    DisplayP3,  ///< Display P3 color primaries.
-    DCIP3,      ///< DCI-P3 color primaries.
-    Rec2020,    ///< Rec.2020 / BT.2020 color primaries.
-    ACEScg      ///< ACEScg / AP1 color primaries.
+    /**
+     * @brief Infer the color space from metadata or defaults.
+     */
+    Unknown,
+
+    /**
+     * @brief Do not interpret the color space; pass values through unchanged.
+     */
+    Raw,
+
+    /**
+     * @brief Rec.601 / BT.601 color primaries.
+     */
+    Rec601,
+
+    /**
+     * @brief Rec.709 / BT.709 color primaries.
+     */
+    Rec709,
+
+    /**
+     * @brief Display P3 color primaries.
+     */
+    DisplayP3,
+
+    /**
+     * @brief DCI-P3 color primaries.
+     */
+    DCIP3,
+
+    /**
+     * @brief Rec.2020 / BT.2020 color primaries.
+     */
+    Rec2020,
+
+    /**
+     * @brief ACEScg / AP1 color primaries.
+     */
+    ACEScg
 };
 
 /**
@@ -40,32 +71,123 @@ enum class ColorSpace {
  * complete color encoding.
  */
 enum class TransferFunction {
-    Unknown,              ///< Infer the transfer function from metadata or defaults.
-    Raw,                  ///< Do not apply transfer interpretation; pass values through unchanged.
-    Linear,               ///< Scene-linear or display-linear values.
-    SRGB,                 ///< sRGB transfer function.
-    Gamma22,              ///< Pure gamma 2.2 transfer.
-    Gamma24,              ///< Pure gamma 2.4 transfer.
-    Gamma25,              ///< Pure gamma 2.5 transfer.
-    Gamma26,              ///< Pure gamma 2.6 transfer.
-    ACEScc,               ///< ACEScc logarithmic grading encoding.
-    ACEScct,              ///< ACEScct logarithmic grading encoding with toe.
-    ADX10,                ///< Academy Density Exchange 10-bit encoding.
-    ADX16,                ///< Academy Density Exchange 16-bit encoding.
-    Cineon,               ///< Cineon/log film scan encoding.
-    AppleLog,             ///< Apple Log encoding.
-    ArriLogC3,            ///< ARRI LogC3 encoding.
-    ArriLogC4,            ///< ARRI LogC4 encoding.
-    BmdFilmGen5,          ///< Blackmagic Design Film Gen5 encoding.
-    DaVinciIntermediate,  ///< DaVinci Intermediate encoding.
-    CanonLog2,            ///< Canon Log 2 encoding.
-    CanonLog3,            ///< Canon Log 3 encoding.
-    PanasonicVLog,        ///< Panasonic V-Log encoding.
-    RedLog3G10,           ///< RED Log3G10 encoding.
-    SonySLog3             ///< Sony S-Log3 encoding.
+    /**
+     * @brief Infer the transfer function from metadata or defaults.
+     */
+    Unknown,
+
+    /**
+     * @brief Do not apply transfer interpretation; pass values through unchanged.
+     */
+    Raw,
+
+    /**
+     * @brief Scene-linear or display-linear values.
+     */
+    Linear,
+
+    /**
+     * @brief sRGB transfer function.
+     */
+    SRGB,
+
+    /**
+     * @brief Pure gamma 2.2 transfer.
+     */
+    Gamma22,
+
+    /**
+     * @brief Pure gamma 2.4 transfer.
+     */
+    Gamma24,
+
+    /**
+     * @brief Pure gamma 2.5 transfer.
+     */
+    Gamma25,
+
+    /**
+     * @brief Pure gamma 2.6 transfer.
+     */
+    Gamma26,
+
+    /**
+     * @brief ACEScc logarithmic grading encoding.
+     */
+    ACEScc,
+
+    /**
+     * @brief ACEScct logarithmic grading encoding with toe.
+     */
+    ACEScct,
+
+    /**
+     * @brief Academy Density Exchange 10-bit encoding.
+     */
+    ADX10,
+
+    /**
+     * @brief Academy Density Exchange 16-bit encoding.
+     */
+    ADX16,
+
+    /**
+     * @brief Cineon/log film scan encoding.
+     */
+    Cineon,
+
+    /**
+     * @brief Apple Log encoding.
+     */
+    AppleLog,
+
+    /**
+     * @brief ARRI LogC3 encoding.
+     */
+    ArriLogC3,
+
+    /**
+     * @brief ARRI LogC4 encoding.
+     */
+    ArriLogC4,
+
+    /**
+     * @brief Blackmagic Design Film Gen5 encoding.
+     */
+    BmdFilmGen5,
+
+    /**
+     * @brief DaVinci Intermediate encoding.
+     */
+    DaVinciIntermediate,
+
+    /**
+     * @brief Canon Log 2 encoding.
+     */
+    CanonLog2,
+
+    /**
+     * @brief Canon Log 3 encoding.
+     */
+    CanonLog3,
+
+    /**
+     * @brief Panasonic V-Log encoding.
+     */
+    PanasonicVLog,
+
+    /**
+     * @brief RED Log3G10 encoding.
+     */
+    RedLog3G10,
+
+    /**
+     * @brief Sony S-Log3 encoding.
+     */
+    SonySLog3
 };
 
-/****
+/**
  * @enum WorkingSpace
  * @brief Describes the internal color space used for rendering operations.
  *
@@ -75,25 +197,100 @@ enum class TransferFunction {
  * represent display-referred or log-encoded image encodings.
  */
 enum class WorkingSpace {
-    Unknown,           ///< Infer the working space from metadata or defaults.
-    Rec601,            ///< Rec.601 / BT.601.
-    Rec709,            ///< Rec.709 / BT.709.
-    DisplayP3,         ///< Display P3 / D65.
-    DCIP3,             ///< DCI-P3.
-    Rec2020,           ///< Rec.2020 / BT.2020.
-    ACES2065_1,        ///< ACES2065-1 / AP0 interchange space.
-    ACEScg,            ///< ACEScg / AP1 rendering space.
-    ArriWideGamut3,    ///< ARRI Wide Gamut 3.
-    ArriWideGamut4,    ///< ARRI Wide Gamut 4.
-    BmdWideGamutGen5,  ///< Blackmagic Design Wide Gamut Gen5.
-    DaVinciWideGamut,  ///< DaVinci Wide Gamut.
-    CinemaGamutD55,    ///< Canon Cinema Gamut D55.
-    VGamut,            ///< Panasonic V-Gamut.
-    RedWideGamutRGB,   ///< REDWideGamutRGB.
-    SGamut3,           ///< Sony S-Gamut3.
-    SGamut3Cine,       ///< Sony S-Gamut3.Cine.
-    VeniceSGamut3,     ///< Sony Venice S-Gamut3.
-    VeniceSGamut3Cine  ///< Sony Venice S-Gamut3.Cine.
+    /**
+     * @brief Infer the working space from metadata or defaults.
+     */
+    Unknown,
+
+    /**
+     * @brief Rec.601 / BT.601.
+     */
+    Rec601,
+
+    /**
+     * @brief Rec.709 / BT.709.
+     */
+    Rec709,
+
+    /**
+     * @brief Display P3 / D65.
+     */
+    DisplayP3,
+
+    /**
+     * @brief DCI-P3.
+     */
+    DCIP3,
+
+    /**
+     * @brief Rec.2020 / BT.2020.
+     */
+    Rec2020,
+
+    /**
+     * @brief ACES2065-1 / AP0 interchange space.
+     */
+    ACES2065_1,
+
+    /**
+     * @brief ACEScg / AP1 rendering space.
+     */
+    ACEScg,
+
+    /**
+     * @brief ARRI Wide Gamut 3.
+     */
+    ArriWideGamut3,
+
+    /**
+     * @brief ARRI Wide Gamut 4.
+     */
+    ArriWideGamut4,
+
+    /**
+     * @brief Blackmagic Design Wide Gamut Gen5.
+     */
+    BmdWideGamutGen5,
+
+    /**
+     * @brief DaVinci Wide Gamut.
+     */
+    DaVinciWideGamut,
+
+    /**
+     * @brief Canon Cinema Gamut D55.
+     */
+    CinemaGamutD55,
+
+    /**
+     * @brief Panasonic V-Gamut.
+     */
+    VGamut,
+
+    /**
+     * @brief REDWideGamutRGB.
+     */
+    RedWideGamutRGB,
+
+    /**
+     * @brief Sony S-Gamut3.
+     */
+    SGamut3,
+
+    /**
+     * @brief Sony S-Gamut3.Cine.
+     */
+    SGamut3Cine,
+
+    /**
+     * @brief Sony Venice S-Gamut3.
+     */
+    VeniceSGamut3,
+
+    /**
+     * @brief Sony Venice S-Gamut3.Cine.
+     */
+    VeniceSGamut3Cine
 };
 
 /**

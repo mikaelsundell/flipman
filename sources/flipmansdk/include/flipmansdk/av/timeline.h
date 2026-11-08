@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QObject>
+#include <QScopedPointer>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/av/track.h>
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/imagelayer.h>
-#include <QObject>
-#include <QScopedPointer>
 
 namespace flipman::sdk::av {
 
@@ -39,8 +39,10 @@ public:
      */
     ~Timeline() override;
 
-    /** @name State */
-    ///@{
+    /**
+     * @name State
+     * @{
+     */
 
     /**
      * @brief Returns true if playing.
@@ -62,10 +64,14 @@ public:
      */
     int height() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Temporal */
-    ///@{
+    /**
+     * @name Temporal
+     * @{
+     */
 
     /**
      * @brief Returns the time range.
@@ -97,10 +103,14 @@ public:
      */
     Fps fps() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Tracks */
-    ///@{
+    /**
+     * @name Tracks
+     * @{
+     */
 
     /**
      * @brief Returns true if track exists.
@@ -112,10 +122,14 @@ public:
      */
     QList<Track*> tracks() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Configuration */
-    ///@{
+    /**
+     * @name Configuration
+     * @{
+     */
 
     /**
      * @brief Returns the thread count.
@@ -132,11 +146,15 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
 public Q_SLOTS:
-    /** @name Composition */
-    ///@{
+    /**
+     * @name Composition
+     * @{
+     */
 
     /**
      * @brief Inserts a track.
@@ -168,10 +186,14 @@ public Q_SLOTS:
      */
     void setHeight(int height);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Playback */
-    ///@{
+    /**
+     * @name Playback
+     * @{
+     */
 
     /**
      * @brief Enables or disables every-frame mode.
@@ -203,12 +225,15 @@ public Q_SLOTS:
      */
     void stop();
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
-    /** @name Notifications */
-    ///@{
-
+    /**
+     * @name Notifications
+     * @{
+     */
     void timerangeChanged(const TimeRange& timeRange);
     void ioRangeChanged(const TimeRange& io);
     void timeChanged(const Time& time);
@@ -220,10 +245,14 @@ Q_SIGNALS:
     void heightChanged(int height);
     void playChanged(bool playing);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Output */
-    ///@{
+    /**
+     * @name Output
+     * @{
+     */
 
     /**
      * @brief Emitted when image layer changes.
@@ -235,7 +264,9 @@ Q_SIGNALS:
      */
     void audioChanged(const QByteArray& buffer);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(Timeline)

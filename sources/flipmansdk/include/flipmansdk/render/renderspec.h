@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/rendersurface.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMatrix4x4>
 #include <QMetaType>
 #include <QSize>
 #include <QString>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/rendersurface.h>
 
 namespace flipman::sdk::render {
 
@@ -25,9 +25,8 @@ class RenderSpecPrivate;
  * render result should be written, including the destination surface, output
  * size, view transform, and optional output/calibration LUT.
  *
- * @note Because it uses QExplicitlySharedDataPointer, it is designed for cheap
- * value copies and safe handoffs between UI/output configuration and rendering
- * code.
+ * @note Copies share the specification. Explicit sharing does not provide
+ * synchronization; coordinate mutations with the rendering thread.
  */
 class FLIPMANSDK_EXPORT RenderSpec {
 public:
@@ -43,12 +42,15 @@ public:
 
     /**
      * @brief Destroys the RenderSpec.
+     *
      * @note Required for the PIMPL pattern to safely delete RenderSpecPrivate.
      */
     ~RenderSpec();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the output transform, for example viewer pan/zoom.
@@ -80,10 +82,14 @@ public:
      */
     void setLut(const QString& lut);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if the output pass can be rendered.
@@ -95,10 +101,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy of the shared data.
@@ -115,10 +125,15 @@ public:
      */
     bool operator!=(const RenderSpec& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<RenderSpecPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<RenderSpecPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

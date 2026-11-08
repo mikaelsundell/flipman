@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QObject>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 
@@ -35,8 +35,10 @@ public:
      */
     ~System() override;
 
-    /** @name Power Control */
-    ///@{
+    /**
+     * @name Power Control
+     * @{
+     */
 
     /**
      * @brief Enables or disables sleep inhibition.
@@ -48,7 +50,9 @@ public:
      */
     bool isStayAwake() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 

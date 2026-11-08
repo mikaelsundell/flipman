@@ -2,11 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/qt/qtwriter.h>
 #include <QDir>
 #include <QImage>
 #include <QImageWriter>
 #include <QPointer>
+#include <flipmansdk/plugins/qt/qtwriter.h>
 
 namespace flipman::sdk::plugins {
 

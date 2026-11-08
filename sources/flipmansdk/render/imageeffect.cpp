@@ -2,9 +2,9 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/render/imageeffect.h>
 #include <QRegularExpression>
 #include <QStringList>
+#include <flipmansdk/render/imageeffect.h>
 
 namespace flipman::sdk::render {
 

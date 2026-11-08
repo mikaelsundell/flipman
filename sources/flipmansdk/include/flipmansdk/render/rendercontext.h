@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/rendersurface.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/rendersurface.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -22,8 +22,8 @@ class RenderContextPrivate;
  * the low-level RenderEngine. It describes the GPU device used for rendering
  * and the primary surface associated with the current render frame.
  *
- * @note Because it uses QExplicitlySharedDataPointer, it is designed for cheap
- * value copies and safe handoffs between render device code and rendering code.
+ * @note Copies share the descriptor and do not extend the lifetime of the QRhi
+ * device or surface. Use the context on the device's rendering thread.
  */
 class FLIPMANSDK_EXPORT RenderContext {
 public:
@@ -39,12 +39,15 @@ public:
 
     /**
      * @brief Destroys the RenderContext.
+     *
      * @note Required for the PIMPL pattern to safely delete RenderContextPrivate.
      */
     ~RenderContext();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the active QRhi device.
@@ -66,10 +69,14 @@ public:
      */
     void setSurface(const RenderSurface& surface);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if the context can be used for rendering.
@@ -81,10 +88,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy of the shared data.
@@ -101,10 +112,15 @@ public:
      */
     bool operator!=(const RenderContext& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<RenderContextPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<RenderContextPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

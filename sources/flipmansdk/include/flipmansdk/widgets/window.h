@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QMainWindow>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::widgets {
 

@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/file.h>
-#include <flipmansdk/render/shaderdefinition.h>
 #include <QScopedPointer>
 #include <QString>
 #include <QStringList>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderdefinition.h>
 
 namespace flipman::sdk::render {
 
@@ -21,7 +21,12 @@ class ShaderParserPrivate;
  * @brief Parses shader source into a ShaderDefinition.
  *
  * Interprets custom directives such as @param and @include
- * and produces a backend-agnostic ShaderDefinition.
+ * and produces a backend-agnostic ShaderDefinition. Function definitions are
+ * reflected from GLSL tokens and declaration ASTs after template injection.
+ * Prototypes alone are excluded. Function bodies and global declarations are
+ * validated later by ShaderCompiler, not by this declaration-reflection pass.
+ * General preprocessing, struct parameter types and unsized array parameters
+ * are not supported.
  */
 class FLIPMANSDK_EXPORT ShaderParser : public QObject {
 public:
@@ -51,15 +56,31 @@ public:
             , descriptorBinding(0)
         {}
 
-        QStringList includeSearchPaths;  ///< Additional include search paths.
-        bool allowRelativeIncludes;      ///< Allows includes relative to source file.
-        int descriptorBinding;           ///< Binding index for the generated params uniform block.
-        Injections injections;           ///< Optional template injection
+        /**
+         * @brief Additional include search paths.
+         */
+        QStringList includeSearchPaths;
+
+        /**
+         * @brief Allows includes relative to source file.
+         */
+        bool allowRelativeIncludes;
+
+        /**
+         * @brief Binding index for the generated params uniform block.
+         */
+        int descriptorBinding;
+
+        /**
+         * @brief Optional template injection
+         */
+        Injections injections;
     };
 
 public:
     /**
      * @brief Constructs a ShaderParser.
+     *
      * @param parent Optional QObject parent.
      */
     explicit ShaderParser(QObject* parent = nullptr);
@@ -87,8 +108,10 @@ public:
      */
     ShaderDefinition parse(const QString& source, const Options& options = Options());
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns the last interpreter error.
@@ -100,11 +123,16 @@ public:
      */
     bool isValid() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(ShaderParser)
-    QScopedPointer<ShaderParserPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<ShaderParserPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

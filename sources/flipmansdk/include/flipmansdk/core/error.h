@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QString>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 
@@ -80,8 +80,10 @@ public:
      */
     void setError(const QString& domain, const QString& message, int code);
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -93,7 +95,9 @@ public:
      */
     operator QString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<ErrorPrivate> p;

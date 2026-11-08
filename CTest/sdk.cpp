@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include "testsdk.h"
+#include "sdk.h"
 #include <QApplication>
 #include <QDebug>
 #include <QThread>
+#include <QTimer>
 #include <flipmansdk/av/clip.h>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/media.h>
@@ -84,17 +85,11 @@ namespace {
 }  // namespace
 
 void
-init()
+init(const QString& dataDirectory, const QString& outputDirectory)
 {
     QDir dir;
-    dataPath = core::Environment::resourcePath("../../../data");
-    if (!dir.exists(dataPath)) {
-        core::logErr() << "data path does not exist:" << dataPath << Qt::endl;
-    }
-
-    const QString base = core::Environment::resourcePath("../../tests");
-    const QString stamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
-    testPath = QString("%1/run_%2").arg(base, stamp);
+    dataPath = dataDirectory;
+    testPath = outputDirectory;
     if (!dir.mkpath(testPath)) {
         core::logErr() << "failed to create test path:" << testPath << Qt::endl;
     }
@@ -192,7 +187,22 @@ testFile()
 {
     core::logOut() << "test file" << Qt::endl;
 
-    const QList<core::File> files = core::File::listDir(QString("%1/dir").arg(dataPath));
+    const QString fixture = testPath + "/dir";
+    if (!QDir().mkpath(fixture))
+        return false;
+    QStringList names { "square export 23.976.mov" };
+    for (const auto& span : { QPair<int, int>(86400, 86410), QPair<int, int>(86435, 86440) })
+        for (int frame = span.first; frame <= span.second; ++frame)
+            names.append(QString("23.967.%1.exr").arg(frame, 8, 10, QChar('0')));
+    for (const auto& span : { QPair<int, int>(86400, 86404), QPair<int, int>(86514, 86515) })
+        for (int frame = span.first; frame <= span.second; ++frame)
+            names.append(QString("24fps.%1.jpg").arg(frame, 8, 10, QChar('0')));
+    for (const QString& name : names) {
+        QFile file(fixture + "/" + name);
+        if (!file.open(QIODevice::WriteOnly))
+            return false;
+    }
+    const QList<core::File> files = core::File::listDir(fixture);
 
     for (const core::File& file : files) {
         core::logOut() << "file: " << file.displayName() << Qt::endl;
@@ -740,7 +750,7 @@ testImageNV12()
                 return;
             }
 
-            if (!media.waitForOpened(-1)) {
+            if (!media.waitForOpened(5000)) {
                 core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
                 ok = false;
                 return;
@@ -769,7 +779,11 @@ testImageNV12()
 
             render::RenderOffscreen renderOffscreen;
 
-
+            if (!media.read().isValid()) {
+                core::logErr() << "could not read source frame: " << media.error().message() << Qt::endl;
+                ok = false;
+                return;
+            }
             if (!renderOffscreen.initialize(media.image().dataWindow().size())) {
                 core::logErr() << "render offscreen initialization failed" << Qt::endl;
                 ok = false;
@@ -810,6 +824,7 @@ testImageNV12()
             writer->setTimeRange(range);
             if (!writer->write(image)) {
                 core::logErr() << "could not write image" << Qt::endl;
+                ok = false;
                 return;
             }
         });
@@ -842,6 +857,7 @@ testImageAverage()
         if (!reader->isOpen()) {
             QEventLoop loop;
             QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            QTimer::singleShot(5000, &loop, &QEventLoop::quit);
             loop.exec();
         }
 
@@ -1010,18 +1026,30 @@ testImageThreaded()
                 if (!reader->isOpen()) {
                     QEventLoop loop;
                     QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+                    QTimer::singleShot(5000, &loop, &QEventLoop::quit);
                     loop.exec();
                 }
 
+                if (!reader->isOpen()) {
+                    QMutexLocker lock(&failureMutex);
+                    failures << QString("reader did not open before timeout: %1").arg(file.filePath());
+                    ok.store(false);
+                    return;
+                }
+
                 const av::TimeRange timeRange = reader->timeRange();
-                const qint64 frames = timeRange.duration().frames();
+                const qint64 totalFrames = timeRange.duration().frames();
+                const qint64 frames = qEnvironmentVariableIntValue("FLIPMAN_FULL_MEDIA_TESTS")
+                                          ? totalFrames
+                                          : std::min<qint64>(4, totalFrames);
 
                 while (ok.load()) {
                     int index = frameCounter.fetch_add(1);
                     if (index >= frames)
                         break;
 
-                    av::Time t = timeRange.start() + av::Time::fromFrames(index, reader->fps());
+                    const qint64 sourceIndex = frames > 1 ? qint64(index) * (totalFrames - 1) / (frames - 1) : 0;
+                    av::Time t = timeRange.start() + av::Time::fromFrames(sourceIndex, reader->fps());
                     reader->seek(av::TimeRange(t, av::Time::fromFrames(1, reader->fps())));
 
                     av::Timer readTimer;
@@ -1150,7 +1178,7 @@ testMedia()
                 return;
             }
 
-            if (!media.waitForOpened(-1)) {
+            if (!media.waitForOpened(5000)) {
                 core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
                 ok = false;
                 return;
@@ -1223,7 +1251,7 @@ testRenderOffscreen()
                 return;
             }
 
-            if (!media.waitForOpened(-1)) {
+            if (!media.waitForOpened(5000)) {
                 core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
                 ok = false;
                 return;
@@ -1353,8 +1381,13 @@ testRenderOffscreen()
                 diff.allocate();
 
                 quint8* d = diff.data();
+                // The decoder retains BGRA storage; GPU readback is RGBA.
+                // Map the reference channels here in the test, not in playback.
+                const bool sourceBgr = source.pixelLayout() == core::ImageBuffer::PixelLayout::BGRA;
                 for (size_t i = 0; i < components; ++i) {
-                    int v = std::abs(int(a[i]) - int(b[i]));
+                    const size_t channel = i % 4;
+                    const size_t nativeChannel = sourceBgr && channel < 3 ? 2 - channel : channel;
+                    int v = std::abs(int(a[i]) - int(b[(i / 4) * 4 + nativeChannel]));
                     if (v > 1)
                         diffCount++;
                     d[i] = quint8(std::min(v * 10, 255));  // amplify diff for visibility
@@ -1520,7 +1553,7 @@ testRenderRoundtrip()
                 return;
             }
 
-            if (!media.waitForOpened(-1)) {
+            if (!media.waitForOpened(5000)) {
                 core::logErr() << "timed out waiting for media to open: " << media.error().message() << Qt::endl;
                 ok = false;
                 return;
@@ -1647,15 +1680,15 @@ testShader()
 {
     core::logOut() << "test media" << Qt::endl;
 
-    QString filename = "fx/gaussian.fx";
-    core::File file(QString("%1/%2").arg(dataPath).arg(filename));
-    if (!file.exists()) {
-        core::logOut() << "file does not exist: " << file << Qt::endl;
-        return false;
-    }
+    const QString effectSource = R"(@param float radius 1.0 0.0 10.0
+vec4 effect(vec4 color, ivec2 pixel, ivec2 size)
+{
+    return color * radius;
+}
+)";
     render::ShaderContract shaderContract;
     render::ShaderParser shaderParser;
-    render::ShaderDefinition effectDefinition = shaderParser.parse(file);
+    render::ShaderDefinition effectDefinition = shaderParser.parse(effectSource);
     if (!shaderParser.isValid()) {
         core::logErr() << "failed to parse effect code: " << shaderParser.error().message() << Qt::endl;
         return false;
@@ -1759,11 +1792,14 @@ testShader()
     }
 
     QString texUniformBlock = R"(layout(binding = 1) uniform sampler2D tex;)";
-    QString texCall = R"(vec4 color = texture(tex, uv);)";
+    QString texCall = R"(ivec2 size = textureSize(tex, 0);
+    ivec2 pixel = clamp(ivec2(uv * vec2(size)), ivec2(0), size - ivec2(1));
+    vec4 color = texture(tex, uv);)";
 
     QByteArray layerShader = layerFile.readAll();
     render::ShaderParser::Options options;
     options.injections.set("texUniform", texUniformBlock);
+    options.injections.set("texCode", QString());
     options.injections.set("effectUniform", effectDefinition.uniformBlock(2));
     options.injections.set("texCall", texCall);
     options.injections.set("effectCode", effectDefinition.shaderCode());
@@ -1811,7 +1847,7 @@ testShader()
         return false;
     }
 
-    if (!viewerCode.contains("color = effect(color, uv);")) {
+    if (!viewerCode.contains("color = effect(color, pixel, size);")) {
         core::logErr() << "effect call missing in viewer shader" << Qt::endl;
         return false;
     }
@@ -2310,8 +2346,15 @@ testPluginFx()
 {
     core::logOut() << "test plugin fx" << Qt::endl;
 
-    QString filename = "fx/warm.fx";
-    core::File file(QString("%1/%2").arg(dataPath).arg(filename));
+    const QString path = testPath + "/warm.fx";
+    QFile fixture(path);
+    if (!fixture.open(QIODevice::WriteOnly))
+        return false;
+    fixture.write("@param float warm 1.0 0.0 2.0\n"
+                  "vec4 effect(vec4 color, vec2 pixel, vec2 size)\n"
+                  "{ return vec4(color.rgb * warm, color.a); }\n");
+    fixture.close();
+    core::File file(path);
 
     if (!file.exists()) {
         core::logErr() << "file does not exist: " << file << Qt::endl;
@@ -2448,6 +2491,7 @@ testPluginContainer()
         if (!reader->isOpen()) {
             QEventLoop loop;
             QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            QTimer::singleShot(5000, &loop, &QEventLoop::quit);
             loop.exec();
         }
         if (!reader->isOpen()) {
@@ -2515,8 +2559,9 @@ testPluginContainer()
 
         qint64 start = range.start().frames();
         qint64 end = range.end().frames();
-        qint64 max = std::min<qint64>(100, end - start);
-        for (qint64 frame = range.start().frames(); frame < max; ++frame) {
+        const qint64 limit = qEnvironmentVariableIntValue("FLIPMAN_FULL_MEDIA_TESTS") ? 100 : 4;
+        const qint64 stop = start + std::min<qint64>(limit, end - start);
+        for (qint64 frame = start; frame < stop; ++frame) {
             qDebug() << "read frame:" << frame;
             av::Time next = av::Time::fromFrames(frame, reader->fps());
             if (time < next || frame == range.start().frames()) {
@@ -2563,6 +2608,7 @@ testPluginImage()
         if (!reader->isOpen()) {
             QEventLoop loop;
             QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            QTimer::singleShot(5000, &loop, &QEventLoop::quit);
             loop.exec();
         }
         if (!reader->isOpen()) {
@@ -2605,6 +2651,7 @@ testPluginImage()
         writer->setTimeRange(reader->timeRange());
         if (!writer->write(reader->image())) {
             core::logErr() << "could not write image" << Qt::endl;
+            ok = false;
             return;
         }
     });
@@ -2645,6 +2692,7 @@ testPluginRegistry()
         if (!reader->isOpen()) {
             QEventLoop loop;
             QObject::connect(reader.data(), &plugins::MediaReader::opened, &loop, &QEventLoop::quit);
+            QTimer::singleShot(5000, &loop, &QEventLoop::quit);
             loop.exec();
         }
         if (!reader->isOpen()) {
@@ -2669,8 +2717,7 @@ testTimeLine()
     av::TimeRange range(start, duration);
 
     bool ok = true;
-    ok &= testValue(timeline.timeRange().start().frames(), static_cast<qint64>(0), "timerange start");
-    ok &= testValue(timeline.timeRange().duration().frames(), static_cast<qint64>(0), "timerange duration");
+    ok &= testValue(timeline.timeRange().isValid(), false, "initial timerange is invalid");
 
     if (!ok) {
         core::logErr() << "timeline range handling failed" << Qt::endl;
@@ -2678,6 +2725,7 @@ testTimeLine()
     }
 
     timeline.setTimeRange(range);
+    ok &= testValue(timeline.timeRange() == range, true, "configured timerange");
 
     av::Track* track1 = new av::Track(&timeline);
     av::Track* track2 = new av::Track(&timeline);
@@ -2698,5 +2746,36 @@ testTimeLine()
         return false;
     }
     return true;
+}
+}  // namespace flipman::sdk::test
+
+namespace flipman::sdk::test {
+bool
+testMediaState()
+{
+    av::Media media;
+    if (media.isOpen() || media.isValid() || media.error().hasError() || !media.close() || media.waitForOpened(0))
+        return false;
+    if (media.open(core::File("missing.unsupported_flipman_extension")) || media.isOpen() || media.isValid()
+        || !media.error().hasError() || media.waitForOpened(0))
+        return false;
+    media.reset();
+    return !media.isOpen() && !media.isValid() && !media.error().hasError() && media.close();
+}
+}  // namespace flipman::sdk::test
+
+namespace flipman::sdk::test {
+bool
+testShaderContract()
+{
+    render::ShaderContract contract;
+    const auto type = render::ShaderContract::Type::Effect;
+    const QVector<render::ShaderFunction> integer { { "vec4", "effect", { "vec4", "ivec2", "ivec2" } } };
+    const QVector<render::ShaderFunction> real { { "vec4", "effect", { "vec4", "vec2", "vec2" } } };
+    const QVector<render::ShaderFunction> obsolete { { "vec4", "effect", { "vec4", "vec2" } } };
+    const QVector<render::ShaderFunction> wrong { { "vec3", "effect", { "vec4", "ivec2", "ivec2" } } };
+    return contract.validate(type, integer) && contract.validate(type, real) && !contract.validate(type, obsolete)
+           && contract.error().hasError() && !contract.validate(type, wrong) && contract.validate(type, integer)
+           && !contract.error().hasError();
 }
 }  // namespace flipman::sdk::test

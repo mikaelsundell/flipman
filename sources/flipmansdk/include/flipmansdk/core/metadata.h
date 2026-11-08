@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QList>
 #include <QMetaType>
 #include <QStringList>
 #include <QVariant>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 
@@ -96,8 +96,10 @@ public:
      */
     void remove(Group group, const QString& key);
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Subscript operator for root keys.
@@ -111,7 +113,9 @@ public:
      */
     MetaData& operator=(const MetaData& other);
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Converts Key enum to string.

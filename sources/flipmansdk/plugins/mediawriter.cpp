@@ -2,8 +2,8 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/mediawriter.h>
 #include <QPointer>
+#include <flipmansdk/plugins/mediawriter.h>
 
 namespace flipman::sdk::plugins {
 MediaWriter::MediaWriter(QObject* parent)

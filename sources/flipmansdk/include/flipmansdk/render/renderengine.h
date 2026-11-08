@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imagelayer.h>
-#include <flipmansdk/render/rendercontext.h>
-#include <flipmansdk/render/renderoutput.h>
 #include <QColor>
 #include <QList>
 #include <QObject>
 #include <QScopedPointer>
 #include <QSize>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imagelayer.h>
+#include <flipmansdk/render/rendercontext.h>
+#include <flipmansdk/render/renderoutput.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -47,16 +47,16 @@ public:
     bool initialized() const;
 
     /**
-       * @brief Initializes GPU resources for the given context and render specification.
-       *
-       * Safe to call multiple times. The context provides the active QRhi device,
-       * while the render specification describes the primary output surface,
-       * size, format, and output requirements used to build compatible GPU
-       * resources.
-       *
-       * @param context    Rendering context.
-       * @param spec        Primary render specification for this render call.
-       */
+     * @brief Initializes GPU resources for the given context and render specification.
+     *
+     * Safe to call multiple times. The context provides the active QRhi device,
+     * while the render specification describes the primary output surface,
+     * size, format, and output requirements used to build compatible GPU
+     * resources.
+     *
+     * @param context Rendering context.
+     * @param spec Primary render specification for this render call.
+     */
     bool initialize(const RenderContext& context, const RenderSpec& spec);
 
     /**
@@ -64,17 +64,19 @@ public:
      *
      * The engine renders the configured image layers using the supplied render
      * specification. The rendered result is written to the destination
-     * described by @p renderSpec and to any additional render outputs
+     * described by @p spec and to any additional render outputs
      * configured with setRenderOutputs().
      *
-     * @param context       Rendering context.
-     * @param spec              Primary render specification for this render call.
+     * @param context Rendering context.
+     * @param spec Primary render specification for this render call.
      * @param commandBuffer Command buffer used for recording GPU commands.
      */
     void render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
 
-    /** @name Configuration */
-    ///@{
+    /**
+     * @name Configuration
+     * @{
+     */
 
     /**
      * @brief Returns the current rendering resolution.
@@ -106,10 +108,14 @@ public:
      */
     void setImageLayers(const QList<ImageLayer>& imageLayers);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Render Outputs */
-    ///@{
+    /**
+     * @name Render Outputs
+     * @{
+     */
 
     /**
      * @brief Returns the render outputs rendered after the primary pass.
@@ -123,10 +129,15 @@ public:
      * multiple destinations, such as DeckLink devices, readback targets,
      * or file/export outputs. The primary output is supplied when calling
      * render().
+     *
+     * The engine does not take ownership. Keep each output alive until it is
+     * removed from the list and any in-flight rendering has completed.
      */
     void setRenderOutputs(const QList<RenderOutput*>& renderOutputs);
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns generation error, if any.

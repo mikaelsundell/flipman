@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/clip.h>
-#include <flipmansdk/av/timerange.h>
 #include <QColor>
 #include <QList>
 #include <QScopedPointer>
+#include <flipmansdk/av/clip.h>
+#include <flipmansdk/av/timerange.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -35,8 +35,10 @@ public:
      */
     ~Track() override;
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the name.
@@ -48,10 +50,14 @@ public:
      */
     QColor color() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Clips */
-    ///@{
+    /**
+     * @name Clips
+     * @{
+     */
 
     /**
      * @brief Returns the clip range.
@@ -68,10 +74,14 @@ public:
      */
     bool containsClip(Clip* clip) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns the error state.
@@ -83,11 +93,15 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
 public Q_SLOTS:
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the name.
@@ -109,11 +123,15 @@ public Q_SLOTS:
      */
     void removeClip(Clip* clip);
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
-    /** @name Notifications */
-    ///@{
+    /**
+     * @name Notifications
+     * @{
+     */
 
     /**
      * @brief Emitted when name changes.
@@ -125,7 +143,9 @@ Q_SIGNALS:
      */
     void colorChanged(const QColor& color);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(Track)

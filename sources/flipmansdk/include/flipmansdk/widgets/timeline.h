@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/time.h>
-#include <flipmansdk/av/timerange.h>
 #include <QScopedPointer>
 #include <QWidget>
+#include <flipmansdk/av/time.h>
+#include <flipmansdk/av/timerange.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::widgets {
 
@@ -31,9 +31,20 @@ public:
      * @brief Display format for timeline values.
      */
     enum TimeCode {
-        Frames,  ///< Displays absolute frame numbers.
-        Time,    ///< Displays time in seconds.
-        SMPTE    ///< Displays SMPTE timecode.
+        /**
+         * @brief Displays absolute frame numbers.
+         */
+        Frames,
+
+        /**
+         * @brief Displays time in seconds.
+         */
+        Time,
+
+        /**
+         * @brief Displays SMPTE timecode.
+         */
+        SMPTE
     };
     Q_ENUM(TimeCode)
 
@@ -50,8 +61,10 @@ public:
      */
     ~Timeline() override;
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the active time range.
@@ -78,12 +91,16 @@ public:
      */
     QSize sizeHint() const override;
 
-    ///@}
+    /**
+     * @}
+     */
 
 public Q_SLOTS:
 
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the active time range.
@@ -105,12 +122,16 @@ public Q_SLOTS:
      */
     void setTimeCode(Timeline::TimeCode timeCode);
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 
-    /** @name Notifications */
-    ///@{
+    /**
+     * @name Notifications
+     * @{
+     */
 
     /**
      * @brief Emitted when the playhead time changes.
@@ -132,11 +153,15 @@ Q_SIGNALS:
      */
     void sliderReleased();
 
-    ///@}
+    /**
+     * @}
+     */
 
 protected:
-    /** @name Interaction & Rendering */
-    ///@{
+    /**
+     * @name Interaction & Rendering
+     * @{
+     */
 
     /**
      * @brief Paint event handler.
@@ -158,11 +183,16 @@ protected:
      */
     void mouseReleaseEvent(QMouseEvent* event) override;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(Timeline)
-    QScopedPointer<TimelinePrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<TimelinePrivate> p;
 };
 
 }  // namespace flipman::sdk::widgets

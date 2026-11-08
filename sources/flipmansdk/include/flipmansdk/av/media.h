@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QExplicitlySharedDataPointer>
+#include <QMetaType>
+#include <QObject>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
@@ -14,9 +16,8 @@
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/metadata.h>
-#include <QExplicitlySharedDataPointer>
-#include <QMetaType>
-#include <QObject>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/plugins/mediareader.h>
 
 namespace flipman::sdk::av {
 
@@ -44,13 +45,24 @@ public:
      */
     ~Media();
 
-    /** @name Lifecycle */
-    ///@{
+    /**
+     * @name Lifecycle
+     * @{
+     */
 
     /**
      * @brief Opens a media file.
      */
     bool open(const core::File& file);
+
+    /**
+     * @brief Opens media with backend-specific reader options.
+     *
+     * @param file Source media file.
+     * @param options Options forwarded unchanged to the selected reader.
+     * @return True if opening started successfully; inspect error() on failure.
+     */
+    bool open(const core::File& file, const plugins::MediaReader::Options& options);
 
     /**
      * @brief Closes the media.
@@ -67,10 +79,14 @@ public:
      */
     bool isSupported(const QString& extension) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Navigation */
-    ///@{
+    /**
+     * @name Navigation
+     * @{
+     */
 
     /**
      * @brief Reads the next frame.
@@ -87,10 +103,14 @@ public:
      */
     Time seek(const TimeRange& range) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Properties */
-    ///@{
+    /**
+     * @name Properties
+     * @{
+     */
 
     /**
      * @brief Returns the start time.
@@ -117,10 +137,14 @@ public:
      */
     core::File file() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Access */
-    ///@{
+    /**
+     * @name Data Access
+     * @{
+     */
 
     /**
      * @brief Returns the current audio buffer.
@@ -137,7 +161,9 @@ public:
      */
     core::MetaData metaData() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns the error state.
@@ -154,8 +180,10 @@ public:
      */
     void reset();
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -172,17 +200,23 @@ public:
      */
     bool operator!=(const Media& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Wait Helpers */
-    ///@{
+    /**
+     * @name Wait Helpers
+     * @{
+     */
 
     /**
      * @brief Waits until opened or timeout.
      */
     bool waitForOpened(int msecs = -1);
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
     /**

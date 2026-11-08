@@ -15,3 +15,16 @@ target_link_libraries(${test_name}
     flipmansdk
 )
 target_include_directories(${test_name} PRIVATE ${CMAKE_SOURCE_DIR})
+
+if(BUILD_TESTING)
+    add_executable(flipman_viewerdrop_tests ${PROJECT_SOURCE_DIR}/CTest/viewerdrop.cpp window.cpp window.h)
+    target_include_directories(flipman_viewerdrop_tests PRIVATE ${PROJECT_SOURCE_DIR})
+    target_link_libraries(flipman_viewerdrop_tests PRIVATE flipmansdk)
+    add_test(NAME flipman.viewer.drop
+        COMMAND ${CMAKE_COMMAND} -E env
+            "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+            QT_QPA_PLATFORM=offscreen
+            $<TARGET_FILE:flipman_viewerdrop_tests>)
+    set_tests_properties(flipman.viewer.drop PROPERTIES LABELS "viewer;native;integration" TIMEOUT 60)
+    add_dependencies(flipman_tests flipman_viewerdrop_tests)
+endif()

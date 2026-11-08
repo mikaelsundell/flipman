@@ -2,6 +2,9 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
+#include <flipmansdk/core/log.h>
 #include <flipmansdk/plugins/quicktime/quicktimereader.h>
 
 #include <flipmansdk/av/smptetime.h>
@@ -13,18 +16,19 @@
 #include <QFileInfo>
 #include <QPointer>
 #include <algorithm>
+#include <atomic>
 
 #define DebugCMTime(name, time) \
-    qDebug() << name << ": "    \
+    qCDebug(flipman::sdk::core::mediaLog) << name << ": "    \
              << "CMTime: PTS Value:" << time.value << ", " \
              << "CMTime: Timescale:" << time.timescale;
 
 #define DebugAVTime(name, time) \
-    qDebug() << name << ": "    \
+    qCDebug(flipman::sdk::core::mediaLog) << name << ": "    \
              << "AVTime: PTS Value:" << time.ticks() << ", " \
              << "AVTime: Timescale:" << time.timescale();
 
-#define DebugInfo() qDebug() << Q_FUNC_INFO
+#define DebugInfo() qCDebug(flipman::sdk::core::mediaLog) << Q_FUNC_INFO
 
 namespace flipman::sdk::plugins {
 
@@ -105,19 +109,74 @@ static NSDictionary*
 videoOutputSettings()
 {
     return @{
-        (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
+        (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
     };
+}
+
+static QString
+cfString(CFTypeRef value)
+{
+    if (!value)
+        return {};
+
+    if (CFGetTypeID(value) == CFStringGetTypeID())
+        return QString::fromCFString(static_cast<CFStringRef>(value));
+
+    CFStringRef desc = CFCopyDescription(value);
+    const QString result = desc ? QString::fromCFString(desc) : QString();
+
+    if (desc)
+        CFRelease(desc);
+
+    return result;
 }
 
 static QString
 attachmentString(CVPixelBufferRef pixelBuffer, CFStringRef key)
 {
-    CFTypeRef value = CVBufferGetAttachment(pixelBuffer, key, nullptr);
+    CFTypeRef value = CVBufferCopyAttachment(pixelBuffer, key, nullptr);
+    const QString result = cfString(value);
+    if (value)
+        CFRelease(value);
+    return result;
+}
 
-    if (!value || CFGetTypeID(value) != CFStringGetTypeID())
-        return {};
+static void
+debugPixelBufferColorInfo(CVPixelBufferRef pixelBuffer)
+{
+    if (!pixelBuffer || !core::mediaLog().isDebugEnabled())
+        return;
 
-    return QString::fromCFString(static_cast<CFStringRef>(value));
+    qCDebug(flipman::sdk::core::mediaLog) << "quicktimereader: pixel buffer";
+    qCDebug(flipman::sdk::core::mediaLog) << "  format:" << pixelFormatName(CVPixelBufferGetPixelFormatType(pixelBuffer));
+    qCDebug(flipman::sdk::core::mediaLog) << "  size:" << CVPixelBufferGetWidth(pixelBuffer) << "x" << CVPixelBufferGetHeight(pixelBuffer);
+    qCDebug(flipman::sdk::core::mediaLog) << "  planes:" << CVPixelBufferGetPlaneCount(pixelBuffer);
+
+    qCDebug(flipman::sdk::core::mediaLog) << "  primaries:"
+             << attachmentString(pixelBuffer, kCVImageBufferColorPrimariesKey);
+
+    qCDebug(flipman::sdk::core::mediaLog) << "  transfer:"
+             << attachmentString(pixelBuffer, kCVImageBufferTransferFunctionKey);
+
+    qCDebug(flipman::sdk::core::mediaLog) << "  ycbcr matrix:"
+             << attachmentString(pixelBuffer, kCVImageBufferYCbCrMatrixKey);
+
+    qCDebug(flipman::sdk::core::mediaLog) << "  gamma level:"
+             << attachmentString(pixelBuffer, kCVImageBufferGammaLevelKey);
+}
+
+static void
+debugImageColorInfo(const core::ImageBuffer& image)
+{
+    if (!core::mediaLog().isDebugEnabled())
+        return;
+    qCDebug(flipman::sdk::core::mediaLog) << "quicktimereader: tagged image"
+             << "colorSpace" << int(image.colorSpace())
+             << "transfer" << int(image.transferFunction())
+             << "pixelRange" << int(image.pixelRange())
+             << "pixelLayout" << int(image.pixelLayout())
+             << "packing" << int(image.packing())
+             << "subsampling" << int(image.subsampling());
 }
 
 static render::ColorSpace
@@ -167,12 +226,21 @@ tagImageColorInfo(CVPixelBufferRef pixelBuffer, core::ImageBuffer& image)
 static bool
 copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& image, core::Error& error)
 {
+    FM_PROFILE_SCOPE("quicktime", "copy_pixel_buffer");
     if (!pixelBuffer) {
         error = core::Error("quicktimereader", "invalid CVPixelBuffer");
         return false;
     }
 
     const OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
+    
+    static std::atomic<bool> printedPixelBufferInfo { false };
+
+    if (core::mediaLog().isDebugEnabled()
+        && !printedPixelBufferInfo.exchange(true, std::memory_order_relaxed)) {
+        debugPixelBufferColorInfo(pixelBuffer);
+    }
+    
     const int width = int(CVPixelBufferGetWidth(pixelBuffer));
     const int height = int(CVPixelBufferGetHeight(pixelBuffer));
     const QRect dataWindow(0, 0, width, height);
@@ -190,6 +258,7 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
                                 ? core::ImageBuffer::PixelRange::Full
                                 : core::ImageBuffer::PixelRange::Video);
         tagImageColorInfo(pixelBuffer, image);
+        debugImageColorInfo(image);
         image.allocate();
 
         quint8* dstY = image.planeData(0);
@@ -227,6 +296,7 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
         image.setPixelLayout(core::ImageBuffer::PixelLayout::BGRA);
         image.setPixelRange(core::ImageBuffer::PixelRange::Full);
         tagImageColorInfo(pixelBuffer, image);
+        debugImageColorInfo(image);
         image.allocate();
 
         const quint8* src = static_cast<const quint8*>(CVPixelBufferGetBaseAddress(pixelBuffer));
@@ -250,6 +320,7 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
         image.setPixelLayout(core::ImageBuffer::PixelLayout::UYVY);
         image.setPixelRange(core::ImageBuffer::PixelRange::Video);
         tagImageColorInfo(pixelBuffer, image);
+        debugImageColorInfo(image);
         image.allocate();
 
         const quint8* src = static_cast<const quint8*>(CVPixelBufferGetBaseAddress(pixelBuffer));
@@ -272,6 +343,8 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
 void
 QuicktimeReaderPrivate::loadAsset()
 {
+    FM_PROFILE_SCOPE("quicktime", "load_asset");
+    core::PerfScope phase("quicktime.load_asset");
     dispatch_group_t group = dispatch_group_create();
 
     __block AVAssetTrack* videoTrack = nil;
@@ -541,6 +614,8 @@ QuicktimeReaderPrivate::isOpen()
 av::Time
 QuicktimeReaderPrivate::read()
 {
+    FM_PROFILE_SCOPE("quicktime", "read");
+    core::PerfScope phase("quicktime.read");
     if (!isOpen()) {
         d.error = core::Error(info().name, "failed when trying to read, file must be open");
         qWarning() << "warning:" << d.error.message();
@@ -627,6 +702,8 @@ QuicktimeReaderPrivate::skip()
 av::Time
 QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
 {
+    FM_PROFILE_SCOPE("quicktime", "seek");
+    core::PerfScope phase("quicktime.seek");
     Q_ASSERT(isOpen() || d.reader.status != AVAssetReaderStatusReading);
 
     av::Time time = timerange.start();

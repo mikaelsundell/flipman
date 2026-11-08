@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/fps.h>
-#include <flipmansdk/av/time.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/av/fps.h>
+#include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -40,8 +40,10 @@ public:
      */
     ~SmpteTime();
 
-    /** @name Timecode Components */
-    ///@{
+    /**
+     * @name Timecode Components
+     * @{
+     */
 
     /**
      * @brief Returns the counter value.
@@ -68,10 +70,14 @@ public:
      */
     qint16 frames() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Precision */
-    ///@{
+    /**
+     * @name Precision
+     * @{
+     */
 
     /**
      * @brief Returns the subframe value.
@@ -93,10 +99,14 @@ public:
      */
     Time time() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Formatting */
-    ///@{
+    /**
+     * @name Formatting
+     * @{
+     */
 
     /**
      * @brief Returns true if negatives are enabled.
@@ -113,10 +123,14 @@ public:
      */
     QString toString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if valid.
@@ -128,10 +142,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the Time value.
@@ -148,10 +166,14 @@ public:
      */
     void setFullHours(bool fullhours);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -198,10 +220,14 @@ public:
      */
     SmpteTime operator-(const SmpteTime& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Conversion Utilities */
-    ///@{
+    /**
+     * @name Conversion Utilities
+     * @{
+     */
 
     /**
      * @brief Converts frame count between frame rates.
@@ -213,7 +239,9 @@ public:
      */
     static qint64 convert(quint64 frame, const Fps& fps, bool reverse = false);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<SmpteTimePrivate> p;

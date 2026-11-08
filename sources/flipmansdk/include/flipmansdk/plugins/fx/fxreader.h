@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <QScopedPointer>
 #include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/pluginhandler.h>
 #include <flipmansdk/render/imageeffect.h>
-#include <QScopedPointer>
 
 namespace flipman::sdk::plugins {
 
@@ -33,8 +33,10 @@ public:
      */
     ~FxReader() override;
 
-    /** @name Initialization */
-    ///@{
+    /**
+     * @name Initialization
+     * @{
+     */
 
     /**
      * @brief Opens an effect file.
@@ -56,10 +58,14 @@ public:
      */
     bool isOpen() const override;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Retrieval */
-    ///@{
+    /**
+     * @name Data Retrieval
+     * @{
+     */
 
     /**
      * @brief Returns the loaded ImageEffect.
@@ -71,7 +77,9 @@ public:
      */
     core::Error error() const override;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns plugin handler for registration.

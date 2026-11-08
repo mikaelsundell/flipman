@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2022 - present Mikael Sundell.
 
-#include <flipmansdk/av/track.h>
 #include <QColor>
+#include <flipmansdk/av/track.h>
 
 namespace flipman::sdk::av {
 class TrackPrivate {

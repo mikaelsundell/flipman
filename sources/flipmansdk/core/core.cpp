@@ -2,8 +2,8 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/core/core.h>
 #include <QApplication>
+#include <flipmansdk/core/core.h>
 
 namespace flipman::sdk::core {
 

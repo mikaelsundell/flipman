@@ -4,12 +4,6 @@
 
 #include "window.h"
 #include <DeckLinkAPI.h>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/environment.h>
-#include <flipmansdk/core/file.h>
-#include <flipmansdk/render/render.h>
-#include <flipmansdk/widgets/viewer.h>
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -30,6 +24,12 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/render/render.h>
+#include <flipmansdk/widgets/viewer.h>
 #include <functional>
 
 namespace flipman {

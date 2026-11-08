@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/imagebuffer.h>
-#include <flipmansdk/render/rendercontext.h>
-#include <flipmansdk/render/rendersurface.h>
 #include <QImage>
 #include <QObject>
 #include <QScopedPointer>
 #include <QSize>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/imagebuffer.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/rendercontext.h>
+#include <flipmansdk/render/rendersurface.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -37,12 +37,35 @@ public:
      * selects the most appropriate backend for the current platform.
      */
     enum Backend {
-        Auto,      ///< Automatically select best backend for platform.
-        Metal,     ///< Apple Metal.
-        Vulkan,    ///< Vulkan.
-        Direct3D,  ///< Direct3D 11.
-        OpenGL,    ///< OpenGL / GLES.
-        Null       ///< No-op backend (testing only).
+        /**
+         * @brief Automatically select best backend for platform.
+         */
+        Auto,
+
+        /**
+         * @brief Apple Metal.
+         */
+        Metal,
+
+        /**
+         * @brief Vulkan.
+         */
+        Vulkan,
+
+        /**
+         * @brief Direct3D 11.
+         */
+        Direct3D,
+
+        /**
+         * @brief OpenGL / GLES.
+         */
+        OpenGL,
+
+        /**
+         * @brief No-op backend (testing only).
+         */
+        Null
     };
     Q_ENUM(Backend)
 
@@ -51,9 +74,20 @@ public:
      * @brief Pixel format of the render target.
      */
     enum TargetFormat {
-        Rgba8,    ///< 8-bit UNORM.
-        Rgba16F,  ///< 16-bit floating point.
-        Rgba32F   ///< 32-bit floating point.
+        /**
+         * @brief 8-bit UNORM.
+         */
+        Rgba8,
+
+        /**
+         * @brief 16-bit floating point.
+         */
+        Rgba16F,
+
+        /**
+         * @brief 32-bit floating point.
+         */
+        Rgba32F
     };
     Q_ENUM(TargetFormat)
 
@@ -76,8 +110,9 @@ public:
      *
      * @param backend Rendering backend to use. Backend::Auto selects
      *        the most appropriate backend for the current platform.
+     *
      * @param size Render target resolution.
-     * @param renderTargetFormat Render target pixel format.
+     * @param targetFormat Render target pixel format.
      * @return true if creation succeeded.
      */
     bool create(Backend backend, const QSize& size, TargetFormat targetFormat = TargetFormat::Rgba16F);
@@ -126,18 +161,21 @@ public:
     QSize size() const;
 
     /**
-     * @brief Returns the last error encountered during compilation.
+     * @brief Returns the last device error.
      */
     core::Error error() const;
 
     /**
-     * @brief Returns true if the interpreter is usable.
+     * @brief Returns true if the rendering device is usable.
      */
     bool isValid() const;
 
 private:
     Q_DISABLE_COPY_MOVE(RenderDevice)
-    QScopedPointer<RenderDevicePrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<RenderDevicePrivate> p;
 };
 
 }  // namespace flipman::sdk::render

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -38,8 +38,10 @@ public:
      */
     ~Fps();
 
-    /** @name Status and Properties */
-    ///@{
+    /**
+     * @name Status and Properties
+     * @{
+     */
 
     /**
      * @brief Returns true if drop-frame is enabled.
@@ -66,10 +68,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Conversion and Math */
-    ///@{
+    /**
+     * @name Conversion and Math
+     * @{
+     */
 
     /**
      * @brief Returns the integer frame quanta.
@@ -101,10 +107,14 @@ public:
      */
     QString toString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the numerator.
@@ -121,10 +131,14 @@ public:
      */
     void setDropFrame(bool dropframe);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -166,10 +180,14 @@ public:
      */
     operator double() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Common Industry Rates */
-    ///@{
+    /**
+     * @name Common Industry Rates
+     * @{
+     */
 
     /**
      * @brief Guesses a rational Fps from a real value.
@@ -187,7 +205,9 @@ public:
     static Fps fps59_94();
     static Fps fps60();
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Converts a frame value between two Fps.

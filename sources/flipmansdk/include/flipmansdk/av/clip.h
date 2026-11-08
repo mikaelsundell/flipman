@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/audiofilter.h>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/render/imageeffect.h>
 #include <QColor>
 #include <QMatrix4x4>
 #include <QObject>
 #include <QPointF>
 #include <QScopedPointer>
 #include <QSizeF>
+#include <flipmansdk/av/audiofilter.h>
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imageeffect.h>
 
 
 namespace flipman::sdk::av {
@@ -37,8 +37,10 @@ public:
      */
     ~Clip() override;
 
-    /** @name Metadata */
-    ///@{
+    /**
+     * @name Metadata
+     * @{
+     */
 
     /**
      * @brief Returns the clip display name.
@@ -50,10 +52,14 @@ public:
      */
     QColor color() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Media and Processing */
-    ///@{
+    /**
+     * @name Media and Processing
+     * @{
+     */
 
     /**
      * @brief Returns the associated media.
@@ -70,10 +76,14 @@ public:
      */
     render::ImageEffect imageEffect() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Spatial Transform */
-    ///@{
+    /**
+     * @name Spatial Transform
+     * @{
+     */
 
     /**
      * @brief Returns the 2D position.
@@ -90,7 +100,9 @@ public:
      */
     QMatrix4x4 transform() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns the current error state.
@@ -103,8 +115,10 @@ public:
     void reset();
 
 public Q_SLOTS:
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets the clip display name.
@@ -146,7 +160,9 @@ public Q_SLOTS:
      */
     void setTransform(const QMatrix4x4& matrix);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(Clip)

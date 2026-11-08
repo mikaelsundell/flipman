@@ -2,12 +2,6 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/render/renderengine.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
-#include <flipmansdk/render/shadercompiler.h>
-#include <flipmansdk/render/shadercontract.h>
-#include <flipmansdk/render/shaderparser.h>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
@@ -16,12 +10,18 @@
 #include <QMatrix4x4>
 #include <QRegularExpression>
 #include <QTextStream>
+#include <cstddef>
+#include <cstring>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
+#include <flipmansdk/core/style.h>
+#include <flipmansdk/render/renderengine.h>
+#include <flipmansdk/render/shadercompiler.h>
+#include <flipmansdk/render/shadercontract.h>
+#include <flipmansdk/render/shaderparser.h>
 #include <limits>
-
-#undef RENDERENGINE_STATS
-#undef RENDERENGINE_TRACE
-
-//#define RENDERENGINE_TRACE 0
 
 #if defined(RENDERENGINE_STATS)
 #    define RE_STATS_ENABLED 1
@@ -29,25 +29,7 @@
 #    define RE_STATS_ENABLED 0
 #endif
 
-#if defined(RENDERENGINE_TRACE)
-#    define RE_TRACE_ENABLED 1
-#else
-#    define RE_TRACE_ENABLED 0
-#endif
-
-#if RE_TRACE_ENABLED
-#    define RE_TRACE qDebug
-#else
-struct RenderEngineNoDebugStream {
-    template<typename T> RenderEngineNoDebugStream& operator<<(const T&) { return *this; }
-};
-static inline RenderEngineNoDebugStream
-reNoDebugStream()
-{
-    return {};
-}
-#    define RE_TRACE reNoDebugStream
-#endif
+#define RE_TRACE() qCDebug(::flipman::sdk::core::renderLog)
 
 namespace flipman::sdk::render {
 
@@ -115,7 +97,9 @@ vec4 _sample(ivec2 pixel)
 {
     ivec2 size = _sampleSize();
     pixel = clamp(pixel, ivec2(0), size - ivec2(1));
-    return texelFetch(tex, pixel, 0);
+    vec4 value = texelFetch(tex, pixel, 0);
+    // Texture storage is RGBA; some readers deliver BGR/BGRA byte order.
+    return global.sourceBgr > 0.5 ? value.bgra : value;
 }
 )");
 
@@ -310,7 +294,8 @@ public:
                 *dst++ = 1.0f;
             }
 
-            qDebug() << "renderengine: loaded LUT" << filename << "size" << data.size << "bytes" << data.rgba32f.size();
+            qCDebug(flipman::sdk::core::renderLog)
+                << "renderengine: loaded LUT" << filename << "size" << data.size << "bytes" << data.rgba32f.size();
 
             return data;
         }
@@ -780,11 +765,15 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
         return;
 
     struct Global {
-        QMatrix4x4 mvp;
+        float mvp[16];
         QVector2D resolution;
         float time;
-        float pad0;
+        float sourceBgr;
     };
+
+    static_assert(sizeof(Global) == 80, "Global must match GLSL std140 layout");
+    static_assert(offsetof(Global, resolution) == 64 && offsetof(Global, sourceBgr) == 76,
+                  "Global uniform offsets must match GLSL");
 
     const quint64 frameIndex = d.frameIndex;
 
@@ -906,9 +895,12 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
         mvp.scale(sx, sy);
 
         Global global;
-        global.mvp = mvp;
+        std::memcpy(global.mvp, mvp.constData(), sizeof(global.mvp));
         global.time = 0.0f;
-        global.pad0 = 0.0f;
+        global.sourceBgr = image.pixelLayout() == core::ImageBuffer::PixelLayout::BGR
+                                   || image.pixelLayout() == core::ImageBuffer::PixelLayout::BGRA
+                               ? 1.0f
+                               : 0.0f;
 
         const QSize textureSize = imageState.texture0 ? imageState.texture0->pixelSize() : texSize;
 
@@ -1285,7 +1277,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
     d.stats.renderFrameNs = frameTimer.nsecsElapsed();
     logFrameStats();
 
-    qDebug() << "\n";
+    qCDebug(flipman::sdk::core::renderLog) << "\n";
 #endif
 }
 
@@ -2020,9 +2012,9 @@ RenderEnginePrivate::compileShader(const QString& source, QShader::Stage stage)
     const QString stageName = stage == QShader::VertexStage     ? "vertex"
                               : stage == QShader::FragmentStage ? "fragment"
                                                                 : "shader";
-    qDebug().noquote() << "stage:" << stageName << "\n"
-                       << "key:" << key << "\n"
-                       << source << "\n";
+    qCDebug(flipman::sdk::core::renderLog).noquote() << "stage:" << stageName << "\n"
+                                                     << "key:" << key << "\n"
+                                                     << source << "\n";
 #endif
 
     const auto it = d.shaderCache.constFind(key);
@@ -2189,29 +2181,21 @@ RenderEnginePrivate::ycbcrFunctionName(ImageState::TextureType textureType, Colo
 {
     QString prefix;
     switch (textureType) {
-    case ImageState::TextureType::Nv12:
-        prefix = QStringLiteral("_nv12ToRgb");
-        break;
-    case ImageState::TextureType::Uyvy:
-        prefix = QStringLiteral("_uyvyToRgb");
-        break;
+    case ImageState::TextureType::Nv12: prefix = QStringLiteral("_nv12ToRgb"); break;
+    case ImageState::TextureType::Uyvy: prefix = QStringLiteral("_uyvyToRgb"); break;
 
-    default:
-        return {};
+    default: return {};
     }
     switch (colorSpace) {
-    case ColorSpace::Rec601:
-        return prefix + QStringLiteral("601");
-    case ColorSpace::Rec2020:
-        return prefix + QStringLiteral("2020");
+    case ColorSpace::Rec601: return prefix + QStringLiteral("601");
+    case ColorSpace::Rec2020: return prefix + QStringLiteral("2020");
     case ColorSpace::Rec709:
     case ColorSpace::Unknown:
     case ColorSpace::Raw:
     case ColorSpace::DisplayP3:
     case ColorSpace::DCIP3:
     case ColorSpace::ACEScg:
-    default:
-        return prefix + QStringLiteral("709");
+    default: return prefix + QStringLiteral("709");
     }
 }
 
@@ -2295,8 +2279,7 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
     if (textureType == ImageState::TextureType::Nv12) {
         texUniformBlock = texUniformNv12;
         texCode = texCodeNv12;
-        texCode.replace(QStringLiteral("_nv12ToRgb(y, uvv)"),
-                        QStringLiteral("%1(y, uvv)").arg(ycbcrFunction));
+        texCode.replace(QStringLiteral("_nv12ToRgb(y, uvv)"), QStringLiteral("%1(y, uvv)").arg(ycbcrFunction));
     }
     else if (textureType == ImageState::TextureType::Uyvy) {
         texUniformBlock = texUniformUyvy;
@@ -2424,21 +2407,20 @@ RenderEnginePrivate::logFrameStats() const
     auto ms = [](qint64 ns) { return double(ns) / 1000000.0; };
     auto fps = [](qint64 ns) { return ns > 0 ? 1000000000.0 / double(ns) : 0.0; };
 
-    qDebug().nospace() << "renderengine: frame " << d.stats.frameIndex << " layers=" << d.stats.layerCount
-                       << " fps=" << fps(d.stats.renderFrameNs) << " frameMs=" << ms(d.stats.renderFrameNs)
-                       << " updateMs=" << ms(d.stats.updateRenderStatesNs) << " sceneMs=" << ms(d.stats.renderSceneNs)
-                       << " blitMs=" << ms(d.stats.renderBlitNs) << " blitUpdateMs=" << ms(d.stats.updateBlitNs)
-                       << " texInit=" << d.stats.texturesInitialized << " texUpload=" << d.stats.textureUploads
-                       << " texBytes=" << d.stats.textureUploadBytes << " globalUpd=" << d.stats.globalBufferUpdates
-                       << " globalBytes=" << d.stats.globalBufferUploadBytes
-                       << " effectCreate=" << d.stats.effectBufferCreates
-                       << " effectUpd=" << d.stats.effectBufferUpdates
-                       << " effectBytes=" << d.stats.effectBufferUploadBytes
-                       << " srbCreate=" << d.stats.shaderBindingsCreated << " pipeCreate=" << d.stats.pipelinesCreated
-                       << " srcHit=" << d.stats.shaderSourceCacheHits << " srcMiss=" << d.stats.shaderSourceCacheMisses
-                       << " genHit=" << d.stats.generatedShaderSourceCacheHits
-                       << " genMiss=" << d.stats.generatedShaderSourceCacheMisses
-                       << " shaderHit=" << d.stats.shaderCacheHits << " shaderMiss=" << d.stats.shaderCacheMisses;
+    qCDebug(flipman::sdk::core::renderLog).nospace()
+        << "renderengine: frame " << d.stats.frameIndex << " layers=" << d.stats.layerCount
+        << " fps=" << fps(d.stats.renderFrameNs) << " frameMs=" << ms(d.stats.renderFrameNs)
+        << " updateMs=" << ms(d.stats.updateRenderStatesNs) << " sceneMs=" << ms(d.stats.renderSceneNs)
+        << " blitMs=" << ms(d.stats.renderBlitNs) << " blitUpdateMs=" << ms(d.stats.updateBlitNs)
+        << " texInit=" << d.stats.texturesInitialized << " texUpload=" << d.stats.textureUploads
+        << " texBytes=" << d.stats.textureUploadBytes << " globalUpd=" << d.stats.globalBufferUpdates
+        << " globalBytes=" << d.stats.globalBufferUploadBytes << " effectCreate=" << d.stats.effectBufferCreates
+        << " effectUpd=" << d.stats.effectBufferUpdates << " effectBytes=" << d.stats.effectBufferUploadBytes
+        << " srbCreate=" << d.stats.shaderBindingsCreated << " pipeCreate=" << d.stats.pipelinesCreated
+        << " srcHit=" << d.stats.shaderSourceCacheHits << " srcMiss=" << d.stats.shaderSourceCacheMisses
+        << " genHit=" << d.stats.generatedShaderSourceCacheHits
+        << " genMiss=" << d.stats.generatedShaderSourceCacheMisses << " shaderHit=" << d.stats.shaderCacheHits
+        << " shaderMiss=" << d.stats.shaderCacheMisses;
 #endif
 }
 
@@ -2484,6 +2466,8 @@ RenderEngine::initialize(const RenderContext& context, const RenderSpec& spec)
 void
 RenderEngine::render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer)
 {
+    FM_PROFILE_SCOPE("render", "frame");
+    core::PerfScope phase("render.frame");
     if (!p->d.valid || !context.isValid())
         return;
 

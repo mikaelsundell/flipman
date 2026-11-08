@@ -2,8 +2,8 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/mediareader.h>
 #include <QPointer>
+#include <flipmansdk/plugins/mediareader.h>
 
 namespace flipman::sdk::plugins {
 MediaReader::MediaReader(QObject* parent)

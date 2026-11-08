@@ -6,6 +6,9 @@
 
 namespace flipman::sdk::core {
 
+Q_LOGGING_CATEGORY(mediaLog, "flipman.media", QtWarningMsg)
+Q_LOGGING_CATEGORY(renderLog, "flipman.render", QtWarningMsg)
+
 QTextStream&
 logOut()
 {

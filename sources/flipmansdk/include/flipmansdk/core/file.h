@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QtCore/QDateTime>
 #include <QtCore/QExplicitlySharedDataPointer>
 #include <QtCore/QFileInfo>
 #include <QtCore/QMetaType>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 
@@ -46,8 +46,10 @@ public:
      */
     ~File();
 
-    /** @name Path Information */
-    ///@{
+    /**
+     * @name Path Information
+     * @{
+     */
 
     /**
      * @brief Returns the absolute file path.
@@ -84,10 +86,14 @@ public:
      */
     QString extension() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Metadata */
-    ///@{
+    /**
+     * @name Metadata
+     * @{
+     */
 
     /**
      * @brief Returns display name.
@@ -124,10 +130,14 @@ public:
      */
     QDateTime modified() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name State */
-    ///@{
+    /**
+     * @name State
+     * @{
+     */
 
     /**
      * @brief Returns true if the file exists.
@@ -159,10 +169,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Sequence */
-    ///@{
+    /**
+     * @name Sequence
+     * @{
+     */
 
     /**
      * @brief Returns associated FileRange.
@@ -174,10 +188,14 @@ public:
      */
     void setFileRange(const FileRange& range);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -199,7 +217,9 @@ public:
      */
     operator QString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Lists files in a directory.

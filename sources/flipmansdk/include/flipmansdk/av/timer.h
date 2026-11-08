@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/fps.h>
 #include <QList>
 #include <QScopedPointer>
+#include <flipmansdk/av/fps.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -34,8 +34,10 @@ public:
      */
     ~Timer();
 
-    /** @name Control */
-    ///@{
+    /**
+     * @name Control
+     * @{
+     */
 
     /**
      * @brief Starts the timer.
@@ -77,10 +79,14 @@ public:
      */
     void sleep(quint64 msecs);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Query */
-    ///@{
+    /**
+     * @name Query
+     * @{
+     */
 
     /**
      * @brief Returns elapsed nanoseconds.
@@ -102,17 +108,23 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Utilities */
-    ///@{
+    /**
+     * @name Utilities
+     * @{
+     */
 
     /**
      * @brief Converts nanoseconds to unit.
      */
     static qreal convert(quint64 nano, Unit unit = Unit::Nanos);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(Timer)

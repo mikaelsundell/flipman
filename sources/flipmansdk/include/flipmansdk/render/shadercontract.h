@@ -4,25 +4,41 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/render/shaderfunction.h>
+#include <QScopedPointer>
 #include <QString>
 #include <QVector>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderfunction.h>
 
 namespace flipman::sdk::render {
 
 class ShaderContractPrivate;
 
+/**
+ * @class ShaderContract
+ * @brief Validates shader entry functions against renderer contracts.
+ */
 class FLIPMANSDK_EXPORT ShaderContract {
 public:
     /**
      * @brief Shader contract types supported by the renderer.
      */
     enum class Type {
-        Effect,  ///< Image processing shader
-        Idt,     ///< Input device transform
-        Odt      ///< Output device transform
+        /**
+         * @brief Image processing shader
+         */
+        Effect,
+
+        /**
+         * @brief Input device transform
+         */
+        Idt,
+
+        /**
+         * @brief Output device transform
+         */
+        Odt
     };
 
 public:
@@ -66,24 +82,31 @@ public:
      */
     bool validate(Type type, const QVector<ShaderFunction>& functions);
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
-     * @brief Returns the last error encountered during compilation.
+     * @brief Returns the last contract validation error.
      */
     core::Error error() const;
 
     /**
-     * @brief Returns true if the compiler is in a usable state.
+     * @brief Returns true if no contract validation error is recorded.
      */
     bool isValid() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(ShaderContract)
-    QScopedPointer<ShaderContractPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<ShaderContractPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

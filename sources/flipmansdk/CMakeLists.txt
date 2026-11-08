@@ -132,6 +132,7 @@ target_compile_definitions(${sdk_name} PRIVATE
 
 target_include_directories(${sdk_name} 
     PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE 
@@ -140,14 +141,39 @@ target_include_directories(${sdk_name}
 
 configure_export_header(${sdk_name}
     BASE_NAME FLIPMANSDK
-    EXPORT_FILE_NAME "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/flipmanexport.h"
+    EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/flipmansdk/flipmanexport.h"
 )
+
+target_compile_features(${sdk_name} PUBLIC cxx_std_17)
+set_target_properties(${sdk_name} PROPERTIES
+    OBJCXX_STANDARD 17
+    OBJCXX_STANDARD_REQUIRED YES
+)
+
+# Compile each public header independently, without the SDK's private include
+# directories or precompiled headers. Build explicitly with --target flipmansdk_headers.
+file(GLOB_RECURSE sdk_public_headers CONFIGURE_DEPENDS
+    RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/*.h"
+)
+list(APPEND sdk_public_headers "flipmansdk/flipmanexport.h")
+list(REMOVE_DUPLICATES sdk_public_headers)
+set(sdk_header_checks)
+foreach(header IN LISTS sdk_public_headers)
+    set(check_source "${CMAKE_CURRENT_BINARY_DIR}/header_checks/${header}.cpp")
+    file(GENERATE OUTPUT "${check_source}" CONTENT "#include <${header}>\n")
+    list(APPEND sdk_header_checks "${check_source}")
+endforeach()
+add_library(flipmansdk_headers OBJECT EXCLUDE_FROM_ALL ${sdk_header_checks})
+target_link_libraries(flipmansdk_headers PRIVATE ${sdk_name})
+set_target_properties(flipmansdk_headers PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
 
 target_link_libraries(${sdk_name}
     PUBLIC
         Qt6::Core Qt6::Concurrent Qt6::Gui Qt6::GuiPrivate Qt6::ShaderTools Qt6::Widgets
     PRIVATE
         Qt6::ShaderToolsPrivate
+        flipman_glsl_parser
         OpenImageIO::OpenImageIO
         OpenImageIO::OpenImageIO_Util
         "-framework CoreFoundation"
@@ -158,3 +184,9 @@ target_link_libraries(${sdk_name}
         "-framework Metal"
         "-framework QuartzCore"
 )
+
+if(FLIPMAN_BUILD_BRAW)
+    find_package(BlackmagicRaw REQUIRED)
+    target_link_libraries(${sdk_name} PRIVATE BlackmagicRaw::Dispatch)
+    target_compile_definitions(${sdk_name} PRIVATE FLIPMAN_HAS_BRAW=1)
+endif()

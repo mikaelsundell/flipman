@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/metadata.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/metadata.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -40,12 +40,16 @@ public:
 
     /**
      * @brief Destroys the audio filter.
+     *
      * @note Marked virtual to allow for safe subclassing of specialized filter types.
      */
     virtual ~AudioFilter();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
+
     /**
      * @brief Returns the collection of key-value metadata for this filter.
      */
@@ -65,10 +69,16 @@ public:
      * @brief Sets the filter type or data.
      */
     void setData(const QString& data);
-    ///@}
 
-    /** @name Management */
-    ///@{
+    /**
+     * @}
+     */
+
+    /**
+     * @name Management
+     * @{
+     */
+
     /**
      * @brief Returns any error encountered during filter configuration or execution.
      */
@@ -78,10 +88,16 @@ public:
      * @brief Resets the filter to its default parameters and clears the code.
      */
     void reset();
-    ///@}
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @}
+     */
+
+    /**
+     * @name Operators
+     * @{
+     */
+
     /**
      * @brief Assignment operator. Performs a shallow copy of the shared data.
      */
@@ -96,10 +112,16 @@ public:
      * @brief Inequality operator.
      */
     bool operator!=(const AudioFilter& other) const;
-    ///@}
+
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<AudioFilterPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<AudioFilterPrivate> p;
 };
 
 }  // namespace flipman::sdk::av

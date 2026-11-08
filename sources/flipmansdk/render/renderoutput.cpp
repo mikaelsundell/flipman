@@ -2,14 +2,14 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/render/renderoutput.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/plugins/pluginregistry.h>
-#include <flipmansdk/plugins/mediawriter.h>
+#include <QDir>
 #include <QScopedPointer>
 #include <QStandardPaths>
-#include <QDir>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/plugins/mediawriter.h>
+#include <flipmansdk/plugins/pluginregistry.h>
+#include <flipmansdk/render/renderoutput.h>
 
 
 namespace flipman::sdk::render {
@@ -84,12 +84,15 @@ RenderOutput::setRenderSpec(const RenderSpec& spec)
 void
 RenderOutput::enqueueFrame(const core::ImageBuffer& image, qint64 frame)
 {
-    qDebug() << "renderoutput: enqueueFrame"
-             << "frame" << frame << "valid" << image.isValid() << "allocated" << image.isAllocated() << "dataWindow"
-             << image.dataWindow() << "displayWindow" << image.displayWindow() << "format"
-             << int(image.imageFormat().type()) << "channels" << image.channels() << "packing" << int(image.packing())
-             << "subsampling" << int(image.subsampling()) << "stride" << image.strideSize() << "bytes"
-             << image.byteSize() << "data" << static_cast<const void*>(image.data());
+    if (!core::renderLog().isDebugEnabled())
+        return;
+    qCDebug(flipman::sdk::core::renderLog)
+        << "renderoutput: enqueueFrame"
+        << "frame" << frame << "valid" << image.isValid() << "allocated" << image.isAllocated() << "dataWindow"
+        << image.dataWindow() << "displayWindow" << image.displayWindow() << "format" << int(image.imageFormat().type())
+        << "channels" << image.channels() << "packing" << int(image.packing()) << "subsampling"
+        << int(image.subsampling()) << "stride" << image.strideSize() << "bytes" << image.byteSize() << "data"
+        << static_cast<const void*>(image.data());
 
     static bool written = false;
     if (written)
@@ -123,7 +126,7 @@ RenderOutput::enqueueFrame(const core::ImageBuffer& image, qint64 frame)
         return;
     }
 
-    qDebug() << "renderoutput: wrote debug image" << output.filePath();
+    qCDebug(flipman::sdk::core::renderLog) << "renderoutput: wrote debug image" << output.filePath();
 }
 
 }  // namespace flipman::sdk::render

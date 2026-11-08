@@ -2,12 +2,12 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
+#include <QPointer>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/environment.h>
 #include <flipmansdk/core/style.h>
 #include <flipmansdk/core/system.h>
 #include <flipmansdk/plugins/pluginregistry.h>
-#include <QPointer>
 
 namespace flipman::sdk::core {
 class ApplicationPrivate {

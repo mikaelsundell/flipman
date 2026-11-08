@@ -2,12 +2,12 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/core/filerange.h>
-#include <flipmansdk/plugins/oiio/oiioreader.h>
 #include <OpenImageIO/half.h>
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/typedesc.h>
+#include <flipmansdk/core/filerange.h>
+#include <flipmansdk/plugins/oiio/oiioreader.h>
 
 using namespace OIIO;
 

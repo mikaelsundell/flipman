@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
 #include <QObject>
 #include <QScopedPointer>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -23,7 +23,6 @@ class ShaderCompilerPrivate;
  *
  * Internally, the compiler orchestrates Qt's shader baking pipeline
  * to generate a multi-backend shader package.
- *
  */
 class FLIPMANSDK_EXPORT ShaderCompiler : public QObject {
 public:
@@ -43,16 +42,36 @@ public:
             , optimize(false)
         {}
 
-        int glslVersion;     ///< GLSL version used as source input.
-        bool generateSpirv;  ///< Enables SPIR-V generation (Vulkan/Metal).
-        bool generateMsl;    ///< Enables Metal Shading Language output.
-        bool generateHlsl;   ///< Enables HLSL output (Direct3D).
-        bool optimize;       ///< Enables optimization passes.
+        /**
+         * @brief GLSL version used as source input.
+         */
+        int glslVersion;
+
+        /**
+         * @brief Enables SPIR-V generation (Vulkan/Metal).
+         */
+        bool generateSpirv;
+
+        /**
+         * @brief Enables Metal Shading Language output.
+         */
+        bool generateMsl;
+
+        /**
+         * @brief Enables HLSL output (Direct3D).
+         */
+        bool generateHlsl;
+
+        /**
+         * @brief Enables optimization passes.
+         */
+        bool optimize;
     };
 
 public:
     /**
      * @brief Constructs a ShaderCompiler.
+     *
      * @param parent Optional QObject parent.
      */
     explicit ShaderCompiler(QObject* parent = nullptr);
@@ -81,8 +100,10 @@ public:
      */
     QShader compile(const QString& source, QShader::Stage stage, const Options& options = Options());
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns the last error encountered during compilation.
@@ -94,11 +115,16 @@ public:
      */
     bool isValid() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     Q_DISABLE_COPY_MOVE(ShaderCompiler)
-    QScopedPointer<ShaderCompilerPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QScopedPointer<ShaderCompilerPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

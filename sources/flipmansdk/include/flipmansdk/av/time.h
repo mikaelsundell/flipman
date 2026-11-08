@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/fps.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/av/fps.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -19,8 +19,10 @@ class TimePrivate;
  */
 class FLIPMANSDK_EXPORT Time {
 public:
-    /** @name Constructors */
-    ///@{
+    /**
+     * @name Constructors
+     * @{
+     */
 
     /**
      * @brief Constructs an invalid Time.
@@ -47,15 +49,19 @@ public:
      */
     Time(const Time& other);
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Destroys the Time.
      */
     ~Time();
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if valid.
@@ -67,10 +73,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the associated Fps.
@@ -92,10 +102,14 @@ public:
      */
     qint64 tpf() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Conversion */
-    ///@{
+    /**
+     * @name Conversion
+     * @{
+     */
 
     /**
      * @brief Returns ticks for a frame.
@@ -127,10 +141,14 @@ public:
      */
     qreal seconds() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Formatting */
-    ///@{
+    /**
+     * @name Formatting
+     * @{
+     */
 
     /**
      * @brief Returns string for ticks.
@@ -142,10 +160,14 @@ public:
      */
     QString toString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Setters */
-    ///@{
+    /**
+     * @name Setters
+     * @{
+     */
 
     /**
      * @brief Sets ticks.
@@ -162,10 +184,14 @@ public:
      */
     void setFps(const Fps& fps);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -217,7 +243,9 @@ public:
      */
     operator double() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns Time at frame zero for the given Fps.
@@ -234,8 +262,10 @@ public:
      */
     static Time fromSeconds(qreal seconds, const Fps& fps);
 
-    /** @name Static Utilities */
-    ///@{
+    /**
+     * @name Static Utilities
+     * @{
+     */
 
     /**
      * @brief Converts a time value to a different frame rate.
@@ -251,7 +281,9 @@ public:
      */
     static Time convert(const Time& time, qint32 timeScale = 24000);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<TimePrivate> p;

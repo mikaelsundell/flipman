@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -33,8 +33,10 @@ public:
      */
     ~SideCar();
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if valid.
@@ -46,17 +48,23 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
      */
     SideCar& operator=(const SideCar& other);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<SideCarPrivate> p;

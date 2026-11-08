@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/core/metadata.h>
-#include <flipmansdk/render/shaderdefinition.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/core/metadata.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderdefinition.h>
 
 namespace flipman::sdk::render {
 
@@ -41,8 +41,10 @@ public:
      */
     ~ImageEffect();
 
-    /** @name Identity */
-    ///@{
+    /**
+     * @name Identity
+     * @{
+     */
 
     /**
      * @brief Returns the display name of the effect.
@@ -66,10 +68,14 @@ public:
      */
     void setGroup(const QString& group);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Shader Definition */
-    ///@{
+    /**
+     * @name Shader Definition
+     * @{
+     */
 
     /**
      * @brief Returns the associated ShaderDefinition.
@@ -81,10 +87,14 @@ public:
      */
     void setShaderDefinition(const ShaderDefinition& definition);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns the effect error, if any.
@@ -96,20 +106,28 @@ public:
      */
     bool isValid() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Management */
-    ///@{
+    /**
+     * @name Management
+     * @{
+     */
 
     /**
      * @brief Resets the effect to its default state.
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator.
@@ -126,10 +144,15 @@ public:
      */
     bool operator!=(const ImageEffect& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
-    QExplicitlySharedDataPointer<ImageEffectPrivate> p;  ///< Private implementation.
+    /**
+     * @brief Private implementation.
+     */
+    QExplicitlySharedDataPointer<ImageEffectPrivate> p;
 };
 
 }  // namespace flipman::sdk::render

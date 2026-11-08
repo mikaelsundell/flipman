@@ -2,9 +2,9 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/plugins/oiio/oiiowriter.h>
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/typedesc.h>
+#include <flipmansdk/plugins/oiio/oiiowriter.h>
 
 using namespace OIIO;
 

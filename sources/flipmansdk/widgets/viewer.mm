@@ -186,6 +186,11 @@ ViewerPrivate::toPrimaries(render::ColorSpace colorSpace)
     case render::ColorSpace::Rec2020:
         return QColorSpace::Primaries::Bt2020;
 
+    case render::ColorSpace::Rec601:
+        qWarning() << "viewer: Rec.601 primaries cannot be represented by QColorSpace::Primaries,"
+                   << "falling back to sRGB primaries for display tagging";
+        return QColorSpace::Primaries::SRgb;
+
     case render::ColorSpace::ACEScg:
         qWarning() << "viewer: ACEScg/AP1 primaries cannot be represented by QColorSpace::Primaries,"
                    << "falling back to sRGB primaries for display tagging";

@@ -2,8 +2,6 @@
 // Copyright (c) 2025 - present Mikael Sundell
 // https://github.com/mikaelsundell/stageviz
 
-#include <flipmansdk/core/style.h>
-#include <flipmansdk/core/core.h>
 #include <QApplication>
 #include <QFile>
 #include <QMetaEnum>
@@ -13,6 +11,8 @@
 #include <QScopedPointer>
 #include <QSurfaceFormat>
 #include <algorithm>
+#include <flipmansdk/core/core.h>
+#include <flipmansdk/core/style.h>
 
 namespace flipman::sdk::core {
 

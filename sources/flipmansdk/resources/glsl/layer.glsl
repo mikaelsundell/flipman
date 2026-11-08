@@ -67,7 +67,7 @@ layout(std140, binding = 0) uniform Global
     mat4  mvp;
     vec2  resolution;
     float time;
-    float pad0;
+    float sourceBgr;
 } global;
 
 @texUniform

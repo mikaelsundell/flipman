@@ -3,8 +3,6 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
 #include <QAction>
 #include <QApplication>
 #include <QBoxLayout>
@@ -35,6 +33,8 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/style.h>
 
 namespace flipman {
 

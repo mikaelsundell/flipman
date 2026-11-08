@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/core/file.h>
-#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 
@@ -34,8 +34,10 @@ public:
      */
     ~FileRange();
 
-    /** @name Frame Access */
-    ///@{
+    /**
+     * @name Frame Access
+     * @{
+     */
 
     /**
      * @brief Returns true if a frame is mapped.
@@ -62,10 +64,14 @@ public:
      */
     qint64 size() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Management */
-    ///@{
+    /**
+     * @name Management
+     * @{
+     */
 
     /**
      * @brief Returns true if the range contains frames.
@@ -82,10 +88,14 @@ public:
      */
     void insertFrame(qint64 frame, const File& file);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -114,7 +124,9 @@ public:
      */
     bool operator>(const FileRange& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<FileRangePrivate> p;

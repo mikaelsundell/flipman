@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/av/time.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
+#include <flipmansdk/av/time.h>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::av {
 
@@ -39,8 +39,10 @@ public:
      */
     ~TimeRange();
 
-    /** @name Attributes */
-    ///@{
+    /**
+     * @name Attributes
+     * @{
+     */
 
     /**
      * @brief Returns the start time.
@@ -67,10 +69,14 @@ public:
      */
     Time end() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Logic */
-    ///@{
+    /**
+     * @name Logic
+     * @{
+     */
 
     /**
      * @brief Bounds time to range.
@@ -92,10 +98,14 @@ public:
      */
     QString toString() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns true if valid.
@@ -107,10 +117,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -127,10 +141,14 @@ public:
      */
     bool operator!=(const TimeRange& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Static Utilities */
-    ///@{
+    /**
+     * @name Static Utilities
+     * @{
+     */
 
     /**
      * @brief Converts a time range to a different frame rate.
@@ -146,7 +164,9 @@ public:
      */
     static TimeRange convert(const TimeRange& timerange, qint32 timescale = 24000);
 
-    ///@}
+    /**
+     * @}
+     */
 
 private:
     QExplicitlySharedDataPointer<TimeRangePrivate> p;

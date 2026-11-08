@@ -2,6 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <QMap>
+#ifdef FLIPMAN_HAS_BRAW
+#    include <flipmansdk/plugins/braw/brawreader.h>
+#endif
 #include <flipmansdk/plugins/fx/fxreader.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/mediawriter.h>
@@ -11,7 +15,6 @@
 #include <flipmansdk/plugins/qt/qtwriter.h>
 #include <flipmansdk/plugins/quicktime/quicktimereader.h>
 #include <flipmansdk/plugins/quicktime/quicktimewriter.h>
-#include <QMap>
 
 namespace flipman::sdk::plugins {
 class PluginRegistryPrivate {
@@ -28,6 +31,9 @@ PluginRegistry::PluginRegistry(QObject* parent)
     , p(new PluginRegistryPrivate())
 {
     registerPlugin(FxReader::handler());
+#ifdef FLIPMAN_HAS_BRAW
+    registerPlugin(BrawReader::handler());
+#endif
     registerPlugin(QuicktimeReader::handler());
     registerPlugin(OIIOReader::handler());
     registerPlugin(OIIOWriter::handler());
@@ -40,6 +46,7 @@ bool
 PluginRegistry::registerPlugin(const PluginHandler& handler)
 {
     p->d.plugins.append(handler);
+    return true;
 }
 
 core::Plugin*
@@ -52,7 +59,7 @@ PluginRegistry::getPlugin(std::type_index type, const QString& extension) const
             continue;
         }
 
-        if (!exts.contains(extension)) {
+        if (!exts.contains(extension, Qt::CaseInsensitive)) {
             continue;
         }
         return handler.pluginfactory.creator();

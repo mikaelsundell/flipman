@@ -2,8 +2,7 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/render/shaderparser.h>
-#include <flipmansdk/core/log.h>
+#include "glslreflection.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -12,6 +11,8 @@
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/render/shaderparser.h>
 
 namespace flipman::sdk::render {
 
@@ -24,9 +25,8 @@ public:
     QString replaceInclude(const QString& includeName, const QString& baseDir, QSet<QString>& includeStack);
     bool replaceInjections(QString& source, const ShaderParser::Injections& injections);
     bool parseParamLine(const QString& line, ShaderDescriptor::ShaderParameter& parameter);
-    bool parseFunctionLine(const QString& line, ShaderFunction& function);
-    bool parseSource(const QString& source, const QString& sourceDir, QString& shaderCode,
-                     QVector<ShaderFunction>& functions, ShaderDescriptor& descriptor, QSet<QString>& includeStack);
+    bool parseSource(const QString& source, const QString& sourceDir, QString& shaderCode, ShaderDescriptor& descriptor,
+                     QSet<QString>& includeStack);
     ShaderDefinition parse(const core::File& file, const ShaderParser::Options& options);
     ShaderDefinition parse(const QString& source, const QString& sourceDir, const ShaderParser::Options& options);
     struct Data {
@@ -210,28 +210,6 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
     return true;
 }
 
-bool
-ShaderParserPrivate::parseFunctionLine(const QString& line, ShaderFunction& function)
-{
-    static QRegularExpression re(R"(\b([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\))");
-    auto match = re.match(line);
-    if (!match.hasMatch())
-        return false;
-    function.returnType = match.captured(1);
-    function.name = match.captured(2);
-    QString params = match.captured(3).trimmed();
-    if (!params.isEmpty()) {
-        QStringList list = params.split(",", Qt::SkipEmptyParts);
-        for (QString p : list) {
-            p = p.trimmed();
-            QStringList tokens = p.split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
-            if (!tokens.isEmpty())
-                function.parameterTypes.append(tokens.first());
-        }
-    }
-    return true;
-}
-
 QString
 ShaderParserPrivate::replaceInclude(const QString& includeName, const QString& baseDir, QSet<QString>& includeStack)
 {
@@ -303,6 +281,7 @@ ShaderParserPrivate::replaceBlock(const QString& line, bool& block, bool& empty)
         }
         if (c == '/' && next == '*') {
             block = true;
+            result += ' ';
             ++i;
             continue;
         }
@@ -314,8 +293,7 @@ ShaderParserPrivate::replaceBlock(const QString& line, bool& block, bool& empty)
 
 bool
 ShaderParserPrivate::parseSource(const QString& source, const QString& sourceDir, QString& shaderCode,
-                                 QVector<ShaderFunction>& functions, ShaderDescriptor& descriptor,
-                                 QSet<QString>& includeStack)
+                                 ShaderDescriptor& descriptor, QSet<QString>& includeStack)
 {
     QTextStream output(&shaderCode);
     bool block = false;
@@ -353,17 +331,19 @@ ShaderParserPrivate::parseSource(const QString& source, const QString& sourceDir
                     return false;
                 QString nestedShaderCode;
                 if (!parseSource(includedCode, QFileInfo(sourceDir + "/" + includeName).absolutePath(),
-                                 nestedShaderCode, functions, descriptor, includeStack))
+                                 nestedShaderCode, descriptor, includeStack))
                     return false;
+                includeStack.remove(includeName);
                 output << nestedShaderCode;
                 continue;
             }
-            ShaderFunction function;
-            if (parseFunctionLine(trimmed, function)) {
-                functions.append(function);
-            }
         }
         output << line << '\n';
+    }
+
+    if (block) {
+        d.error = core::Error("shaderparser", "unterminated GLSL block comment");
+        return false;
     }
 
     int newline = 0;
@@ -419,10 +399,16 @@ ShaderParserPrivate::parse(const QString& source, const QString& sourceDir, cons
     QVector<ShaderFunction> functions;
     QSet<QString> includeStack;
 
-    if (!parseSource(source, sourceDir, shaderCode, functions, descriptor, includeStack))
+    if (!parseSource(source, sourceDir, shaderCode, descriptor, includeStack))
         return {};
 
     if (!replaceInjections(shaderCode, options.injections)) {
+        return {};
+    }
+
+    QString reflectionError;
+    if (!reflectGlslFunctions(shaderCode, functions, reflectionError)) {
+        d.error = core::Error("shaderparser", reflectionError);
         return {};
     }
 

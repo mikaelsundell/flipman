@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QList>
 #include <QString>
 #include <QVariant>
 #include <QVector>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::render {
 
@@ -30,8 +30,15 @@ public:
      * another discrete selector instead of a continuous slider.
      */
     struct ShaderOption {
-        QString label;   ///< Display label shown in the UI.
-        QVariant value;  ///< Actual parameter value assigned when selected.
+        /**
+         * @brief Display label shown in the UI.
+         */
+        QString label;
+
+        /**
+         * @brief Actual parameter value assigned when selected.
+         */
+        QVariant value;
     };
 
     /**
@@ -45,17 +52,50 @@ public:
          */
         enum class Type { Float, Int, Bool, Vec2, Vec3, Vec4, Lut };
 
-        QString name;             ///< Parameter/resource name.
-        Type type = Type::Float;  ///< Parameter/resource type.
+        /**
+         * @brief Parameter/resource name.
+         */
+        QString name;
 
-        QVariant value;                 ///< Current value.
-        QVariant defaultValue;          ///< Default value from the @param declaration.
-        QVariant minValue;              ///< Minimum value for numeric controls.
-        QVariant maxValue;              ///< Maximum value for numeric controls.
-        QVector<ShaderOption> options;  ///< Optional discrete values for combo-style controls.
+        /**
+         * @brief Parameter/resource type.
+         */
+        Type type = Type::Float;
 
-        QString label;  ///< Optional UI label.
-        QString group;  ///< Optional UI group.
+        /**
+         * @brief Current value.
+         */
+        QVariant value;
+
+        /**
+         * @brief Default value from the @param declaration.
+         */
+        QVariant defaultValue;
+
+        /**
+         * @brief Minimum value for numeric controls.
+         */
+        QVariant minValue;
+
+        /**
+         * @brief Maximum value for numeric controls.
+         */
+        QVariant maxValue;
+
+        /**
+         * @brief Optional discrete values for combo-style controls.
+         */
+        QVector<ShaderOption> options;
+
+        /**
+         * @brief Optional UI label.
+         */
+        QString label;
+
+        /**
+         * @brief Optional UI group.
+         */
+        QString group;
 
         /**
          * @brief Returns true if the parameter has discrete options.
@@ -146,7 +186,10 @@ public:
     QList<ShaderParameter> lutParameters() const { return parametersByType(ShaderParameter::Type::Lut); }
 
 public:
-    QList<ShaderParameter> parameters;  ///< Parameter/resource list.
+    /**
+     * @brief Parameter/resource list.
+     */
+    QList<ShaderParameter> parameters;
 };
 
 }  // namespace flipman::sdk::render

@@ -2,8 +2,8 @@
 // Copyright (c) 2024 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/av/sidecar.h>
 #include <QSharedData>
+#include <flipmansdk/av/sidecar.h>
 
 namespace flipman::sdk::av {
 class SideCarPrivate : public QSharedData {};

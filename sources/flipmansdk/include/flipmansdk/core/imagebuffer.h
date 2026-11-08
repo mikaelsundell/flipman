@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include <flipmansdk/core/imageformat.h>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/render.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QRect>
 #include <QString>
+#include <cstddef>
+#include <flipmansdk/core/imageformat.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/render.h>
 
 namespace flipman::sdk::core {
 
@@ -62,7 +63,7 @@ public:
     ImageBuffer();
 
     /**
-     * Creates an image buffer descriptor.
+     * @brief Creates an image buffer descriptor.
      *
      * Pixel storage is not allocated by the constructor. Call allocate()
      * after setting packing/subsampling and before calling data() or planeData().
@@ -87,8 +88,10 @@ public:
      */
     void allocate();
 
-    /** @name Windows */
-    ///@{
+    /**
+     * @name Windows
+     * @{
+     */
 
     /**
      * @brief Returns the data window.
@@ -105,10 +108,14 @@ public:
      */
     void setDisplayWindow(const QRect& displaywindow);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Format */
-    ///@{
+    /**
+     * @name Format
+     * @{
+     */
 
     /**
      * @brief Returns the image format.
@@ -140,10 +147,14 @@ public:
      */
     size_t size() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Layout */
-    ///@{
+    /**
+     * @name Layout
+     * @{
+     */
 
     /**
      * @brief Returns memory packing.
@@ -185,10 +196,14 @@ public:
      */
     void setPixelRange(PixelRange pixelRange);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Classification */
-    ///@{
+    /**
+     * @name Classification
+     * @{
+     */
 
     /**
      * @brief Returns true if the image stores YCbCr or encoded video data.
@@ -208,10 +223,14 @@ public:
      */
     bool isRgb() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Color Interpretation */
-    ///@{
+    /**
+     * @name Color Interpretation
+     * @{
+     */
 
     /**
      * @brief Returns source color space tag.
@@ -233,10 +252,14 @@ public:
      */
     void setTransferFunction(render::TransferFunction transferFunction);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Access */
-    ///@{
+    /**
+     * @name Data Access
+     * @{
+     */
 
     /**
      * @brief Returns pointer to raw data.
@@ -295,10 +318,14 @@ public:
      */
     void reset();
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Operators */
-    ///@{
+    /**
+     * @name Operators
+     * @{
+     */
 
     /**
      * @brief Assignment operator. Performs a shallow copy.
@@ -315,7 +342,9 @@ public:
      */
     bool operator!=(const ImageBuffer& other) const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Converts an image buffer to a different pixel format and channel count.

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <flipmansdk/render/shadercontract.h>
-#include <QRegularExpression>
 
 namespace flipman::sdk::render {
 
@@ -42,7 +41,7 @@ QString
 ShaderContract::signature(Type type)
 {
     switch (type) {
-    case Type::Effect: return "vec4 effect(vec4 color, vec2 pixel, vec2 size)";
+    case Type::Effect: return "vec4 effect(vec4 color, ivec2 pixel, ivec2 size)";
     case Type::Idt: return "vec4 idt(vec4 color)";
     case Type::Odt: return "vec4 odt(vec4 color)";
     }
@@ -83,7 +82,7 @@ ShaderContract::validate(Type type, const QVector<ShaderFunction>& functions)
     case Type::Effect:
         returnType = "vec4";
         functionName = "effect";
-        parameters = { "vec4", "vec2" };
+        parameters = { "vec4", "ivec2", "ivec2" };
         break;
 
     case Type::Idt:
@@ -109,17 +108,20 @@ ShaderContract::validate(Type type, const QVector<ShaderFunction>& functions)
             p->d.error = core::Error("shadercontract", QString("Shader entry function '%1' has incorrect return type "
                                                                "(expected %2, found %3).")
                                                            .arg(functionName, returnType, fn.returnType));
-            return false;
+            continue;
         }
 
-        if (fn.parameterTypes != parameters) {
+        const bool floatPixelEffect = type == Type::Effect
+                                      && fn.parameterTypes == QStringList({ "vec4", "vec2", "vec2" });
+        if (fn.parameterTypes != parameters && !floatPixelEffect) {
             p->d.error = core::Error("shadercontract",
                                      QString("Shader entry function '%1' has incorrect parameters "
                                              "(expected (%2), found (%3)).")
                                          .arg(functionName, parameters.join(", "), fn.parameterTypes.join(", ")));
-            return false;
+            continue;
         }
 
+        p->d.error = core::Error();
         return true;
     }
 

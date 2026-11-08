@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/core/error.h>
-#include <flipmansdk/render/shaderdescriptor.h>
-#include <flipmansdk/render/shaderfunction.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
 #include <QVariant>
 #include <QVector>
+#include <flipmansdk/core/error.h>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/shaderdescriptor.h>
+#include <flipmansdk/render/shaderfunction.h>
 
 namespace flipman::sdk::render {
 
@@ -26,7 +26,8 @@ class ShaderDefinitionPrivate;
  * Holds processed effect code and extracted @param information.
  * Does not perform compilation or interact with QRhi.
  *
- * Uses implicit sharing for inexpensive copies.
+ * Uses explicitly shared data for inexpensive copies. A copy is not an
+ * independent mutable shader definition.
  */
 class FLIPMANSDK_EXPORT ShaderDefinition {
 public:
@@ -42,12 +43,15 @@ public:
 
     /**
      * @brief Destroys the ShaderDefinition.
+     *
      * @note Required for the PIMPL pattern to safely delete ShaderDefinitionPrivate.
      */
     ~ShaderDefinition();
 
-    /** @name Descriptor */
-    ///@{
+    /**
+     * @name Descriptor
+     * @{
+     */
 
     /**
      * @brief Returns parameter descriptor.
@@ -59,7 +63,9 @@ public:
      */
     void setDescriptor(const ShaderDescriptor& descriptor);
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Returns parsed shader functions.
@@ -75,8 +81,10 @@ public:
      */
     void setFunctions(const QVector<ShaderFunction>& functions);
 
-    /** @name Code Fragments */
-    ///@{
+    /**
+     * @name Code Fragments
+     * @{
+     */
 
     /**
      * @brief Returns the generated uniform block for shader parameters.
@@ -105,10 +113,14 @@ public:
      */
     void setShaderCode(const QString& shaderCode);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Status */
-    ///@{
+    /**
+     * @name Status
+     * @{
+     */
 
     /**
      * @brief Returns generation error, if any.
@@ -120,7 +132,9 @@ public:
      */
     bool isValid() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Assignment operator.

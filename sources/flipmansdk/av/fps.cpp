@@ -2,8 +2,8 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/av/fps.h>
 #include <QVector>
+#include <flipmansdk/av/fps.h>
 
 namespace flipman::sdk::av {
 class FpsPrivate : public QSharedData {

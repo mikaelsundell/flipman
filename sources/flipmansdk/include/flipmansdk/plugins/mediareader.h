@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QExplicitlySharedDataPointer>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
@@ -14,7 +14,7 @@
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/metadata.h>
 #include <flipmansdk/core/plugin.h>
-#include <QExplicitlySharedDataPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::plugins {
 
@@ -53,8 +53,10 @@ public:
      */
     virtual ~MediaReader();
 
-    /** @name Initialization */
-    ///@{
+    /**
+     * @name Initialization
+     * @{
+     */
 
     /**
      * @brief Opens a media file.
@@ -78,10 +80,14 @@ public:
      */
     virtual bool isOpen() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Capabilities */
-    ///@{
+    /**
+     * @name Capabilities
+     * @{
+     */
 
     /**
      * @brief Returns true if image decoding is supported.
@@ -104,10 +110,14 @@ public:
      */
     virtual QList<QString> extensions() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Navigation */
-    ///@{
+    /**
+     * @name Navigation
+     * @{
+     */
 
     /**
      * @brief Reads the next frame or sample.
@@ -130,10 +140,14 @@ public:
      */
     virtual av::Time seek(const av::TimeRange& range) = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Temporal Properties */
-    ///@{
+    /**
+     * @name Temporal Properties
+     * @{
+     */
 
     /**
      * @brief Returns start time of the media.
@@ -155,10 +169,14 @@ public:
      */
     virtual av::TimeRange timeRange() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Retrieval */
-    ///@{
+    /**
+     * @name Data Retrieval
+     * @{
+     */
 
     /**
      * @brief Returns last decoded audio buffer.
@@ -180,7 +198,9 @@ public:
      */
     virtual core::Error error() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 

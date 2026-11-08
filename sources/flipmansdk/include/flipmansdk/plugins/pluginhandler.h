@@ -4,10 +4,14 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QList>
+#include <QMetaType>
+#include <QString>
 #include <flipmansdk/core/plugin.h>
+#include <flipmansdk/flipmansdk.h>
 #include <functional>
 #include <typeindex>
+#include <utility>
 
 namespace flipman::sdk::plugins {
 
@@ -25,9 +29,20 @@ public:
      * @brief Metadata describing the plugin.
      */
     struct Info {
-        QString name;         ///< Plugin name.
-        QString description;  ///< Short description.
-        QString version;      ///< Version string.
+        /**
+         * @brief Plugin name.
+         */
+        QString name;
+
+        /**
+         * @brief Short description.
+         */
+        QString description;
+
+        /**
+         * @brief Version string.
+         */
+        QString version;
     };
 
     /**
@@ -38,9 +53,20 @@ public:
      * and the creator function.
      */
     struct Factory {
-        std::type_index type;                        ///< RTTI type index of the plugin class.
-        std::function<QList<QString>()> extensions;  ///< Returns supported file extensions.
-        std::function<core::Plugin*()> creator;      ///< Creates a new plugin instance.
+        /**
+         * @brief RTTI type index of the plugin class.
+         */
+        std::type_index type;
+
+        /**
+         * @brief Returns supported file extensions.
+         */
+        std::function<QList<QString>()> extensions;
+
+        /**
+         * @brief Creates a new plugin instance.
+         */
+        std::function<core::Plugin*()> creator;
     };
 
 public:
@@ -74,8 +100,15 @@ public:
     }
 
 public:
-    Info plugininfo;        ///< Plugin metadata.
-    Factory pluginfactory;  ///< Factory configuration.
+    /**
+     * @brief Plugin metadata.
+     */
+    Info plugininfo;
+
+    /**
+     * @brief Factory configuration.
+     */
+    Factory pluginfactory;
 };
 
 }  // namespace flipman::sdk::plugins

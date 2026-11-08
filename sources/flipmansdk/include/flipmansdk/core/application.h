@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
 #include <QApplication>
 #include <QScopedPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::plugins {
 class PluginRegistry;
@@ -64,7 +64,7 @@ public:
     /**
      * @brief Returns the global Application instance.
      *
-     * Asserts if the active QCoreApplication is not a core::Application.
+     * Terminates with qFatal if the active application is not a core::Application.
      */
     static Application* instance();
 
@@ -113,7 +113,7 @@ system()
 }
 
 /**
- * @brief Returns the global Plugin registery subsystem.
+ * @brief Returns the global PluginRegistry subsystem.
  */
 inline plugins::PluginRegistry*
 pluginRegistry()

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QExplicitlySharedDataPointer>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
@@ -14,7 +14,7 @@
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/metadata.h>
 #include <flipmansdk/core/plugin.h>
-#include <QExplicitlySharedDataPointer>
+#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::plugins {
 
@@ -53,8 +53,10 @@ public:
      */
     virtual ~MediaWriter();
 
-    /** @name Initialization */
-    ///@{
+    /**
+     * @name Initialization
+     * @{
+     */
 
     /**
      * @brief Opens a file for writing.
@@ -78,10 +80,14 @@ public:
      */
     virtual bool isOpen() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Capabilities */
-    ///@{
+    /**
+     * @name Capabilities
+     * @{
+     */
 
     /**
      * @brief Returns true if image writing is supported.
@@ -98,10 +104,14 @@ public:
      */
     virtual QList<QString> extensions() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Output */
-    ///@{
+    /**
+     * @name Data Output
+     * @{
+     */
 
     /**
      * @brief Writes an audio buffer.
@@ -124,10 +134,14 @@ public:
      */
     virtual av::Time seek(const av::TimeRange& range);
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Properties */
-    ///@{
+    /**
+     * @name Properties
+     * @{
+     */
 
     /**
      * @brief Returns current presentation time.
@@ -166,7 +180,9 @@ public:
      */
     virtual core::Error error() const;
 
-    ///@}
+    /**
+     * @}
+     */
 };
 
 }  // namespace flipman::sdk::plugins

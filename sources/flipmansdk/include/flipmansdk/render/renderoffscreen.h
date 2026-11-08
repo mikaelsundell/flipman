@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imagelayer.h>
 #include <QColor>
 #include <QImage>
 #include <QList>
 #include <QObject>
 #include <QScopedPointer>
 #include <QSize>
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/imagelayer.h>
 
 namespace flipman::sdk::render {
 
+class RenderEngine;
 class RenderOffscreenPrivate;
 
 /**
@@ -47,8 +48,10 @@ public:
      */
     bool initialize(const QSize& size);
 
-    /** @name Render */
-    ///@{
+    /**
+     * @name Render
+     * @{
+     */
 
     /**
      * @brief Returns the render engine used by the offscreen renderer.
@@ -65,7 +68,9 @@ public:
      */
     void setRenderEngine(render::RenderEngine* renderEngine);
 
-    ///@}
+    /**
+     * @}
+     */
 
     /**
      * @brief Executes an offscreen render pass and returns a native RGB image.

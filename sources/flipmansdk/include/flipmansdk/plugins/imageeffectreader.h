@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <flipmansdk/flipmansdk.h>
+#include <QExplicitlySharedDataPointer>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/plugin.h>
+#include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/imageeffect.h>
-#include <QExplicitlySharedDataPointer>
 
 namespace flipman::sdk::plugins {
 
@@ -49,8 +49,10 @@ public:
      */
     virtual ~ImageEffectReader();
 
-    /** @name Initialization */
-    ///@{
+    /**
+     * @name Initialization
+     * @{
+     */
 
     /**
      * @brief Opens an effect file.
@@ -74,10 +76,14 @@ public:
      */
     virtual bool isOpen() const = 0;
 
-    ///@}
+    /**
+     * @}
+     */
 
-    /** @name Data Retrieval */
-    ///@{
+    /**
+     * @name Data Retrieval
+     * @{
+     */
 
     /**
      * @brief Returns the loaded ImageEffect.
@@ -89,7 +95,9 @@ public:
      */
     virtual core::Error error() const;
 
-    ///@}
+    /**
+     * @}
+     */
 
 Q_SIGNALS:
 

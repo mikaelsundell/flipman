@@ -2,12 +2,12 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/widgets/window.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
 #include <QEvent>
 #include <QPointer>
 #include <QTimer>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/style.h>
+#include <flipmansdk/widgets/window.h>
 
 namespace flipman::sdk::widgets {
 class WindowPrivate : public QObject {

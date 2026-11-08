@@ -2,11 +2,13 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <QPointer>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
 #include <flipmansdk/render/renderdevice.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
 #include <flipmansdk/render/renderspec.h>
-#include <QPointer>
 
 namespace flipman::sdk::render {
 
@@ -61,6 +63,8 @@ RenderOffscreen::initialize(const QSize& size)
 core::ImageBuffer
 RenderOffscreen::render()
 {
+    FM_PROFILE_SCOPE("render", "offscreen");
+    core::PerfScope phase("render.offscreen");
     if (!p->d.initialized || !p->d.renderEngine || !p->d.device)
         return {};
 
