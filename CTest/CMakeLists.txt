@@ -8,6 +8,13 @@ option(FLIPMAN_FULL_MEDIA_TESTS "Run full legacy media workloads instead of boun
 add_executable(flipmansdk_tests main.cpp sdk.cpp sdk.h)
 target_link_libraries(flipmansdk_tests PRIVATE flipmansdk)
 
+if(WIN32)
+    # Used by test_app.bat's controller once the Windows SDK port is available.
+    # Keep configuration-matched DLLs ahead of unrelated parent-shell paths.
+    file(GENERATE OUTPUT "${PROJECT_BINARY_DIR}/test-runtime-$<CONFIG>.txt"
+        CONTENT "$<JOIN:$<TARGET_RUNTIME_DLL_DIRS:flipmansdk_tests>,\n>\n")
+endif()
+
 set(test_data_args "${FLIPMAN_TEST_DATA_DIR}")
 if(FLIPMAN_REQUIRE_TEST_DATA)
     list(APPEND test_data_args --require-data)
@@ -44,7 +51,7 @@ else()
 endif()
 
 if(TARGET flipman_python)
-    foreach(case IN ITEMS time core image media render)
+    foreach(case IN ITEMS time core image media render writer)
         add_test(NAME flipman.python.${case}
             COMMAND ${CMAKE_COMMAND} -E env
                 "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
@@ -54,6 +61,7 @@ if(TARGET flipman_python)
         set_tests_properties(flipman.python.${case} PROPERTIES LABELS "python;sdk;cpu" TIMEOUT 60)
     endforeach()
     set_tests_properties(flipman.python.render PROPERTIES LABELS "python;sdk;gpu")
+    set_tests_properties(flipman.python.writer PROPERTIES LABELS "python;sdk;integration;writer")
     if(APPLE)
         add_test(NAME flipman.python.runtime_guard
             COMMAND ${CMAKE_COMMAND} -E env --unset=DYLD_IMAGE_SUFFIX
@@ -153,3 +161,60 @@ add_test(NAME flipman.sdk.quicktime_channels COMMAND ${CMAKE_COMMAND} -E env
     "${FLIPMAN_TEST_DATA_DIR}/quicktime/iphone17pro film.mov")
 set_tests_properties(flipman.sdk.quicktime_channels PROPERTIES
     LABELS "sdk;native;integration;gpu;data" TIMEOUT 60 SKIP_RETURN_CODE 77)
+
+add_executable(flipman_colorpipeline_tests colorpipeline.cpp)
+target_link_libraries(flipman_colorpipeline_tests PRIVATE flipmansdk OpenColorIO::OpenColorIO)
+add_dependencies(flipman_tests flipman_colorpipeline_tests)
+add_test(NAME flipman.sdk.color_pipeline
+    COMMAND ${CMAKE_COMMAND} -E env
+        "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+        QT_QPA_PLATFORM=offscreen $<TARGET_FILE:flipman_colorpipeline_tests>)
+set_tests_properties(flipman.sdk.color_pipeline PROPERTIES LABELS "sdk;native;gpu;color" TIMEOUT 120)
+
+add_executable(flipman_displaycolorspace_tests displaycolorspace.cpp)
+target_link_libraries(flipman_displaycolorspace_tests PRIVATE flipmansdk)
+add_dependencies(flipman_tests flipman_displaycolorspace_tests)
+add_test(NAME flipman.sdk.display_color_space
+    COMMAND ${CMAKE_COMMAND} -E env
+        "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+        $<TARGET_FILE:flipman_displaycolorspace_tests>)
+set_tests_properties(flipman.sdk.display_color_space PROPERTIES LABELS "sdk;native;cpu;display" TIMEOUT 30)
+
+add_executable(flipman_quicktimewriter_tests quicktimewriter.cpp)
+target_link_libraries(flipman_quicktimewriter_tests PRIVATE flipmansdk)
+add_dependencies(flipman_tests flipman_quicktimewriter_tests)
+add_test(NAME flipman.sdk.quicktime_writer COMMAND ${CMAKE_COMMAND} -E env
+    "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+    QT_QPA_PLATFORM=offscreen $<TARGET_FILE:flipman_quicktimewriter_tests>)
+set_tests_properties(flipman.sdk.quicktime_writer PROPERTIES LABELS "sdk;native;integration;gpu;writer" TIMEOUT 120)
+
+add_executable(flipman_imageconverter_tests imageconverter.cpp)
+target_link_libraries(flipman_imageconverter_tests PRIVATE flipmansdk "-framework CoreVideo")
+target_include_directories(flipman_imageconverter_tests PRIVATE "${PROJECT_SOURCE_DIR}/sources/flipmansdk")
+add_dependencies(flipman_tests flipman_imageconverter_tests)
+add_test(NAME flipman.sdk.image_converter COMMAND ${CMAKE_COMMAND} -E env
+    "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+    QT_QPA_PLATFORM=offscreen $<TARGET_FILE:flipman_imageconverter_tests>)
+set_tests_properties(flipman.sdk.image_converter PROPERTIES LABELS "sdk;native;gpu;conversion" TIMEOUT 120)
+
+# Explicit performance experiment; timing is never a CTest correctness gate.
+add_executable(flipman_imageconverter_benchmark EXCLUDE_FROM_ALL benchmark/imageconverter.mm)
+target_include_directories(flipman_imageconverter_benchmark PRIVATE "${PROJECT_SOURCE_DIR}/sources/flipmansdk")
+target_link_libraries(flipman_imageconverter_benchmark PRIVATE flipmansdk
+    "-framework CoreVideo" "-framework CoreImage" "-framework Metal")
+
+add_executable(flipman_cpuimageconverter_tests cpuimageconverter.cpp)
+target_link_libraries(flipman_cpuimageconverter_tests PRIVATE flipmansdk)
+add_dependencies(flipman_tests flipman_cpuimageconverter_tests)
+add_test(NAME flipman.sdk.cpu_image_converter COMMAND ${CMAKE_COMMAND} -E env
+    "DYLD_IMAGE_SUFFIX=$<$<AND:$<PLATFORM_ID:Darwin>,$<CONFIG:Debug>>:_debug>"
+    $<TARGET_FILE:flipman_cpuimageconverter_tests>)
+set_tests_properties(flipman.sdk.cpu_image_converter PROPERTIES LABELS "sdk;native;cpu;conversion" TIMEOUT 30)
+
+# Exercise controller error propagation without launching a GPU or rebuilding.
+find_package(Python3 3.9 COMPONENTS Interpreter QUIET)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME flipman.test_app_runner
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/test_run_all.py")
+    set_tests_properties(flipman.test_app_runner PROPERTIES LABELS "development;cpu;runner" TIMEOUT 30)
+endif()

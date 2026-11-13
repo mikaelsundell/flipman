@@ -3,6 +3,14 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
+
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/plugins/imageeffectreader.h>
+#include <flipmansdk/plugins/pluginregistry.h>
+#include <flipmansdk/widgets/viewer.h>
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QComboBox>
@@ -26,13 +34,6 @@
 #include <QVector4D>
 #include <algorithm>
 #include <cmath>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/environment.h>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/plugins/imageeffectreader.h>
-#include <flipmansdk/plugins/pluginregistry.h>
-#include <flipmansdk/widgets/viewer.h>
 
 namespace flipman {
 
@@ -81,10 +82,12 @@ public:
     void updateTimeline();
 
     struct Data {
+        sdk::av::Media media;
+        sdk::av::TimeRange timeRange;
+        sdk::render::ImageLayer imageLayer;
         QString inputFile;
         QString dataPath;
         QString currentShader;
-        QPointer<Window> window;
         QPointer<sdk::render::RenderEngine> renderEngine;
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<QSlider> timelineSlider;
@@ -93,9 +96,7 @@ public:
         QPointer<QWidget> parameterPanel;
         QPointer<QWidget> parameterContainer;
         QPointer<QVBoxLayout> parameterLayout;
-        sdk::av::Media media;
-        sdk::av::TimeRange timeRange;
-        sdk::render::ImageLayer imageLayer;
+        QPointer<Window> window;
     };
     Data d;
 };

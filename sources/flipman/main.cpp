@@ -3,6 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "flipman.h"
+
 #include <QApplication>
 
 int

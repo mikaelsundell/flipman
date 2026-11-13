@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <QSharedData>
 #include <flipmansdk/av/sidecar.h>
+#include <QSharedData>
 
 namespace flipman::sdk::av {
+
 class SideCarPrivate : public QSharedData {};
 
 SideCar::SideCar()
@@ -36,4 +37,5 @@ SideCar::operator=(const SideCar& other)
     }
     return *this;
 }
+
 }  // namespace flipman::sdk::av

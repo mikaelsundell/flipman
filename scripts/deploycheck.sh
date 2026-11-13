@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Adapted from Mikael Sundell's Stageviz deploycheck.sh.
+# Validate deployment library references and runtime paths.
 set -euo pipefail
 
 app="${1:-}"

@@ -2,8 +2,8 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <QApplication>
 #include <flipmansdk/core/core.h>
+#include <QApplication>
 
 namespace flipman::sdk::core {
 
@@ -48,4 +48,5 @@ scaledPixmap(const QPixmap& pixmap, int logicalSize, Qt::AspectRatioMode aspectM
     scaled.setDevicePixelRatio(dpr);
     return scaled;
 }
+
 }  // namespace flipman::sdk::core

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <QExplicitlySharedDataPointer>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
@@ -15,6 +14,7 @@
 #include <flipmansdk/core/metadata.h>
 #include <flipmansdk/plugins/mediawriter.h>
 #include <flipmansdk/plugins/pluginhandler.h>
+#include <QExplicitlySharedDataPointer>
 
 namespace flipman::sdk::plugins {
 

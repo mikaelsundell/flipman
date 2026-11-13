@@ -2,13 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/av/smptetime.h>
+#include <flipmansdk/core/log.h>
 #include <flipmansdk/core/perfscope.h>
 #include <flipmansdk/core/profile.h>
-#include <flipmansdk/core/log.h>
 #include <flipmansdk/plugins/quicktime/quicktimereader.h>
-
-#include <flipmansdk/av/smptetime.h>
-
 #include <AVFoundation/AVFoundation.h>
 #include <CoreMedia/CoreMedia.h>
 #include <mach/mach_time.h>
@@ -18,15 +16,15 @@
 #include <algorithm>
 #include <atomic>
 
-#define DebugCMTime(name, time) \
-    qCDebug(flipman::sdk::core::mediaLog) << name << ": "    \
-             << "CMTime: PTS Value:" << time.value << ", " \
-             << "CMTime: Timescale:" << time.timescale;
+#define DebugCMTime(name, time)                                                         \
+    qCDebug(flipman::sdk::core::mediaLog) << name << ": "                               \
+                                          << "CMTime: PTS Value:" << time.value << ", " \
+                                          << "CMTime: Timescale:" << time.timescale;
 
-#define DebugAVTime(name, time) \
-    qCDebug(flipman::sdk::core::mediaLog) << name << ": "    \
-             << "AVTime: PTS Value:" << time.ticks() << ", " \
-             << "AVTime: Timescale:" << time.timescale();
+#define DebugAVTime(name, time)                                                           \
+    qCDebug(flipman::sdk::core::mediaLog) << name << ": "                                 \
+                                          << "AVTime: PTS Value:" << time.ticks() << ", " \
+                                          << "AVTime: Timescale:" << time.timescale();
 
 #define DebugInfo() qCDebug(flipman::sdk::core::mediaLog) << Q_FUNC_INFO
 
@@ -63,25 +61,20 @@ public:
         AVAssetReaderTrackOutput* videoOutput = nil;
         AVAssetTrack* videoTrack = nil;
         AVAssetTrack* timeCodeTrack = nil;
-
         core::File file;
-        av::TimeRange timeRange;
-        av::Time startStamp;
-        av::Time timeStamp;
-        av::Fps fps;
-        qint32 timeScale = 0;
-
-        QString fileName;
-        QString title;
-
         core::ImageBuffer image;
         core::AudioBuffer audio;
         core::MetaData metaData;
         core::Error error;
-
+        av::TimeRange timeRange;
+        av::Time startStamp;
+        av::Time timeStamp;
+        av::Fps fps;
+        QString fileName;
+        QString title;
+        qint32 timeScale = 0;
         QPointer<QuicktimeReader> object;
     };
-
     Data d;
 };
 
@@ -108,9 +101,7 @@ pixelFormatName(OSType format)
 static NSDictionary*
 videoOutputSettings()
 {
-    return @{
-        (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
-    };
+    return @{(NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)};
 }
 
 static QString
@@ -148,21 +139,23 @@ debugPixelBufferColorInfo(CVPixelBufferRef pixelBuffer)
         return;
 
     qCDebug(flipman::sdk::core::mediaLog) << "quicktimereader: pixel buffer";
-    qCDebug(flipman::sdk::core::mediaLog) << "  format:" << pixelFormatName(CVPixelBufferGetPixelFormatType(pixelBuffer));
-    qCDebug(flipman::sdk::core::mediaLog) << "  size:" << CVPixelBufferGetWidth(pixelBuffer) << "x" << CVPixelBufferGetHeight(pixelBuffer);
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  format:" << pixelFormatName(CVPixelBufferGetPixelFormatType(pixelBuffer));
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  size:" << CVPixelBufferGetWidth(pixelBuffer) << "x" << CVPixelBufferGetHeight(pixelBuffer);
     qCDebug(flipman::sdk::core::mediaLog) << "  planes:" << CVPixelBufferGetPlaneCount(pixelBuffer);
 
-    qCDebug(flipman::sdk::core::mediaLog) << "  primaries:"
-             << attachmentString(pixelBuffer, kCVImageBufferColorPrimariesKey);
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  primaries:" << attachmentString(pixelBuffer, kCVImageBufferColorPrimariesKey);
 
-    qCDebug(flipman::sdk::core::mediaLog) << "  transfer:"
-             << attachmentString(pixelBuffer, kCVImageBufferTransferFunctionKey);
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  transfer:" << attachmentString(pixelBuffer, kCVImageBufferTransferFunctionKey);
 
-    qCDebug(flipman::sdk::core::mediaLog) << "  ycbcr matrix:"
-             << attachmentString(pixelBuffer, kCVImageBufferYCbCrMatrixKey);
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  ycbcr matrix:" << attachmentString(pixelBuffer, kCVImageBufferYCbCrMatrixKey);
 
-    qCDebug(flipman::sdk::core::mediaLog) << "  gamma level:"
-             << attachmentString(pixelBuffer, kCVImageBufferGammaLevelKey);
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "  gamma level:" << attachmentString(pixelBuffer, kCVImageBufferGammaLevelKey);
 }
 
 static void
@@ -170,13 +163,12 @@ debugImageColorInfo(const core::ImageBuffer& image)
 {
     if (!core::mediaLog().isDebugEnabled())
         return;
-    qCDebug(flipman::sdk::core::mediaLog) << "quicktimereader: tagged image"
-             << "colorSpace" << int(image.colorSpace())
-             << "transfer" << int(image.transferFunction())
-             << "pixelRange" << int(image.pixelRange())
-             << "pixelLayout" << int(image.pixelLayout())
-             << "packing" << int(image.packing())
-             << "subsampling" << int(image.subsampling());
+
+    qCDebug(flipman::sdk::core::mediaLog)
+        << "quicktimereader: tagged image"
+        << "colorSpace" << int(image.colorSpace()) << "transfer" << int(image.transferFunction()) << "pixelRange"
+        << int(image.pixelRange()) << "pixelLayout" << int(image.pixelLayout()) << "packing" << int(image.packing())
+        << "subsampling" << int(image.subsampling());
 }
 
 static render::ColorSpace
@@ -233,14 +225,13 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
     }
 
     const OSType pixelFormat = CVPixelBufferGetPixelFormatType(pixelBuffer);
-    
+
     static std::atomic<bool> printedPixelBufferInfo { false };
 
-    if (core::mediaLog().isDebugEnabled()
-        && !printedPixelBufferInfo.exchange(true, std::memory_order_relaxed)) {
+    if (core::mediaLog().isDebugEnabled() && !printedPixelBufferInfo.exchange(true, std::memory_order_relaxed)) {
         debugPixelBufferColorInfo(pixelBuffer);
     }
-    
+
     const int width = int(CVPixelBufferGetWidth(pixelBuffer));
     const int height = int(CVPixelBufferGetHeight(pixelBuffer));
     const QRect dataWindow(0, 0, width, height);
@@ -248,7 +239,6 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
 
     if (pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         || pixelFormat == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange) {
-
         image = core::ImageBuffer(dataWindow, displayWindow, core::ImageFormat(core::ImageFormat::UInt8), 1);
 
         image.setPacking(core::ImageBuffer::Packing::BiPlanar);
@@ -336,7 +326,8 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
         return true;
     }
 
-    error = core::Error("quicktimereader", QString("unsupported CVPixelBuffer format: %1").arg(pixelFormatName(pixelFormat)));
+    error = core::Error("quicktimereader",
+                        QString("unsupported CVPixelBuffer format: %1").arg(pixelFormatName(pixelFormat)));
     return false;
 }
 
@@ -404,17 +395,13 @@ QuicktimeReaderPrivate::loadAsset()
             CMMediaType mediaType = CMFormatDescriptionGetMediaType(desc);
             FourCharCode codecType = CMFormatDescriptionGetMediaSubType(desc);
 
-            NSString* media = [NSString stringWithFormat:@"%c%c%c%c",
-                               (mediaType >> 24) & 0xFF,
-                               (mediaType >> 16) & 0xFF,
-                               (mediaType >> 8) & 0xFF,
-                               mediaType & 0xFF];
+            NSString* media = [NSString stringWithFormat:@"%c%c%c%c", (mediaType >> 24) & 0xFF,
+                                                         (mediaType >> 16) & 0xFF, (mediaType >> 8) & 0xFF,
+                                                         mediaType & 0xFF];
 
-            NSString* codec = [NSString stringWithFormat:@"%c%c%c%c",
-                               (codecType >> 24) & 0xFF,
-                               (codecType >> 16) & 0xFF,
-                               (codecType >> 8) & 0xFF,
-                               codecType & 0xFF];
+            NSString* codec = [NSString stringWithFormat:@"%c%c%c%c", (codecType >> 24) & 0xFF,
+                                                         (codecType >> 16) & 0xFF, (codecType >> 8) & 0xFF,
+                                                         codecType & 0xFF];
 
             d.metaData.insert("media type", QString::fromNSString(media));
             d.metaData.insert("codec type", QString::fromNSString(codec));
@@ -426,7 +413,11 @@ QuicktimeReaderPrivate::loadAsset()
         }
 
         d.videoTrack = videoTrack;
-        d.fps = av::Fps::guess(videoTrack.nominalFrameRate);
+        const auto nominalFps = av::Fps::guess(videoTrack.nominalFrameRate);
+
+        // A fractional frame rate does not imply drop-frame timecode. Use the
+        // timecode track's explicit flag below; untagged clips default to NDF.
+        d.fps = av::Fps(qint32(nominalFps.numerator()), nominalFps.denominator(), false);
         d.timeRange = av::TimeRange::convert(toTimeRange(videoTrack.timeRange), d.fps);
         d.startStamp = d.timeRange.start();
         d.timeStamp = d.startStamp;
@@ -435,9 +426,8 @@ QuicktimeReaderPrivate::loadAsset()
             AVAssetReader* timeCodeReader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
 
             if (!timeCodeReader) {
-                d.error = core::Error(info().name,
-                                      QString("unable to create AVAssetReader for timecode: %1")
-                                          .arg(QString::fromNSString(error.localizedDescription)));
+                d.error = core::Error(info().name, QString("unable to create AVAssetReader for timecode: %1")
+                                                       .arg(QString::fromNSString(error.localizedDescription)));
                 return;
             }
 
@@ -467,6 +457,9 @@ QuicktimeReaderPrivate::loadAsset()
                             uint32_t frameQuanta = CMTimeCodeFormatDescriptionGetFrameQuanta(formatDescription);
                             uint32_t flags = CMTimeCodeFormatDescriptionGetTimeCodeFlags(formatDescription);
                             bool dropFrames = flags & kCMTimeCodeFlag_DropFrame;
+                            d.fps = av::Fps(qint32(d.fps.numerator()), d.fps.denominator(), dropFrames);
+                            d.timeRange = av::TimeRange::convert(toTimeRange(videoTrack.timeRange), d.fps);
+                            d.startStamp = d.timeRange.start();
 
                             av::Fps startFps = av::Fps::guess(frameQuanta);
 
@@ -507,7 +500,8 @@ QuicktimeReaderPrivate::loadAsset()
                             }
                         }
                         else {
-                            d.error = core::Error("quicktimeformat", "unable to get data from block buffer for timecode");
+                            d.error = core::Error("quicktimeformat",
+                                                  "unable to get data from block buffer for timecode");
                             return;
                         }
                     }
@@ -523,7 +517,8 @@ QuicktimeReaderPrivate::loadAsset()
             d.timeCodeTrack = timeCodeTrack;
         }
 
-        d.videoOutput = [[AVAssetReaderTrackOutput alloc] initWithTrack:videoTrack outputSettings:videoOutputSettings()];
+        d.videoOutput = [[AVAssetReaderTrackOutput alloc] initWithTrack:videoTrack
+                                                         outputSettings:videoOutputSettings()];
 
         [d.reader addOutput:d.videoOutput];
 
@@ -554,27 +549,22 @@ QuicktimeReaderPrivate::open(const core::File& file, const MediaReader::Options&
         return false;
     }
 
-    NSArray* keys = @[
-        @"tracks",
-        @"duration",
-        @"commonMetadata",
-        @"availableMetadataFormats"
-    ];
+    NSArray* keys = @[ @"tracks", @"duration", @"commonMetadata", @"availableMetadataFormats" ];
 
-    [d.asset loadValuesAsynchronouslyForKeys:keys
-                           completionHandler:^{
-                               NSError* error = nil;
+    [d.asset
+        loadValuesAsynchronouslyForKeys:keys
+                      completionHandler:^{
+                          NSError* error = nil;
 
-                               for (NSString* key in keys) {
-                                   if ([d.asset statusOfValueForKey:key error:&error] != AVKeyValueStatusLoaded) {
-                                       d.error = core::Error(info().name,
-                                                             QString::fromNSString(error.localizedDescription));
-                                       return;
-                                   }
-                               }
+                          for (NSString* key in keys) {
+                              if ([d.asset statusOfValueForKey:key error:&error] != AVKeyValueStatusLoaded) {
+                                  d.error = core::Error(info().name, QString::fromNSString(error.localizedDescription));
+                                  return;
+                              }
+                          }
 
-                               this->loadAsset();
-                           }];
+                          this->loadAsset();
+                      }];
 
     return true;
 }
@@ -648,8 +638,8 @@ QuicktimeReaderPrivate::read()
 
         if (attachments) {
             CFDictionaryRef attachment = static_cast<CFDictionaryRef>(CFArrayGetValueAtIndex(attachments, 0));
-            CFBooleanRef notKeyFrame =
-                static_cast<CFBooleanRef>(CFDictionaryGetValue(attachment, kCMSampleAttachmentKey_NotSync));
+            CFBooleanRef notKeyFrame = static_cast<CFBooleanRef>(
+                CFDictionaryGetValue(attachment, kCMSampleAttachmentKey_NotSync));
 
             if (notKeyFrame == kCFBooleanTrue)
                 isKeyFrame = false;
@@ -719,9 +709,8 @@ QuicktimeReaderPrivate::seek(const av::TimeRange& timerange)
     d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
 
     if (!d.reader) {
-        d.error = core::Error(info().name,
-                              QString("failed to recreate AVAssetReader: %1")
-                                  .arg(QString::fromNSString(error.localizedDescription)));
+        d.error = core::Error(info().name, QString("failed to recreate AVAssetReader: %1")
+                                               .arg(QString::fromNSString(error.localizedDescription)));
         qWarning() << "warning:" << d.error.message();
         return {};
     }
@@ -813,9 +802,8 @@ QuicktimeReaderPrivate::creator()
 QList<QString>
 QuicktimeReaderPrivate::extensions()
 {
-    static const QList<QString> extensions = {
-        "mov", "mp4", "m4v", "avi", "mkv", "flv", "mpg", "mpeg", "3gp", "3g2", "mxf", "wmv"
-    };
+    static const QList<QString> extensions = { "mov", "mp4",  "m4v", "avi", "mkv", "flv",
+                                               "mpg", "mpeg", "3gp", "3g2", "mxf", "wmv" };
 
     return extensions;
 }
@@ -942,9 +930,7 @@ plugins::PluginHandler
 QuicktimeReader::handler()
 {
     static plugins::PluginHandler handler = plugins::PluginHandler::create<MediaReader>(
-        QuicktimeReaderPrivate::info(),
-        QuicktimeReaderPrivate::extensions,
-        QuicktimeReaderPrivate::creator);
+        QuicktimeReaderPrivate::info(), QuicktimeReaderPrivate::extensions, QuicktimeReaderPrivate::creator);
 
     return handler;
 }

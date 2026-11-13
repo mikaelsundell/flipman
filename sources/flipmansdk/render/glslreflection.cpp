@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Mikael Sundell
 
-#include "glslreflection.h"
+#include "private/glslreflection.h"
+
+#include <parser.h>
 #include <cstdlib>
 #include <cstring>
-#include <parser.h>
 
 // Upstream's lexeme table intentionally uses repeatedly defined macros.
+
 #undef TYPE
 #undef KEYWORD
 #undef OPERATOR
@@ -16,12 +18,15 @@
 #define OPERATOR(...)
 #define TYPENAME(name) \
     case glsl::kKeyword_##name: return QStringLiteral(#name);
+
 namespace {
+
 QString
 typeName(const glsl::astType* type)
 {
     if (!type->builtin)
         return QString::fromUtf8(static_cast<const glsl::astStruct*>(type)->name);
+
     switch (static_cast<const glsl::astBuiltin*>(type)->type) {
 #include <lexemes.h>
     default: return {};
@@ -31,24 +36,30 @@ typeName(const glsl::astType* type)
 class ReflectionLexer : public glsl::lexer {
 public:
     using glsl::lexer::lexer;
+
     ~ReflectionLexer() { current.clear(); }
+
     const glsl::token& nextToken()
     {
         read(current, true);
         return current;
     }
+
     size_t offset() const { return position(); }
 
 private:
     glsl::token current = peek();
 };
+
 }  // namespace
+
 #undef TYPE
 #undef KEYWORD
 #undef OPERATOR
 #undef TYPENAME
 
 namespace flipman::sdk::render {
+
 bool
 reflectGlslFunctions(const QString& source, QVector<ShaderFunction>& functions, QString& error)
 {
@@ -105,6 +116,7 @@ reflectGlslFunctions(const QString& source, QVector<ShaderFunction>& functions, 
                 for (size_t i = 0; i < parsed->parameters.size(); ++i) {
                     const auto* parameter = parsed->parameters[i];
                     QString type = typeName(parameter->baseType);
+
                     // Arrays must never match a scalar/vector entry contract.
                     if (parameter->isArray)
                         type += "[]";
@@ -147,4 +159,5 @@ reflectGlslFunctions(const QString& source, QVector<ShaderFunction>& functions, 
     }
     return true;
 }
+
 }  // namespace flipman::sdk::render

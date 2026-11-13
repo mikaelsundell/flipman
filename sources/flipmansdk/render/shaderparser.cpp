@@ -2,7 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include "glslreflection.h"
+#include "private/glslreflection.h"
+
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/render/shaderparser.h>
 #include <QFile>
 #include <QFileInfo>
 #include <QRegularExpression>
@@ -11,8 +14,6 @@
 #include <QVector2D>
 #include <QVector3D>
 #include <QVector4D>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/render/shaderparser.h>
 
 namespace flipman::sdk::render {
 
@@ -29,6 +30,7 @@ public:
                      QSet<QString>& includeStack);
     ShaderDefinition parse(const core::File& file, const ShaderParser::Options& options);
     ShaderDefinition parse(const QString& source, const QString& sourceDir, const ShaderParser::Options& options);
+
     struct Data {
         core::Error error;
     };
@@ -40,18 +42,25 @@ ShaderParserPrivate::toParamType(const QString& t) const
 {
     if (t == "float")
         return ParamType::Float;
+
     if (t == "int")
         return ParamType::Int;
+
     if (t == "bool")
         return ParamType::Bool;
+
     if (t == "vec2")
         return ParamType::Vec2;
+
     if (t == "vec3")
         return ParamType::Vec3;
+
     if (t == "vec4")
         return ParamType::Vec4;
+
     if (t == "lut")
         return ParamType::Lut;
+
     return ParamType::Float;
 }
 
@@ -94,12 +103,14 @@ ShaderParserPrivate::parseParamLine(const QString& line, ShaderDescriptor::Shade
         text = text.trimmed();
         if (text.startsWith('{') && text.endsWith('}'))
             return text.mid(1, text.size() - 2);
+
         return text;
     };
 
     auto parseDouble = [&](int index, double fallback = 0.0) {
         if (index >= tokens.size())
             return fallback;
+
         bool ok = false;
         const double value = tokens[index].toDouble(&ok);
         return ok ? value : fallback;
@@ -241,7 +252,6 @@ ShaderParserPrivate::replaceInclude(const QString& includeName, const QString& b
     return {};
 }
 
-
 QString
 ShaderParserPrivate::replaceBlock(const QString& line, bool& block, bool& empty)
 {
@@ -310,6 +320,7 @@ ShaderParserPrivate::parseSource(const QString& source, const QString& sourceDir
                 ShaderDescriptor::ShaderParameter param;
                 if (!parseParamLine(trimmed, param))
                     return false;
+
                 if (descriptor.indexOf(param.name) != -1) {
                     d.error = core::Error("shaderparser", "duplicate @param: " + param.name);
                     return false;
@@ -329,10 +340,12 @@ ShaderParserPrivate::parseSource(const QString& source, const QString& sourceDir
                 QString includedCode = replaceInclude(includeName, sourceDir, includeStack);
                 if (d.error.hasError())
                     return false;
+
                 QString nestedShaderCode;
                 if (!parseSource(includedCode, QFileInfo(sourceDir + "/" + includeName).absolutePath(),
                                  nestedShaderCode, descriptor, includeStack))
                     return false;
+
                 includeStack.remove(includeName);
                 output << nestedShaderCode;
                 continue;

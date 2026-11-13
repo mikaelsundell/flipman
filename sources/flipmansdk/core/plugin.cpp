@@ -5,9 +5,11 @@
 #include <flipmansdk/core/plugin.h>
 
 namespace flipman::sdk::core {
+
 Plugin::Plugin(QObject* parent)
     : QObject(parent)
 {}
 
 Plugin::~Plugin() {}
+
 }  // namespace flipman::sdk::core

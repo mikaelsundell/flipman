@@ -3,10 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "sdk.h"
-#include <QApplication>
-#include <QDebug>
-#include <QThread>
-#include <QTimer>
+
 #include <flipmansdk/av/clip.h>
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/media.h>
@@ -35,14 +32,20 @@
 #include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderdefinition.h>
 #include <flipmansdk/render/shaderparser.h>
-#include <iostream>
+#include <QApplication>
+#include <QDebug>
+#include <QThread>
+#include <QTimer>
 #include <rhi/qrhi.h>
+#include <iostream>
 
 namespace flipman::sdk::test {
+
 namespace {
 
     QString dataPath;
     QString testPath;
+
     template<typename T> bool testValue(const T& value, const T& expected, const char* label = nullptr)
     {
         if (value != expected) {
@@ -82,6 +85,7 @@ namespace {
         return testValue(rect.x(), x, "rect.x") && testValue(rect.y(), y, "rect.y")
                && testValue(rect.width(), w, "rect.width") && testValue(rect.height(), h, "rect.height");
     }
+
 }  // namespace
 
 void
@@ -190,6 +194,7 @@ testFile()
     const QString fixture = testPath + "/dir";
     if (!QDir().mkpath(fixture))
         return false;
+
     QStringList names { "square export 23.976.mov" };
     for (const auto& span : { QPair<int, int>(86400, 86410), QPair<int, int>(86435, 86440) })
         for (int frame = span.first; frame <= span.second; ++frame)
@@ -1381,6 +1386,7 @@ testRenderOffscreen()
                 diff.allocate();
 
                 quint8* d = diff.data();
+
                 // The decoder retains BGRA storage; GPU readback is RGBA.
                 // Map the reference channels here in the test, not in playback.
                 const bool sourceBgr = source.pixelLayout() == core::ImageBuffer::PixelLayout::BGRA;
@@ -2350,6 +2356,7 @@ testPluginFx()
     QFile fixture(path);
     if (!fixture.open(QIODevice::WriteOnly))
         return false;
+
     fixture.write("@param float warm 1.0 0.0 2.0\n"
                   "vec4 effect(vec4 color, vec2 pixel, vec2 size)\n"
                   "{ return vec4(color.rgb * warm, color.a); }\n");
@@ -2459,6 +2466,7 @@ testPluginFx()
     });
     group.wait();
     return ok.load();
+
     return true;
 }
 
@@ -2747,24 +2755,30 @@ testTimeLine()
     }
     return true;
 }
+
 }  // namespace flipman::sdk::test
 
 namespace flipman::sdk::test {
+
 bool
 testMediaState()
 {
     av::Media media;
     if (media.isOpen() || media.isValid() || media.error().hasError() || !media.close() || media.waitForOpened(0))
         return false;
+
     if (media.open(core::File("missing.unsupported_flipman_extension")) || media.isOpen() || media.isValid()
         || !media.error().hasError() || media.waitForOpened(0))
         return false;
+
     media.reset();
     return !media.isOpen() && !media.isValid() && !media.error().hasError() && media.close();
 }
+
 }  // namespace flipman::sdk::test
 
 namespace flipman::sdk::test {
+
 bool
 testShaderContract()
 {
@@ -2778,4 +2792,5 @@ testShaderContract()
            && contract.error().hasError() && !contract.validate(type, wrong) && contract.validate(type, integer)
            && !contract.error().hasError();
 }
+
 }  // namespace flipman::sdk::test

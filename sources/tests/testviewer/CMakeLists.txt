@@ -17,7 +17,7 @@ target_link_libraries(${test_name}
 target_include_directories(${test_name} PRIVATE ${CMAKE_SOURCE_DIR})
 
 if(BUILD_TESTING)
-    add_executable(flipman_viewerdrop_tests ${PROJECT_SOURCE_DIR}/CTest/viewerdrop.cpp window.cpp window.h)
+    add_executable(flipman_viewerdrop_tests ${PROJECT_SOURCE_DIR}/CTest/viewerdrop.cpp window.cpp window.h colorselector.cpp colorselector.h)
     target_include_directories(flipman_viewerdrop_tests PRIVATE ${PROJECT_SOURCE_DIR})
     target_link_libraries(flipman_viewerdrop_tests PRIVATE flipmansdk)
     add_test(NAME flipman.viewer.drop

@@ -3,27 +3,27 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/system.h>
+#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
+#import <IOKit/IOMessage.h>
+#import <IOKit/pwr_mgt/IOPMLib.h>
+#include <mach-o/dyld.h>
+#include <mach/mach.h>
+#include <mach/mach_time.h>
 #include <QCoreApplication>
 #include <QDir>
 #include <QPointer>
-#import <Foundation/Foundation.h>
-#import <Cocoa/Cocoa.h>
-#import <IOKit/pwr_mgt/IOPMLib.h>
-#import <IOKit/IOMessage.h>
-#include <mach/mach.h>
-#include <mach/mach_time.h>
-#include <mach-o/dyld.h>
 
 namespace flipman::sdk::core {
-class SystemPrivate
-{
+
+class SystemPrivate {
 public:
     SystemPrivate();
     ~SystemPrivate();
     void init();
     static void powerCallback(void* refcon, io_service_t service, natural_t message_type, void* message);
-    struct Data
-    {
+
+    struct Data {
         id activity = nullptr;
         IONotificationPortRef notificationport = nullptr;
         io_object_t notifier = 0;
@@ -32,9 +32,7 @@ public:
     Data d;
 };
 
-SystemPrivate::SystemPrivate()
-{
-}
+SystemPrivate::SystemPrivate() {}
 
 SystemPrivate::~SystemPrivate()
 {
@@ -66,32 +64,25 @@ SystemPrivate::powerCallback(void* refcon, io_service_t service, natural_t messa
         return;
     }
     switch (message_type) {
-        case kIOMessageSystemWillPowerOff:
-            Q_EMIT priv->d.object->powerStateChanged(System::PowerOff);
-            break;
-        case kIOMessageSystemWillRestart:
-            Q_EMIT priv->d.object->powerStateChanged(System::Restart);
-            break;
-        case kIOMessageSystemWillSleep:
-            Q_EMIT priv->d.object->powerStateChanged(System::Sleep);
-            IOAllowPowerChange(service, (long)message);
-            break;
-        default:
-            break;
+    case kIOMessageSystemWillPowerOff: Q_EMIT priv->d.object->powerStateChanged(System::PowerOff); break;
+    case kIOMessageSystemWillRestart: Q_EMIT priv->d.object->powerStateChanged(System::Restart); break;
+    case kIOMessageSystemWillSleep:
+        Q_EMIT priv->d.object->powerStateChanged(System::Sleep);
+        IOAllowPowerChange(service, (long)message);
+        break;
+    default: break;
     }
 }
 
 System::System(QObject* parent)
-: QObject(parent)
-, p(new SystemPrivate())
+    : QObject(parent)
+    , p(new SystemPrivate())
 {
     p->d.object = this;
     p->init();
 }
 
-System::~System()
-{
-}
+System::~System() {}
 
 void
 System::setStayAwake(bool stayAwake)
@@ -99,12 +90,11 @@ System::setStayAwake(bool stayAwake)
     static IOPMAssertionID assertionid = kIOPMNullAssertionID;
     if (stayAwake) {
         if (assertionid == kIOPMNullAssertionID) {
-            IOPMAssertionCreateWithName(kIOPMAssertionTypeNoDisplaySleep,
-                                        kIOPMAssertionLevelOn,
-                                        CFSTR("Preventing idle sleep"),
-                                        &assertionid);
+            IOPMAssertionCreateWithName(kIOPMAssertionTypeNoDisplaySleep, kIOPMAssertionLevelOn,
+                                        CFSTR("Preventing idle sleep"), &assertionid);
         }
-    } else {
+    }
+    else {
         if (assertionid != kIOPMNullAssertionID) {
             IOPMAssertionRelease(assertionid);
             assertionid = kIOPMNullAssertionID;
@@ -114,7 +104,6 @@ System::setStayAwake(bool stayAwake)
 
 bool
 System::isStayAwake() const
-{
-}
+{}
 
-}
+}  // namespace flipman::sdk::core

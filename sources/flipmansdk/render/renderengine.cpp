@@ -2,6 +2,18 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include "private/ociogpu.h"
+#include "private/pixelsampling.h"
+
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
+#include <flipmansdk/core/ui.h>
+#include <flipmansdk/render/renderengine.h>
+#include <flipmansdk/render/shadercompiler.h>
+#include <flipmansdk/render/shadercontract.h>
+#include <flipmansdk/render/shaderparser.h>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QElapsedTimer>
@@ -12,15 +24,6 @@
 #include <QTextStream>
 #include <cstddef>
 #include <cstring>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/core/perfscope.h>
-#include <flipmansdk/core/profile.h>
-#include <flipmansdk/core/style.h>
-#include <flipmansdk/render/renderengine.h>
-#include <flipmansdk/render/shadercompiler.h>
-#include <flipmansdk/render/shadercontract.h>
-#include <flipmansdk/render/shaderparser.h>
 #include <limits>
 
 #if defined(RENDERENGINE_STATS)
@@ -141,7 +144,7 @@ public:
     RenderEnginePrivate();
     bool init(const RenderContext& context, const RenderSpec& spec);
     void reset();
-    void update(QRhiResourceUpdateBatch* updates);
+    bool update(QRhiResourceUpdateBatch* updates);
     void render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
     void renderScene(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
 
@@ -151,23 +154,28 @@ public:
         std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
         std::unique_ptr<QRhiRenderPassDescriptor> renderPassDescriptor;
     };
+
     struct QuadState {
         std::unique_ptr<QRhiBuffer> buffer;
         std::vector<float> vertices;
         QRhiVertexInputLayout layout;
         bool uploaded = false;
     };
+
     struct BlitState {
         QRhiRenderPassDescriptor* renderPassDescriptor = nullptr;
         std::unique_ptr<QRhiBuffer> mvpBuffer;
         std::unique_ptr<QRhiShaderResourceBindings> bindings;
         std::unique_ptr<QRhiGraphicsPipeline> pipeline;
         QSize size;
+        OcioGpu color;
         bool mvpBufferUploaded = false;
     };
+
     bool updateBlitState(BlitState& state, QRhiRenderTarget* renderTarget, const RenderSpec& spec);
     void updateBlitTransform(BlitState& state, const RenderSpec& spec, QRhiResourceUpdateBatch* updates);
     void renderBlit(BlitState& state, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
+
     struct OutputState {
         RenderOutput* output = nullptr;
         BlitState blitState;
@@ -189,6 +197,7 @@ public:
         quint64 readbackFrameIndex = 0;
         bool readbackPending = false;
     };
+
     OutputState* outputState(RenderOutput* output);
     void pruneOutputStates();
     bool updateOutputState(OutputState& state, RenderOutput* output);
@@ -198,9 +207,11 @@ public:
     void renderConvertState(OutputState& state, RenderOutput* output, QRhiCommandBuffer* commandBuffer);
     bool prepareReadbackState(OutputState& state, RenderOutput* output);
     void requestReadbackState(OutputState& state, RenderOutput* output, QRhiCommandBuffer* commandBuffer);
+
     struct LutData {
         int size = 0;
         QByteArray rgba32f;
+
         static QByteArray identityLut(int size)
         {
             QByteArray data;
@@ -218,6 +229,7 @@ public:
             }
             return data;
         }
+
         static LutData loadLut(const QString& filename)
         {
             LutData data;
@@ -299,8 +311,10 @@ public:
 
             return data;
         }
+
         bool isValid() const { return size > 1 && !rgba32f.isEmpty(); }
     };
+
     struct LutState {
         QString name;
         QString filename;
@@ -308,11 +322,13 @@ public:
         int size = 2;
         std::unique_ptr<QRhiTexture> texture;
     };
+
     struct ImageState {
         enum class TextureType { Unknown, UInt8, Half, Float, Nv12, Uyvy };
         TextureType textureType = TextureType::Unknown;
         std::unique_ptr<QRhiTexture> texture0;
         std::unique_ptr<QRhiTexture> texture1;
+        std::unique_ptr<QRhiBuffer> pixels;
         std::unique_ptr<QRhiShaderResourceBindings> shaderBindings;
         std::unique_ptr<QRhiBuffer> globalBuffer;
         std::unique_ptr<QRhiBuffer> effectBuffer;
@@ -324,11 +340,15 @@ public:
         std::vector<LutState> luts;
         QString lutKey;
         QString shaderKey;
+        OcioGpu color;
+
         void reset()
         {
+            color = {};
             textureType = TextureType::Unknown;
             texture0.reset();
             texture1.reset();
+            pixels.reset();
             shaderBindings.reset();
             globalBuffer.reset();
             effectBuffer.reset();
@@ -341,6 +361,7 @@ public:
             luts.clear();
             lutKey.clear();
         }
+
         bool initLut(LutState& lut, const LutData& data, QRhi* rhi)
         {
             if (!rhi || !data.isValid())
@@ -352,12 +373,14 @@ public:
 
             return lut.texture && lut.texture->create();
         }
+
         bool initTextures(const core::ImageBuffer& image, QRhi* rhi)
         {
             if (!rhi || !image.isValid())
                 return false;
 
             if (textureType == TextureType::Nv12) {
+                pixels.reset();
                 const QSize ySize = image.planeSize(0);
                 const QSize uvSize = image.planeSize(1);
                 if (!texture0 || texture0->pixelSize() != ySize || texture0->format() != QRhiTexture::R8) {
@@ -374,6 +397,7 @@ public:
                 return true;
             }
             if (textureType == TextureType::Uyvy) {
+                pixels.reset();
                 const QSize size(image.dataWindow().width() / 2, image.dataWindow().height());
 
                 if (!texture0 || texture0->pixelSize() != size || texture0->format() != QRhiTexture::RGBA8) {
@@ -385,6 +409,21 @@ public:
                 return true;
             }
 
+            if (usesPixelBuffer(image)) {
+                if (image.byteSize() > size_t(std::numeric_limits<int>::max() - 3))
+                    return false;
+
+                pixels.reset(
+                    rhi->newBuffer(QRhiBuffer::Static, QRhiBuffer::StorageBuffer, (int(image.byteSize()) + 3) & ~3));
+                if (!pixels->create()) {
+                    pixels.reset();
+                    return false;
+                }
+                texture0.reset();
+                texture1.reset();
+                return true;
+            }
+            pixels.reset();
             const core::ImageBuffer& uploadImage = imageData0.isValid() ? imageData0 : image;
             const QSize size(uploadImage.dataWindow().width(), uploadImage.dataWindow().height());
             const QRhiTexture::Format format = toTextureFormat(textureType);
@@ -398,6 +437,7 @@ public:
             texture1.reset();
             return true;
         }
+
         bool prepareTextures(const core::ImageBuffer& image)
         {
             imageData0.reset();
@@ -441,16 +481,25 @@ public:
                 return false;
             }
 
-            if (image.channels() == 4)
-                imageData0 = image;
-            else
-                imageData0 = core::ImageBuffer::convert(image, image.imageFormat().type(), 4);
+            if (textureType == TextureType::Unknown || image.channels() < 1 || image.channels() > 4)
+                return false;
 
-            return imageData0.isValid();
+            // Retain native storage. Missing components are supplied in the
+            // existing layer shader, alongside channel order and color handling.
+            imageData0 = image;
+            return imageData0.isAllocated();
         }
+
         quint64 uploadTextures(QRhiResourceUpdateBatch* updates)
         {
-            if (!updates || !texture0)
+            if (!updates)
+                return 0;
+
+            if (pixels && imageData0.isAllocated()) {
+                updates->uploadStaticBuffer(pixels.get(), 0, quint32(imageData0.byteSize()), imageData0.data());
+                return quint64(imageData0.byteSize());
+            }
+            if (!texture0)
                 return 0;
 
             if (textureType == TextureType::Nv12) {
@@ -506,6 +555,7 @@ public:
 
             return quint64(imageData0.byteSize());
         }
+
         bool uploadLut(const LutState& state, const LutData& data, QRhiResourceUpdateBatch* updates)
         {
             if (!updates || !state.texture || !data.isValid())
@@ -530,6 +580,14 @@ public:
             updates->uploadTexture(state.texture.get(), upload);
             return true;
         }
+
+        static bool usesPixelBuffer(const core::ImageBuffer& image)
+        {
+            return image.packing() == core::ImageBuffer::Packing::Interleaved
+                   && image.subsampling() == core::ImageBuffer::Subsampling::None && image.channels() >= 1
+                   && image.channels() < 4;
+        }
+
         static QRhiTexture::Format toTextureFormat(TextureType type)
         {
             switch (type) {
@@ -543,6 +601,7 @@ public:
             default: return QRhiTexture::RGBA16F;
             }
         }
+
         static TextureType toTextureType(const core::ImageBuffer& image)
         {
             if (!image.isValid())
@@ -590,18 +649,22 @@ public:
     qsizetype formatSize(RenderOutput::Format format, const QSize& size) const;
     qsizetype formatStride(RenderOutput::Format format, int width) const;
     QString ycbcrFunctionName(ImageState::TextureType textureType, ColorSpace colorSpace) const;
-    QString buildLayerShaderKey(ImageState::TextureType textureType, ColorSpace colorSpace,
-                                const ShaderDefinition* effectDefinition);
-    QString buildLayerShaderSource(ImageState::TextureType textureType, ColorSpace colorSpace,
-                                   const ShaderDefinition* effectDefinition);
+    QString buildLayerShaderKey(ImageState::TextureType textureType, int channels, ColorSpace colorSpace,
+                                const ShaderDefinition* effectDefinition, const QString& inputKey);
+    QString buildLayerShaderSource(ImageState::TextureType textureType, int channels, ColorSpace colorSpace,
+                                   const ShaderDefinition* effectDefinition, const QString& inputShader,
+                                   const QString& inputKey);
     QString buildLutShaderKey(const ShaderDefinition* effectDefinition);
+
     struct FileHash {
         qint64 size = -1;
         qint64 modified = -1;
         QByteArray hash;
     };
+
     QByteArray fileHash(const QString& filename);
     QByteArray textHash(const QString& text) const;
+
     struct FrameStats {
         quint64 frameIndex = 0;
         int layerCount = 0;
@@ -626,6 +689,7 @@ public:
         qint64 renderSceneNs = 0;
         qint64 renderBlitNs = 0;
         qint64 renderFrameNs = 0;
+
         void reset(quint64 frame, int layers)
         {
             *this = {};
@@ -633,30 +697,35 @@ public:
             layerCount = layers;
         }
     };
+
     void resetFrameStats();
     void logFrameStats() const;
+
     struct Data {
         QRhi* deviceRhi = nullptr;
+        ColorSettings colorSettings;
+        ocio::ConstConfigRcPtr colorConfig;
         SceneState sceneState;
-        QuadState quadState;
         BlitState blitState;
-        std::vector<ImageState> imageStates;
-        std::vector<OutputState> outputStates;
-        std::unique_ptr<QRhiSampler> sampler;
-        std::unique_ptr<QRhiSampler> nearestSampler;
-        bool valid = false;
+        FrameStats stats;
+        core::Error error;
+        QuadState quadState;
         QSize size;
-        quint64 frameIndex = 0;
         QSize resolution = QSize(1920, 1080);
-        QColor background = core::style()->color(core::Style::Viewer);
+        QColor background = core::ui()->color(core::UI::Render);
         QList<ImageLayer> imageLayers;
         QList<RenderOutput*> renderOutputs;
         QHash<QString, QString> shaderSourceCache;
         QHash<QString, QString> generatedShaderSourceCache;
         QHash<QString, QShader> shaderCache;
         QHash<QString, FileHash> fileCache;
-        FrameStats stats;
-        core::Error error;
+        std::vector<ImageState> imageStates;
+        std::vector<OutputState> outputStates;
+        std::unique_ptr<QRhiSampler> sampler;
+        std::unique_ptr<QRhiSampler> nearestSampler;
+        quint64 colorRevision = 0;
+        quint64 frameIndex = 0;
+        bool valid = false;
     };
     Data d;
 };
@@ -758,11 +827,11 @@ RenderEnginePrivate::reset()
     d.fileCache.clear();
 }
 
-void
+bool
 RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
 {
     if (!updates || !d.sceneState.texture || !d.deviceRhi)
-        return;
+        return false;
 
     struct Global {
         float mvp[16];
@@ -838,7 +907,7 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
             continue;
         }
 
-        const bool needsTextures = !imageState.texture0 || imageLayoutChanged
+        const bool needsTextures = (!imageState.texture0 && !imageState.pixels) || imageLayoutChanged
                                    || (imageState.textureType == ImageState::TextureType::Nv12 && !imageState.texture1);
 
         if (needsTextures) {
@@ -920,8 +989,38 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
         d.stats.globalBufferUploadBytes += sizeof(Global);
 #endif
 
-        const QString newShaderKey = buildLayerShaderKey(imageState.textureType, image.colorSpace(),
-                                                         effectDefinitionPtr);
+        try {
+            QString source = imageLayer.inputColorSpace();
+            if (source.isEmpty())
+                source = ColorPipeline::inputColorSpace(image);
+            const QString colorKey
+                = QString::number(d.colorRevision) + ":" + source + ":"
+                  + QString::number(effectDefinitionPtr ? int(effectDefinitionPtr->descriptor().lutParameters().size())
+                                                        : 0);
+            if (imageState.color.key != colorKey) {
+                OcioGpu color;
+                if (d.colorSettings.enabled) {
+                    if (source.isEmpty())
+                        throw std::runtime_error("unknown source color encoding; set layer inputColorSpace explicitly");
+                    color.build(
+                        d.deviceRhi,
+                        d.colorConfig->getProcessor(source.toUtf8().constData(),
+                                                    d.colorSettings.workingSpace.toUtf8().constData()),
+                        "fmInput",
+                        4 + (effectDefinitionPtr ? int(effectDefinitionPtr->descriptor().lutParameters().size()) : 0));
+                }
+                color.key = colorKey;
+                imageState.shaderBindings.reset();
+                imageState.pipeline.reset();
+                imageState.color = std::move(color);
+            }
+            imageState.color.upload(updates);
+        } catch (const std::exception& error) {
+            d.error = core::Error("color", QString::fromUtf8(error.what()));
+            return false;
+        }
+        const QString newShaderKey = buildLayerShaderKey(imageState.textureType, image.channels(), image.colorSpace(),
+                                                         effectDefinitionPtr, imageState.color.key);
         const bool shaderChanged = imageState.shaderKey != newShaderKey;
 
         if (shaderChanged) {
@@ -1061,6 +1160,10 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
                                                                       imageState.texture1.get(),
                                                                       d.nearestSampler.get());
             }
+            else if (imageState.pixels) {
+                bindings << QRhiShaderResourceBinding::bufferLoad(1, QRhiShaderResourceBinding::FragmentStage,
+                                                                  imageState.pixels.get());
+            }
             else {
                 bindings << QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
                                                                       imageState.texture0.get(), d.sampler.get());
@@ -1077,6 +1180,7 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
                                                                       lut.texture.get(), d.sampler.get());
             }
 
+            imageState.color.bindings(bindings);
             imageState.shaderBindings.reset(d.deviceRhi->newShaderResourceBindings());
             imageState.shaderBindings->setBindings(bindings.begin(), bindings.end());
 
@@ -1100,8 +1204,9 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
             imageState.pipeline.reset(d.deviceRhi->newGraphicsPipeline());
             imageState.pipeline->setTopology(QRhiGraphicsPipeline::TriangleStrip);
 
-            const QString fragmentSource = buildLayerShaderSource(imageState.textureType, image.colorSpace(),
-                                                                  effectDefinitionPtr);
+            const QString fragmentSource = buildLayerShaderSource(imageState.textureType, image.channels(),
+                                                                  image.colorSpace(), effectDefinitionPtr,
+                                                                  imageState.color.shader, imageState.color.key);
             if (fragmentSource.isEmpty()) {
                 qWarning() << "renderengine: failed to build layer shader source:" << d.error.message();
                 imageState.pipeline.reset();
@@ -1163,6 +1268,7 @@ RenderEnginePrivate::update(QRhiResourceUpdateBatch* updates)
 
         RE_TRACE() << "renderengine: frame" << frameIndex << "layer" << i << "done";
     }
+    return true;
 }
 
 void
@@ -1195,7 +1301,12 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
 
     // prepare layer textures, shader resources, uniforms, LUTs and pipelines.
     // This updates all resources needed by the scene pass.
-    update(resourceUpdates);
+    if (!update(resourceUpdates)) {
+        // Keep successful resource uploads queued before a later layer failed.
+        commandBuffer->resourceUpdate(resourceUpdates);
+        return;
+    }
+    d.blitState.color.upload(resourceUpdates);
 
 #if RE_STATS_ENABLED
     d.stats.updateRenderStatesNs = timer.nsecsElapsed();
@@ -1222,6 +1333,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
         if (!updateOutputState(*state, output))
             continue;
 
+        state->blitState.color.upload(resourceUpdates);
         updateBlitTransform(state->blitState, output->pass(), resourceUpdates);
     }
 
@@ -1232,7 +1344,7 @@ RenderEnginePrivate::render(const RenderContext& context, const RenderSpec& spec
 
     // scene pass
     // render all image layers into the engine-owned internal RGBA16F target.
-    commandBuffer->beginPass(d.sceneState.renderTarget.get(), d.background, { 1.0f, 0 }, resourceUpdates);
+    commandBuffer->beginPass(d.sceneState.renderTarget.get(), Qt::transparent, { 1.0f, 0 }, resourceUpdates);
     renderScene(context, spec, commandBuffer);
     commandBuffer->endPass();
 
@@ -1326,6 +1438,22 @@ RenderEnginePrivate::updateBlitState(BlitState& state, QRhiRenderTarget* renderT
         return false;
     }
 
+    const QString colorKey = QString::number(d.colorRevision);
+    if (state.color.key != colorKey) {
+        try {
+            OcioGpu color;
+            if (d.colorSettings.enabled) {
+                color.build(d.deviceRhi, ocioOutputProcessor(d.colorConfig, d.colorSettings), "fmOutput", 2);
+            }
+            color.key = colorKey;
+            state.bindings.reset();
+            state.pipeline.reset();
+            state.color = std::move(color);
+        } catch (const std::exception& error) {
+            d.error = core::Error("color", QString::fromUtf8(error.what()));
+            return false;
+        }
+    }
     const QSize size = spec.size();
     const bool stateChanged = state.renderPassDescriptor != renderPassDescriptor || state.size != size;
 
@@ -1353,14 +1481,16 @@ RenderEnginePrivate::updateBlitState(BlitState& state, QRhiRenderTarget* renderT
 
     if (!state.bindings) {
         state.bindings.reset(d.deviceRhi->newShaderResourceBindings());
-        state.bindings->setBindings({
+        QVector<QRhiShaderResourceBinding> bindings {
             QRhiShaderResourceBinding::uniformBuffer(0,
                                                      QRhiShaderResourceBinding::VertexStage
                                                          | QRhiShaderResourceBinding::FragmentStage,
                                                      state.mvpBuffer.get()),
             QRhiShaderResourceBinding::sampledTexture(1, QRhiShaderResourceBinding::FragmentStage,
                                                       d.sceneState.texture.get(), d.sampler.get()),
-        });
+        };
+        state.color.bindings(bindings);
+        state.bindings->setBindings(bindings.cbegin(), bindings.cend());
 
         if (!state.bindings->create()) {
             d.error = core::Error("renderengine", "could not create blit shader bindings");
@@ -1380,7 +1510,20 @@ RenderEnginePrivate::updateBlitState(BlitState& state, QRhiRenderTarget* renderT
             return false;
         }
 
-        const QShader fragmentShader = compileShader(loadShader("blit"), QShader::FragmentStage);
+        QString fragmentSource = loadShader("blit");
+        if (!state.color.shader.isEmpty()) {
+            fragmentSource.replace("void main()", state.color.shader + R"(
+vec4 fmPresent(vec4 c)
+{
+    // The scene target contains premultiplied composite RGB.
+    vec3 straight = c.a > 0.0 ? c.rgb / c.a : vec3(0.0);
+    return vec4(fmOutput(vec4(straight, c.a)).rgb * c.a, c.a);
+}
+void main())");
+            fragmentSource.replace("fragColor = texture(tex, uv_coord);",
+                                   "fragColor = fmPresent(texture(tex, uv_coord));");
+        }
+        const QShader fragmentShader = compileShader(fragmentSource, QShader::FragmentStage);
         if (!fragmentShader.isValid()) {
             d.error = core::Error("renderengine", "could not compile blit shader");
             state.pipeline.reset();
@@ -1392,6 +1535,15 @@ RenderEnginePrivate::updateBlitState(BlitState& state, QRhiRenderTarget* renderT
             { QRhiShaderStage::Fragment, fragmentShader },
         });
 
+        // Composite after the output transform so uncovered project pixels use
+        // the display background rather than treating it as working-space RGB.
+        QRhiGraphicsPipeline::TargetBlend blend;
+        blend.enable = true;
+        blend.srcColor = QRhiGraphicsPipeline::One;
+        blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        blend.srcAlpha = QRhiGraphicsPipeline::One;
+        blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
+        state.pipeline->setTargetBlends({ blend });
         state.pipeline->setVertexInputLayout(d.quadState.layout);
         state.pipeline->setShaderResourceBindings(state.bindings.get());
         state.pipeline->setRenderPassDescriptor(state.renderPassDescriptor);
@@ -2136,6 +2288,7 @@ RenderEnginePrivate::std140BufferSize(const QList<ShaderDescriptor::ShaderParame
         const int alignment = std140BaseAlignment(param.type);
         offset = alignTo(offset, alignment);
         offsets->push_back(offset);
+
         // Important:
         // vec3 has 16-byte base alignment, but its occupied value size is 12 bytes.
         // A following float/int/bool may legally occupy the remaining 4 bytes.
@@ -2200,8 +2353,8 @@ RenderEnginePrivate::ycbcrFunctionName(ImageState::TextureType textureType, Colo
 }
 
 QString
-RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, ColorSpace colorSpace,
-                                         const ShaderDefinition* effectDefinition)
+RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, int channels, ColorSpace colorSpace,
+                                         const ShaderDefinition* effectDefinition, const QString& inputKey)
 {
     QString effectShaderCode;
     QString effectUniformBlock;
@@ -2212,20 +2365,22 @@ RenderEnginePrivate::buildLayerShaderKey(ImageState::TextureType textureType, Co
     }
 
     return QString("layer:%1:%2:%3:%4:%5:%6:%7")
-        .arg(int(textureType))
-        .arg(int(colorSpace))
-        .arg(QString::fromLatin1(textHash(idtCode)))
-        .arg(QString::fromLatin1(textHash(odtCode)))
-        .arg(QString::fromLatin1(textHash(effectShaderCode)))
-        .arg(QString::fromLatin1(textHash(effectUniformBlock)))
-        .arg(QString::fromLatin1(textHash(buildLutShaderKey(effectDefinition))));
+               .arg(int(textureType))
+               .arg(int(colorSpace))
+               .arg(QString::fromLatin1(textHash(idtCode)))
+               .arg(QString::fromLatin1(textHash(odtCode)))
+               .arg(QString::fromLatin1(textHash(effectShaderCode)))
+               .arg(QString::fromLatin1(textHash(effectUniformBlock)))
+               .arg(QString::fromLatin1(textHash(buildLutShaderKey(effectDefinition))))
+           + ":" + inputKey + ":" + QString::number(channels);
 }
 
 QString
-RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType, ColorSpace colorSpace,
-                                            const ShaderDefinition* effectDefinition)
+RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType, int channels, ColorSpace colorSpace,
+                                            const ShaderDefinition* effectDefinition, const QString& inputShader,
+                                            const QString& inputKey)
 {
-    const QString shaderKey = buildLayerShaderKey(textureType, colorSpace, effectDefinition);
+    const QString shaderKey = buildLayerShaderKey(textureType, channels, colorSpace, effectDefinition, inputKey);
     const auto it = d.generatedShaderSourceCache.constFind(shaderKey);
 
     if (it != d.generatedShaderSourceCache.constEnd()) {
@@ -2287,6 +2442,24 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
         texCode.replace(QStringLiteral("_uyvyToRgb(uyvy, pixel.x)"),
                         QStringLiteral("%1(uyvy, pixel.x)").arg(ycbcrFunction));
     }
+    else if (channels < 4) {
+        const int sampleType = textureType == ImageState::TextureType::UInt8  ? 0
+                               : textureType == ImageState::TextureType::Half ? 1
+                                                                              : 2;
+        const int bytes = sampleType == 0 ? 1 : (sampleType == 1 ? 2 : 4);
+        texUniformBlock = QString::fromLatin1(pixelBufferSampling);
+        texCode = QString(R"(
+ivec2 _sampleSize() { return ivec2(global.resolution); }
+vec4 _sample(ivec2 pixel)
+{
+    ivec2 size = _sampleSize();
+    return fmImagePixel(pixel, ivec4(size, size.x * %1 * %2, %1), %3, global.sourceBgr > 0.5);
+}
+)")
+                      .arg(channels)
+                      .arg(bytes)
+                      .arg(sampleType);
+    }
     else {
         texUniformBlock = texUniformTexture2D;
         texCode = texCodeTexture2D;
@@ -2335,7 +2508,14 @@ RenderEnginePrivate::buildLayerShaderSource(ImageState::TextureType textureType,
         return {};
     }
 
-    const QString generatedSource = layerDefinition.shaderCode();
+    QString generatedSource = layerDefinition.shaderCode();
+
+    // OCIO emits complete shader helpers. Its generated code goes directly to
+    // Qt's shader compiler, rather than our effect-declaration reflection parser.
+    if (!inputShader.isEmpty()) {
+        const QString input = inputShader + "\nvec4 idt(vec4 c) { return fmInput(c); }\n";
+        generatedSource.replace(idtCode.trimmed(), input);
+    }
     d.generatedShaderSourceCache.insert(shaderKey, generatedSource);
 
     return generatedSource;
@@ -2346,6 +2526,7 @@ RenderEnginePrivate::buildLutShaderKey(const ShaderDefinition* effectDefinition)
 {
     if (!effectDefinition)
         return QString();
+
     QStringList parts;
     for (const auto& param : effectDefinition->descriptor().lutParameters()) {
         const QString filename = param.value.isValid() ? param.value.toString() : param.defaultValue.toString();
@@ -2449,9 +2630,11 @@ RenderEngine::initialize(const RenderContext& context, const RenderSpec& spec)
 
     const bool deviceChanged = p->d.deviceRhi != context.rhi();
     const bool blitContextChanged = p->d.blitState.renderPassDescriptor != renderTarget->renderPassDescriptor()
-                                    || p->d.blitState.size != spec.size();
+                                    || p->d.blitState.size != spec.size()
+                                    || p->d.blitState.color.key != QString::number(p->d.colorRevision);
 
-    if (!p->d.valid || deviceChanged) {
+    if (!p->d.valid || deviceChanged || !p->d.sceneState.texture
+        || p->d.sceneState.texture->pixelSize() != p->d.resolution) {
         p->reset();
         return p->init(context, spec);
     }
@@ -2471,7 +2654,48 @@ RenderEngine::render(const RenderContext& context, const RenderSpec& spec, QRhiC
     if (!p->d.valid || !context.isValid())
         return;
 
+    p->d.error.reset();
     p->render(context, spec, commandBuffer);
+}
+
+core::Error
+RenderEngine::error() const
+{
+    return p->d.error;
+}
+
+ColorSettings
+RenderEngine::colorSettings() const
+{
+    return p->d.colorSettings;
+}
+
+bool
+RenderEngine::setColorSettings(const ColorSettings& settings)
+{
+    try {
+        ocio::ConstConfigRcPtr config;
+        if (settings.enabled) {
+            config = ocioConfig(settings.configFile);
+            const auto working = config->getColorSpace(settings.workingSpace.toUtf8().constData());
+            if (!working || working->isData() || working->getReferenceSpaceType() != ocio::REFERENCE_SPACE_SCENE)
+                throw std::runtime_error("working space must be a non-data scene-referred OCIO color space");
+            if (settings.display != "Raw" && settings.view != "Raw"
+                && !ColorPipeline::views(settings.display, settings.configFile).contains(settings.view))
+                throw std::runtime_error("unknown OCIO display/view");
+            ocioOutputProcessor(config, settings);
+        }
+        if (p->d.colorSettings != settings) {
+            p->d.colorSettings = settings;
+            p->d.colorConfig = config;
+            ++p->d.colorRevision;
+        }
+        p->d.error.reset();
+        return true;
+    } catch (const std::exception& error) {
+        p->d.error = core::Error("color", QString::fromUtf8(error.what()));
+        return false;
+    }
 }
 
 QSize
@@ -2509,7 +2733,6 @@ RenderEngine::setImageLayers(const QList<ImageLayer>& imageLayers)
 {
     p->d.imageLayers = imageLayers;
 }
-
 
 QList<RenderOutput*>
 RenderEngine::renderOutputs() const

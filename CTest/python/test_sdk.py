@@ -150,6 +150,29 @@ def fixture_image():
     return image
 
 
+class MovieWriterTests(unittest.TestCase):
+    def test_single_frame_movie_is_finalized_at_exact_path(self):
+        runtime = sdk.Runtime()
+        image = sdk.ImageBuffer(128, 64)
+        image.setPixelLayout(sdk.ImageBuffer.PixelLayout.BGRA)
+        image.allocate()
+        image.setPlaneBytes(bytes([8, 16, 240, 255]) * (128 * 64))
+        with tempfile.TemporaryDirectory() as directory:
+            path = str(Path(directory) / "movie.mp4")
+            result = sdk.writeImage(runtime, image, sdk.File(path))
+            self.assertEqual(result.filePath(), path)
+            self.assertTrue(result.exists())
+            media = sdk.Media(runtime)
+            self.assertTrue(media.open(result, timeoutMs=10000))
+            self.assertEqual(media.timeRange().duration().frames(), 1)
+            self.assertTrue(media.read().isValid())
+            self.assertEqual(media.image().dataWindow().width(), 128)
+            self.assertFalse(media.read().isValid())
+            media.close()
+            with self.assertRaises(RuntimeError):
+                sdk.writeImage(runtime, image, result)
+
+
 class MediaTests(unittest.TestCase):
     def test_lifecycle_roundtrip_thread_and_runtime_ownership(self):
         runtime = sdk.Runtime()
@@ -198,6 +221,46 @@ class MediaTests(unittest.TestCase):
 
 
 class RenderTests(unittest.TestCase):
+    def test_ocio_gpu_pipeline(self):
+        runtime = sdk.Runtime()
+        self.assertIn("ACEScg", sdk.colorSpaces())
+        profiles = {p["name"]: p for p in sdk.colorProfiles()}
+        self.assertEqual(profiles["ARRI LogC3 (EI800)"]["gamut"], "ARRI Wide Gamut 3")
+        self.assertEqual(profiles["ARRI LogC3 (EI800)"]["encoding"], "LogC3 (EI800)")
+        self.assertEqual(profiles["Rec.1886 Rec.709 - Display"]["gamut"], "Rec.709")
+        awg24 = sdk.combinedColorSpace("ARRI Wide Gamut 3", "Gamma 2.4")
+        self.assertIn(awg24, sdk.workingSpaces())
+        self.assertEqual(profiles[awg24]["gamut"], "ARRI Wide Gamut 3")
+        with self.assertRaises((ValueError, RuntimeError)):
+            sdk.combinedColorSpace("invented gamut", "Gamma 2.4")
+        self.assertIn("ARRI LogC3 (EI800)", sdk.workingSpaces())
+        self.assertEqual(sdk.colorSpaceFamily("ARRI LogC3 (EI800)"), "Input/ARRI")
+        self.assertIn("Rec.1886 Rec.709 - Display", sdk.colorDisplays())
+        self.assertIn("ACES 2.0 - SDR 100 nits (Rec.709)", sdk.colorViews("Rec.1886 Rec.709 - Display"))
+        settings = sdk.ColorSettings()
+        self.assertFalse(settings.enabled)
+        self.assertEqual(settings.workingSpace, "ACEScg")
+        settings.enabled = True
+        image = fixture_image()
+        result = sdk.renderImage(runtime, image, colorSettings=settings,
+                                 inputColorSpace="sRGB - Display")
+        values = struct.unpack("=" + "e" * (len(result.planeBytes()) // 2), result.planeBytes())
+        self.assertTrue(all(math.isfinite(v) for v in values))
+        self.assertAlmostEqual(values[0], 1.0, delta=0.01)
+        settings.view = "ACES 2.0 - SDR 100 nits (Rec.709)"
+        result = sdk.renderImage(runtime, image, colorSettings=settings, inputColorSpace="ACEScg")
+        values = struct.unpack("=" + "e" * (len(result.planeBytes()) // 2), result.planeBytes())
+        self.assertTrue(all(math.isfinite(v) for v in values))
+        self.assertLess(values[0], 1.0)
+        with self.assertRaises(RuntimeError):
+            sdk.renderImage(runtime, image, colorSettings=settings, inputColorSpace="invalid-source")
+        settings.workingSpace = "ARRI LogC3 (EI800)"
+        result = sdk.renderImage(runtime, image, colorSettings=settings, inputColorSpace="ACEScg")
+        self.assertTrue(result.isAllocated())
+        settings.workingSpace = "invalid-working-space"
+        with self.assertRaises(RuntimeError):
+            sdk.renderImage(runtime, image, colorSettings=settings, inputColorSpace="ACEScg")
+
     def test_offscreen_image_and_profiler(self):
         runtime = sdk.Runtime()
         sdk.profile.setMode(sdk.profile.Mode.Aggregate)
@@ -227,7 +290,8 @@ class RenderTests(unittest.TestCase):
         sdk.profile.setMode(sdk.profile.Mode.Off)
 
 
-suites = {"time": TimeTests, "core": CoreTests, "image": ImageTests, "media": MediaTests, "render": RenderTests}
+suites = {"time": TimeTests, "core": CoreTests, "image": ImageTests, "media": MediaTests,
+          "writer": MovieWriterTests, "render": RenderTests}
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(suites[sys.argv[1]])
     sys.exit(not unittest.TextTestRunner(verbosity=2).run(suite).wasSuccessful())

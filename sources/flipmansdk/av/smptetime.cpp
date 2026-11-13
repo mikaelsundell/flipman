@@ -4,10 +4,12 @@
 #include <flipmansdk/av/smptetime.h>
 
 namespace flipman::sdk::av {
+
 class SmpteTimePrivate : public QSharedData {
 public:
     qint64 frame() const;
     void update();
+
     struct Data {
         Time time;
         quint32 counter = 0;
@@ -333,4 +335,5 @@ SmpteTime::convert(quint64 frame, const Fps& fps, bool reverse)
     }
     return frametime;
 }
+
 }  // namespace flipman::sdk::av

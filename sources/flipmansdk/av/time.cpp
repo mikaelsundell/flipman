@@ -5,6 +5,7 @@
 #include <flipmansdk/av/time.h>
 
 namespace flipman::sdk::av {
+
 class TimePrivate : public QSharedData {
 public:
     qreal tpf();
@@ -12,6 +13,7 @@ public:
     qint64 frame(qint64 ticks);
     qint64 frames();
     QString toString(qreal seconds);
+
     struct Data {
         Fps fps = Fps::fps24();
         qint64 ticks = 0;
@@ -94,7 +96,6 @@ Time::Time(const Time& other)
 {}
 
 Time::~Time() {}
-
 
 Fps
 Time::fps() const
@@ -266,7 +267,11 @@ Time::operator-(const Time& other) const
     return Time(p->d.ticks - other.p->d.ticks, p->d.timeScale, p->d.fps);
 }
 
-Time::operator double() const { return seconds(); }
+Time::
+operator double() const
+{
+    return seconds();
+}
 
 Time
 Time::zero(const Fps& fps)
@@ -316,4 +321,5 @@ Time::convert(const Time& time, qint32 timeScale)
     }
     return Time(ticks, timeScale, time.fps());
 }
+
 }  // namespace flipman::sdk::av

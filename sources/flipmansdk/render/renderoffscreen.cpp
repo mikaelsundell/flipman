@@ -2,24 +2,23 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QPointer>
 #include <flipmansdk/core/perfscope.h>
 #include <flipmansdk/core/profile.h>
 #include <flipmansdk/render/renderdevice.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
 #include <flipmansdk/render/renderspec.h>
+#include <QPointer>
 
 namespace flipman::sdk::render {
 
 class RenderOffscreenPrivate {
 public:
     struct Data {
-        std::unique_ptr<RenderDevice> device;
         QPointer<render::RenderEngine> renderEngine;
+        std::unique_ptr<RenderDevice> device;
         bool initialized = false;
     };
-
     Data d;
 };
 
@@ -96,6 +95,8 @@ RenderOffscreen::render()
 
     p->d.device->endFrame();
 
+    if (p->d.renderEngine->error().hasError())
+        return {};
     return p->d.device->readback();
 }
 

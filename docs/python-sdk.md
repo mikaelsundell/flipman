@@ -4,7 +4,7 @@ The optional `flipman` extension calls the same shared SDK as native clients. It
 uses nanobind, CPython 3.9 or newer (subject to the installed nanobind version),
 and the selected Qt/OpenImageIO dependency environment. It does not embed an
 interpreter or initialize Qt at import. This first binding layer intentionally
-excludes unfinished timeline playback, audio, BRAW, movie writing, and widgets.
+excludes unfinished timeline playback, audio, BRAW, multi-frame movie writing, and widgets.
 There is no wheel/distribution packaging yet.
 
 ## Build and run
@@ -27,7 +27,7 @@ launcher uses that interpreter, adds the module directory to `PYTHONPATH`, and
 sets the matching Qt image suffix. It forwards all Python arguments.
 
 On macOS, `DYLD_IMAGE_SUFFIX=_debug` must be present at process startup for the
-Debug Qt environment, as required by Stageviz's development conventions. The
+Debug Qt environment. The
 protected `/usr/bin/python3` launcher may strip DYLD environment settings; use
 the generated launcher or the configured interpreter directly. Mixing Debug
 Qt libraries with Release platform plugins can abort Python. `Runtime()` now
@@ -153,6 +153,10 @@ uses OpenImageIO. This layer does not expose audio or Python Qt signals.
 through the native writer registry and returns the actual output `File`.
 It preserves SDK sequence naming: a `frame.####.png` pattern produces
 `frame.0000.png`, and an unpatterned `frame.png` produces `frame.0.png`.
+MOV/MP4 use the exact supplied path and produce a finalized single-frame video
+(MOV defaults to ProRes 422, MP4 to H.264). Movie input requires an explicit
+RGBA/BGRA layout. Errors from finalization raise `RuntimeError`. Multi-frame
+encoding and codec options remain native SDK APIs; see [QuickTime writing](quicktime-writing.md).
 
 ```python
 runtime = sdk.Runtime()
@@ -236,3 +240,49 @@ BRAW accepts only the three RAW decode overrides above; see the native reader
 option bounds in the linked guide. File cloning, exports, resize, LUTs and
 metadata overlays are outside the reader. `open` returns False on native errors;
 inspect `media.error()`. Unsupported Python value types raise TypeError.
+
+## GPU color management
+
+`ColorSettings()` has writable `enabled` (default `False`), `configFile` (empty
+uses the embedded Studio v4 / ACES 2 / OCIO 2.5 config), `workingSpace` (default
+`"ACEScg"`), `display` (default `"Rec.1886 Rec.709 - Display"`), and `view` (default
+`"Un-tone-mapped"`). The working space must be a non-data scene-referred config space. Encoded
+spaces such as `"ARRI LogC3 (EI800)"` are supported. Effects and the existing
+layer blend operate in that selected encoding; linear-light blending for log
+working spaces is deferred. `display` also accepts a composable color-space identifier;
+`display="Raw"` or `view="Raw"` bypasses the final output transform.
+
+- `combinedColorSpace(gamut, encoding, configFile="")` returns a color-space identifier
+  for an independent pair, e.g. `("ARRI Wide Gamut 3", "Gamma 2.4")`. The embedded
+  config composes its known curves and linear RGB gamuts; external configs resolve
+  only their existing pairs. Unsupported pairs raise `RuntimeError`.
+- `colorSpaces(configFile="")` returns source/working color-space names.
+- `colorSpaceFamily(name, configFile="")` returns the config family path, e.g.
+  `"Input/ARRI"`, used for grouped source menus.
+- `workingSpaces(configFile="")` lists non-data scene-referred working encodings.
+- `colorProfiles(configFile="")` returns dictionaries with `name` (exact OCIO
+  identifier), `gamut`, `encoding` and `family` presentation metadata. The paired
+  viewer controls use these supported combinations, including the embedded config’s
+  composable gamut/curve pairs.
+- `colorDisplays(configFile="")` returns output display names.
+- `colorViews(display, configFile="")` returns view names for that display.
+- `ImageLayer.inputColorSpace()` / `setInputColorSpace(name)` accesses the exact
+  OCIO source override; empty means use supported image metadata. Layer copies
+  share this setting, like the existing layer image/effect fields.
+- `renderImage(runtime, image, width=0, height=0, *, colorSettings=ColorSettings(),
+  inputColorSpace="")` renders using GPU transforms when enabled. Invalid settings,
+  unsupported source tags, or shader/resource errors raise `RuntimeError`.
+
+```python
+settings = flipman.ColorSettings()
+settings.enabled = True
+settings.view = "ACES 2.0 - SDR 100 nits (Rec.709)"
+preview = flipman.renderImage(runtime, image, colorSettings=settings,
+                             inputColorSpace="ARRI LogC3 (EI800)")
+```
+
+Select the source that describes the decoded pixels, which may differ from the
+camera original after a decoder's processing. Use `Un-tone-mapped` for already
+rendered video when another tone-mapping treatment is unwanted. `renderImage`
+returns an offscreen buffer and performs its existing readback; interactive
+playback does not read pixels back. See [GPU color management](color-pipeline.md).

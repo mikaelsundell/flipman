@@ -2,28 +2,29 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/widgets/viewer.h>
-#include <flipmansdk/core/core.h>
 #include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
+#include <flipmansdk/core/core.h>
+#include <flipmansdk/core/ui.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderspec.h>
-#include <QColorSpace>
-#include <QDebug>
-#include <QMouseEvent>
-#include <QPointer>
-#include <algorithm>
-#include <cmath>
-#include <rhi/qrhi.h>
+#include <flipmansdk/widgets/viewer.h>
 #include <AppKit/AppKit.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <QuartzCore/CAMetalLayer.h>
+#include <QDebug>
+#include <QGuiApplication>
+#include <QMouseEvent>
+#include <QPointer>
+#include <rhi/qrhi.h>
+#include <algorithm>
+#include <cmath>
 
 namespace flipman::sdk::widgets {
 
 class ViewerPrivate : public QObject {
 public:
     ViewerPrivate();
+    ~ViewerPrivate() override;
 
     void init();
     void clear();
@@ -35,26 +36,34 @@ public:
 
 public:
     CAMetalLayer* findMetalLayer(CALayer* layer);
-    QColorSpace::Primaries toPrimaries(render::ColorSpace colorSpace);
-    QColorSpace toDisplayColorSpace(render::ColorSpace colorSpace,
-                                     render::TransferFunction transferFunction);
     void updateWidget(QWidget* widget, const render::DisplayTransform& transform);
 
     struct Data {
-        QMatrix4x4 view;
-        QPointF mousepos;
-        QPointF pan;
-        float zoom = 1.0f;
+        // Owns one CoreGraphics reference until the display profile changes
+        // or the viewer is destroyed; CAMetalLayer retains its own reference.
+        CGColorSpaceRef nativeColorSpace = nullptr;
         Viewer::ZoomMode zoomMode = Viewer::FitToView;
         render::DisplayTransform displayTransform;
+        render::DisplayColorSpace displayColorSpace { render::DisplayTransform() };
+        QMatrix4x4 view;
+        QSize viewSize;
+        QSize viewResolution;
+        QPointF mousepos;
+        QPointF pan;
         QPointer<render::RenderEngine> renderEngine;
+        float zoom = 1.0f;
         QPointer<Viewer> widget;
     };
-
     Data d;
 };
 
 ViewerPrivate::ViewerPrivate() {}
+
+ViewerPrivate::~ViewerPrivate()
+{
+    if (d.nativeColorSpace)
+        CGColorSpaceRelease(d.nativeColorSpace);
+}
 
 void
 ViewerPrivate::init()
@@ -125,6 +134,9 @@ ViewerPrivate::updateView()
     if (!widgetSize.isValid() || resolution.isEmpty())
         return;
 
+    d.viewSize = widgetSize;
+    d.viewResolution = resolution;
+
     const float w = float(widgetSize.width());
     const float h = float(widgetSize.height());
 
@@ -170,120 +182,14 @@ ViewerPrivate::findMetalLayer(CALayer* layer)
     return nil;
 }
 
-QColorSpace::Primaries
-ViewerPrivate::toPrimaries(render::ColorSpace colorSpace)
-{
-    switch (colorSpace) {
-    case render::ColorSpace::Unknown:
-    case render::ColorSpace::Raw:
-    case render::ColorSpace::Rec709:
-        return QColorSpace::Primaries::SRgb;
-
-    case render::ColorSpace::DisplayP3:
-    case render::ColorSpace::DCIP3:
-        return QColorSpace::Primaries::DciP3D65;
-
-    case render::ColorSpace::Rec2020:
-        return QColorSpace::Primaries::Bt2020;
-
-    case render::ColorSpace::Rec601:
-        qWarning() << "viewer: Rec.601 primaries cannot be represented by QColorSpace::Primaries,"
-                   << "falling back to sRGB primaries for display tagging";
-        return QColorSpace::Primaries::SRgb;
-
-    case render::ColorSpace::ACEScg:
-        qWarning() << "viewer: ACEScg/AP1 primaries cannot be represented by QColorSpace::Primaries,"
-                   << "falling back to sRGB primaries for display tagging";
-        return QColorSpace::Primaries::SRgb;
-    }
-
-    qWarning() << "viewer: unknown color space for display primaries,"
-               << "falling back to sRGB primaries"
-               << "colorSpace:" << int(colorSpace);
-
-    return QColorSpace::Primaries::SRgb;
-}
-
-QColorSpace
-ViewerPrivate::toDisplayColorSpace(render::ColorSpace colorSpace,
-                                   render::TransferFunction transferFunction)
-{
-    if (colorSpace == render::ColorSpace::DisplayP3 &&
-        transferFunction == render::TransferFunction::SRGB) {
-        return QColorSpace(QColorSpace::NamedColorSpace::DisplayP3);
-    }
-
-    if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Unknown) &&
-        transferFunction == render::TransferFunction::SRGB) {
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-    }
-
-    if ((colorSpace == render::ColorSpace::Rec709 ||
-         colorSpace == render::ColorSpace::Unknown) &&
-        transferFunction == render::TransferFunction::Linear) {
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgbLinear);
-    }
-
-    const QColorSpace::Primaries primaries = toPrimaries(colorSpace);
-
-    switch (transferFunction) {
-    case render::TransferFunction::Gamma22:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.2f);
-
-    case render::TransferFunction::Gamma24:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.4f);
-
-    case render::TransferFunction::Gamma25:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.5f);
-
-    case render::TransferFunction::Gamma26:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Gamma, 2.6f);
-
-    case render::TransferFunction::Linear:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::Linear);
-
-    case render::TransferFunction::SRGB:
-        return QColorSpace(primaries, QColorSpace::TransferFunction::SRgb);
-
-    case render::TransferFunction::Unknown:
-    case render::TransferFunction::Raw:
-        qWarning() << "viewer: transfer function cannot be represented as a display color space,"
-                   << "falling back to sRGB"
-                   << "transferFunction:" << int(transferFunction);
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-
-    case render::TransferFunction::ACEScc:
-    case render::TransferFunction::ACEScct:
-    case render::TransferFunction::ADX10:
-    case render::TransferFunction::ADX16:
-    case render::TransferFunction::Cineon:
-    case render::TransferFunction::AppleLog:
-    case render::TransferFunction::ArriLogC3:
-    case render::TransferFunction::ArriLogC4:
-    case render::TransferFunction::BmdFilmGen5:
-    case render::TransferFunction::DaVinciIntermediate:
-    case render::TransferFunction::CanonLog2:
-    case render::TransferFunction::CanonLog3:
-    case render::TransferFunction::PanasonicVLog:
-    case render::TransferFunction::RedLog3G10:
-    case render::TransferFunction::SonySLog3:
-        qWarning() << "viewer: log/camera transfer function cannot be used as a display color space tag,"
-                   << "falling back to sRGB"
-                   << "transferFunction:" << int(transferFunction);
-        return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-    }
-
-    qWarning() << "viewer: unknown transfer function for display color space,"
-               << "falling back to sRGB"
-               << "transferFunction:" << int(transferFunction);
-
-    return QColorSpace(QColorSpace::NamedColorSpace::SRgb);
-}
-
 void
 ViewerPrivate::updateWidget(QWidget* widget, const render::DisplayTransform& transform)
 {
+    // Only Cocoa WIds are NSView pointers. Headless Qt surfaces have no Metal
+    // presentation layer to tag, even when their renderer uses a Metal device.
+    if (QGuiApplication::platformName() != QStringLiteral("cocoa"))
+        return;
+
     if (!widget) {
         qWarning() << "viewer: failed to update display color space, widget is null";
         return;
@@ -301,20 +207,21 @@ ViewerPrivate::updateWidget(QWidget* widget, const render::DisplayTransform& tra
         return;
     }
 
-    const QColorSpace qtColorSpace = toDisplayColorSpace(
-        transform.colorSpace,
-        transform.transferFunction);
+    if (d.nativeColorSpace) {
+        metalLayer.colorspace = d.nativeColorSpace;
+        return;
+    }
 
     CGColorSpaceRef cgColorSpace = nullptr;
 
-    if (!qtColorSpace.isValid()) {
+    if (!d.displayColorSpace.isValid()) {
         qWarning() << "viewer: failed to create color space for display,"
                    << "falling back to sRGB";
 
         cgColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
     }
     else {
-        const QByteArray icc = qtColorSpace.iccProfile();
+        const QByteArray icc = d.displayColorSpace.iccProfile();
 
         if (icc.isEmpty()) {
             if (transform.colorSpace == render::ColorSpace::DisplayP3) {
@@ -329,10 +236,8 @@ ViewerPrivate::updateWidget(QWidget* widget, const render::DisplayTransform& tra
             }
         }
         else {
-            CFDataRef data = CFDataCreate(
-                kCFAllocatorDefault,
-                reinterpret_cast<const UInt8*>(icc.constData()),
-                icc.size());
+            CFDataRef data = CFDataCreate(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(icc.constData()),
+                                          icc.size());
 
             if (!data) {
                 qWarning() << "viewer: failed to create ICC data for display,"
@@ -358,8 +263,8 @@ ViewerPrivate::updateWidget(QWidget* widget, const render::DisplayTransform& tra
         return;
     }
 
-    metalLayer.colorspace = cgColorSpace;
-    CGColorSpaceRelease(cgColorSpace);
+    d.nativeColorSpace = cgColorSpace;
+    metalLayer.colorspace = d.nativeColorSpace;
 }
 
 void
@@ -371,6 +276,11 @@ ViewerPrivate::render(QRhiCommandBuffer* commandBuffer)
     render::RenderContext context;
     updateContext(context);
 
+    // The QRhi target may be created/resized after the widget resize event.
+    // Refresh geometry only on size changes, including the first native frame.
+    if (d.widget->renderTarget()
+        && (d.viewSize != d.widget->renderTarget()->pixelSize() || d.viewResolution != d.renderEngine->resolution()))
+        updateView();
     const render::RenderSpec spec = renderSpec();
 
     if (!context.isValid() || !spec.isValid())
@@ -428,15 +338,26 @@ Viewer::displayTransform() const
     return p->d.displayTransform;
 }
 
+render::DisplayColorSpace
+Viewer::displayColorSpace() const
+{
+    return p->d.displayColorSpace;
+}
+
 void
 Viewer::setDisplayTransform(const render::DisplayTransform& transform)
 {
-    if (p->d.displayTransform.colorSpace == transform.colorSpace &&
-        p->d.displayTransform.transferFunction == transform.transferFunction) {
+    if (p->d.displayTransform.colorSpace == transform.colorSpace
+        && p->d.displayTransform.transferFunction == transform.transferFunction) {
         return;
     }
 
     p->d.displayTransform = transform;
+    p->d.displayColorSpace = render::DisplayColorSpace(transform);
+    if (p->d.nativeColorSpace) {
+        CGColorSpaceRelease(p->d.nativeColorSpace);
+        p->d.nativeColorSpace = nullptr;
+    }
     p->updateDisplayColorSpace();
     update();
 }
@@ -467,9 +388,6 @@ Viewer::setZoom(float zoom)
 void
 Viewer::setZoomMode(ZoomMode mode)
 {
-    if (p->d.zoomMode == mode)
-        return;
-
     p->d.zoomMode = mode;
 
     if (mode == FitToView)
@@ -570,4 +488,4 @@ Viewer::resizeEvent(QResizeEvent* event)
     }
 }
 
-} // namespace flipman::sdk::widgets
+}  // namespace flipman::sdk::widgets

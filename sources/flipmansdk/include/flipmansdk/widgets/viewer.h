@@ -4,13 +4,14 @@
 
 #pragma once
 
-#include <QRhiWidget>
-#include <QScopedPointer>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/displaycolorspace.h>
 #include <flipmansdk/render/imagelayer.h>
 #include <flipmansdk/render/render.h>
 #include <flipmansdk/render/renderengine.h>
+#include <QRhiWidget>
+#include <QScopedPointer>
 
 namespace flipman::sdk::widgets {
 
@@ -133,6 +134,12 @@ public:
      * pixels matching this transform.
      */
     render::DisplayTransform displayTransform() const;
+
+    /**
+     * @brief
+     * Returns the cached output display profile, independently of the UI default.
+     */
+    render::DisplayColorSpace displayColorSpace() const;
 
     /**
      * @brief Sets the display/surface tag used for viewer output.

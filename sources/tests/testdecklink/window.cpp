@@ -3,6 +3,13 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
+
+#include <flipmansdk/av/media.h>
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/file.h>
+#include <flipmansdk/render/render.h>
+#include <flipmansdk/widgets/viewer.h>
 #include <DeckLinkAPI.h>
 #include <QBoxLayout>
 #include <QCheckBox>
@@ -24,12 +31,6 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
-#include <flipmansdk/av/media.h>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/environment.h>
-#include <flipmansdk/core/file.h>
-#include <flipmansdk/render/render.h>
-#include <flipmansdk/widgets/viewer.h>
 #include <functional>
 
 namespace flipman {
@@ -310,10 +311,13 @@ fillRec709Pattern8Bit(IDeckLinkMutableVideoFrame* frame, int width, int height, 
 class DeckLinkRenderOutput : public sdk::render::RenderOutput {
 public:
     using FrameCallback = std::function<void(const sdk::core::ImageBuffer&, qint64)>;
+
     explicit DeckLinkRenderOutput(QObject* parent = nullptr)
         : sdk::render::RenderOutput(parent)
     {}
+
     void setFrameCallback(FrameCallback callback) { m_callback = std::move(callback); }
+
     void enqueueFrame(const sdk::core::ImageBuffer& image, qint64 frame) override
     {
         qDebug() << "decklink renderoutput: enqueueFrame"
@@ -363,13 +367,22 @@ public:
         QString label;
         sdk::render::DisplayTransform transform;
     };
+
     QVector<DisplayTransform> displayTransforms();
 
 public:
     struct Data {
+        IDeckLinkIterator* iterator = nullptr;
+        IDeckLink* deckLink = nullptr;
+        IDeckLinkOutput* output = nullptr;
+        IDeckLinkMutableVideoFrame* frame = nullptr;
+        sdk::render::ImageLayer imageLayer;
+        sdk::av::Media media;
+        BMDDisplayMode displayMode = bmdModeHD1080p25;
+        BMDDisplayMode activeDisplayMode = bmdModeUnknown;
+        BMDPixelFormat pixelFormat = bmdFormat10BitYUV;
         QString inputFile;
         QString dataPath;
-        QPointer<Window> window;
         QPointer<QComboBox> displayCombo;
         QPointer<QComboBox> sourceCombo;
         QPointer<QComboBox> deviceCombo;
@@ -389,20 +402,12 @@ public:
         QPointer<sdk::widgets::Viewer> viewer;
         QPointer<sdk::render::RenderEngine> renderEngine;
         QPointer<DeckLinkRenderOutput> renderOutput;
-        sdk::render::ImageLayer imageLayer;
-        sdk::av::Media media;
-        IDeckLinkIterator* iterator = nullptr;
-        IDeckLink* deckLink = nullptr;
-        IDeckLinkOutput* output = nullptr;
-        IDeckLinkMutableVideoFrame* frame = nullptr;
         int width = 1920;
         int height = 1080;
         int rowBytes = 5120;
-        BMDDisplayMode displayMode = bmdModeHD1080p25;
-        BMDDisplayMode activeDisplayMode = bmdModeUnknown;
-        BMDPixelFormat pixelFormat = bmdFormat10BitYUV;
         bool outputEnabled = false;
         bool waitingForImageFrame = false;
+        QPointer<Window> window;
     };
     Data d;
 };

@@ -2,20 +2,63 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "bindings.h"
-#include <QSize>
+
 #include <flipmansdk/core/perfscope.h>
 #include <flipmansdk/core/profile.h>
+#include <flipmansdk/render/colorpipeline.h>
 #include <flipmansdk/render/imageeffect.h>
 #include <flipmansdk/render/imagelayer.h>
 #include <flipmansdk/render/render.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
 #include <flipmansdk/render/shaderparser.h>
+#include <QSize>
 
 namespace flipman::sdk::python {
+
 void
 bindRender(nb::module_& module)
 {
+    nb::class_<render::ColorSettings>(module, "ColorSettings")
+        .def(nb::init<>())
+        .def_rw("enabled", &render::ColorSettings::enabled)
+        .def_rw("configFile", &render::ColorSettings::configFile)
+        .def_rw("workingSpace", &render::ColorSettings::workingSpace)
+        .def_rw("display", &render::ColorSettings::display)
+        .def_rw("view", &render::ColorSettings::view);
+    module.def("combinedColorSpace", &render::ColorPipeline::combinedColorSpace, "gamut"_a, "encoding"_a,
+               "configFile"_a = QString());
+    module.def(
+        "colorSpaces", [](const QString& config) { return list(render::ColorPipeline::colorSpaces(config)); },
+        "configFile"_a = QString());
+    module.def(
+        "colorDisplays", [](const QString& config) { return list(render::ColorPipeline::displays(config)); },
+        "configFile"_a = QString());
+    module.def(
+        "colorViews",
+        [](const QString& display, const QString& config) {
+            return list(render::ColorPipeline::views(display, config));
+        },
+        "display"_a, "configFile"_a = QString());
+    module.def("colorSpaceFamily", &render::ColorPipeline::colorSpaceFamily, "name"_a, "configFile"_a = QString());
+    module.def(
+        "workingSpaces", [](const QString& config) { return list(render::ColorPipeline::workingSpaces(config)); },
+        "configFile"_a = QString());
+    module.def(
+        "colorProfiles",
+        [](const QString& config) {
+            nb::list result;
+            for (const auto& profile : render::ColorPipeline::colorProfiles(config)) {
+                nb::dict entry;
+                entry["name"] = profile.name;
+                entry["gamut"] = profile.gamut;
+                entry["encoding"] = profile.encoding;
+                entry["family"] = profile.family;
+                result.append(entry);
+            }
+            return result;
+        },
+        "configFile"_a = QString());
     auto colorspace = nb::enum_<render::ColorSpace>(module, "ColorSpace");
     colorspace.value("Unknown", render::ColorSpace::Unknown);
     colorspace.value("Raw", render::ColorSpace::Raw);
@@ -99,12 +142,15 @@ bindRender(nb::module_& module)
         .def(nb::init<>())
         .def("image", &render::ImageLayer::image)
         .def("setImage", &render::ImageLayer::setImage, "image"_a)
+        .def("inputColorSpace", &render::ImageLayer::inputColorSpace)
+        .def("setInputColorSpace", &render::ImageLayer::setInputColorSpace, "name"_a)
         .def("imageEffect", &render::ImageLayer::imageEffect)
         .def("setImageEffect", &render::ImageLayer::setImageEffect, "effect"_a)
         .def("error", &render::ImageLayer::error);
     module.def(
         "renderImage",
-        [](Runtime& runtime, const core::ImageBuffer& image, int width, int height) {
+        [](Runtime& runtime, const core::ImageBuffer& image, int width, int height,
+           const render::ColorSettings& settings, const QString& inputColorSpace) {
             runtime.check();
             if (!image.isValid() || !image.isAllocated())
                 throw nb::value_error("image must be allocated");
@@ -116,6 +162,7 @@ bindRender(nb::module_& module)
                 throw nb::value_error("render dimensions must be positive");
             FM_PROFILE_SCOPE("render", "python.renderImage");
             core::PerfScope phase("render.python_image");
+
             // Destroy GPU pipelines before the device they reference.
             render::RenderOffscreen renderer;
             render::RenderEngine engine;
@@ -123,14 +170,19 @@ bindRender(nb::module_& module)
                 throw std::runtime_error("could not initialize offscreen render device");
             render::ImageLayer layer;
             layer.setImage(image);
+            layer.setInputColorSpace(inputColorSpace);
+            if (!engine.setColorSettings(settings))
+                throw std::runtime_error(engine.error().message().toStdString());
             engine.setResolution(size);
             engine.setImageLayers({ layer });
             renderer.setRenderEngine(&engine);
             core::ImageBuffer result = renderer.render();
             if (!result.isValid() || !result.isAllocated())
-                throw std::runtime_error("offscreen rendering failed");
+                throw std::runtime_error("offscreen rendering failed: " + engine.error().message().toStdString());
             return result;
         },
-        "runtime"_a, "image"_a, "width"_a = 0, "height"_a = 0);
+        "runtime"_a, "image"_a, "width"_a = 0, "height"_a = 0, nb::kw_only(),
+        "colorSettings"_a = render::ColorSettings(), "inputColorSpace"_a = QString());
 }
+
 }  // namespace flipman::sdk::python

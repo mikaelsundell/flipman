@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QFuture>
 #include <QList>
 #include <QtConcurrent>
-#include <flipmansdk/flipmansdk.h>
 #include <utility>
 
 namespace flipman::sdk::core {

@@ -1,24 +1,27 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Mikael Sundell
-#include <QDebug>
-#include <QFileInfo>
-#include <algorithm>
-#include <cmath>
+
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/render/imagelayer.h>
 #include <flipmansdk/render/renderengine.h>
 #include <flipmansdk/render/renderoffscreen.h>
+#include <QDebug>
+#include <QFileInfo>
+#include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 using namespace flipman::sdk;
+
 void
 require(bool condition, const char* message)
 {
     if (!condition)
         throw std::runtime_error(message);
 }
+
 int
 main(int argc, char** argv)
 {
@@ -69,14 +72,60 @@ main(int argc, char** argv)
             const auto reversed = core::ImageBuffer::convert(bgra, type, 4);
             const auto expected = renderImage(normal);
             compare(expected, renderImage(reversed));
+
             // Reuse the shader/texture cache while switching channel layouts.
             compare(expected, renderImage(normal));
             compare(expected, renderImage(reversed));
             const auto rgb = core::ImageBuffer::convert(rgba, type, 3);
             const auto bgr = core::ImageBuffer::convert(bgra, type, 3);
-            compare(renderImage(rgb), renderImage(bgr));
+            const auto expanded = core::ImageBuffer::convert(rgb, 4);
+            compare(renderImage(expanded), renderImage(rgb));
+            compare(renderImage(expanded), renderImage(bgr));
             qInfo() << "channel ordering passed for pixel type" << int(type);
         }
+        const QRect oddBounds(0, 0, 7, 3);
+
+        // initialize() replaces the QRhi; release cached engine resources first.
+        engine.reset();
+        engine.setResolution(oddBounds.size());
+        require(offscreen.initialize(oddBounds.size()), "odd-size offscreen initialization failed");
+        for (const auto type : { core::ImageFormat::UInt8, core::ImageFormat::Half, core::ImageFormat::Float }) {
+            for (int channels : { 1, 2, 3, 4, 3, 2, 1 }) {
+                core::ImageBuffer packed(oddBounds, oddBounds, core::ImageFormat::Float, channels);
+                packed.setPixelLayout(channels == 4 ? core::ImageBuffer::PixelLayout::RGBA
+                                                    : core::ImageBuffer::PixelLayout::RGB);
+                packed.allocate();
+                auto* samples = reinterpret_cast<float*>(packed.data());
+                for (size_t pixel = 0; pixel < packed.size(); ++pixel)
+                    for (int c = 0; c < channels; ++c)
+                        samples[pixel * channels + c] = float((pixel + c) % 7) / 8;
+                const auto native = core::ImageBuffer::convert(packed, type, channels);
+                compare(renderImage(core::ImageBuffer::convert(native, type, 4)), renderImage(native));
+            }
+        }
+        engine.reset();
+        engine.setResolution(bounds.size());
+        require(offscreen.initialize(bounds.size()), "restore offscreen initialization failed");
+        const auto packedRgb = core::ImageBuffer::convert(rgba, core::ImageFormat::UInt8, 3);
+        core::ImageBuffer nv12(bounds, bounds, core::ImageFormat::UInt8, 1);
+        nv12.setPixelLayout(core::ImageBuffer::PixelLayout::NV12);
+        nv12.setPacking(core::ImageBuffer::Packing::BiPlanar);
+        nv12.setSubsampling(core::ImageBuffer::Subsampling::CS420);
+        nv12.allocate();
+        std::fill(nv12.data(), nv12.data() + nv12.byteSize(), quint8(128));
+        const auto expectedNv12 = renderImage(nv12);
+        renderImage(packedRgb);
+        compare(expectedNv12, renderImage(nv12));
+        core::ImageBuffer uyvy(bounds, bounds, core::ImageFormat::UInt8, 2);
+        uyvy.setPixelLayout(core::ImageBuffer::PixelLayout::UYVY);
+        uyvy.setPacking(core::ImageBuffer::Packing::Packed);
+        uyvy.setSubsampling(core::ImageBuffer::Subsampling::CS422);
+        uyvy.allocate();
+        std::fill(uyvy.data(), uyvy.data() + uyvy.byteSize(), quint8(128));
+        const auto expectedUyvy = renderImage(uyvy);
+        renderImage(packedRgb);
+        compare(expectedUyvy, renderImage(uyvy));
+        compare(renderImage(core::ImageBuffer::convert(packedRgb, 4)), renderImage(packedRgb));
         if (argc > 1) {
             const QString path = QString::fromUtf8(argv[1]);
             if (!QFileInfo::exists(path)) {

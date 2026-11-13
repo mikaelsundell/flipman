@@ -6,6 +6,7 @@
 #include <QString>
 
 namespace flipman::sdk::test {
+
 void
 init(const QString& dataDirectory, const QString& outputDirectory);
 bool
@@ -70,4 +71,5 @@ bool
 testMediaState();
 bool
 testShaderContract();
+
 }  // namespace flipman::sdk::test

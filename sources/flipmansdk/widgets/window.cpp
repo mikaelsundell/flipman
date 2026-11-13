@@ -2,20 +2,22 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/ui.h>
+#include <flipmansdk/widgets/window.h>
 #include <QEvent>
 #include <QPointer>
 #include <QTimer>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
-#include <flipmansdk/widgets/window.h>
 
 namespace flipman::sdk::widgets {
+
 class WindowPrivate : public QObject {
 public:
     WindowPrivate();
     ~WindowPrivate();
     void init();
     bool eventFilter(QObject* obj, QEvent* event);
+
     struct Data {
         QPointer<Window> window;
     };
@@ -37,7 +39,7 @@ WindowPrivate::eventFilter(QObject* object, QEvent* event)
 {
     if (object == d.window && event->type() == QEvent::Show) {
         d.window->removeEventFilter(this);
-        QTimer::singleShot(0, d.window, []() { sdk::core::style()->update(); });
+        QTimer::singleShot(0, d.window, []() { sdk::core::ui()->refresh(); });
     }
     return QObject::eventFilter(object, event);
 }

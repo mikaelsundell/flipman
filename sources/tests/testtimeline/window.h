@@ -7,7 +7,9 @@
 #include <QScopedPointer>
 
 namespace flipman {
+
 class WindowPrivate;
+
 class Window : public QMainWindow {
 public:
     Window(QWidget* parent = nullptr);
@@ -16,4 +18,5 @@ public:
 private:
     QScopedPointer<WindowPrivate> p;
 };
+
 }  // namespace flipman

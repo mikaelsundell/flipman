@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2025 - present Mikael Sundell
-// Adapted from https://github.com/mikaelsundell/stageviz
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <flipmansdk/flipmansdk.h>
 #include <string>
 
 namespace flipman::sdk::profile {

@@ -1,8 +1,36 @@
 # Building and packaging Flipman
 
-The entry points follow Stageviz's `build_app.sh` / `build_app.bat` workflow,
-with Flipman's dependency set. OpenUSD, USD plugins, PySide and Stageviz's Python
-runtime deployment are not part of this workflow.
+`build_app.sh` and `build_app.bat` configure and build the SDK and developer
+applications with configuration-specific dependency prefixes.
+
+## Development conventions
+
+See [the development guide](../AGENTS.md) for SDK ownership, header documentation,
+Python bindings, UI, diagnostics, verification and PR conventions. `.clang-format`
+defines the shared C++17 style: four-space indentation and a 120-column limit.
+Format only the files touched by a change:
+
+```sh
+./scripts/clang-format.sh sources/flipmansdk/render/displaycolorspace.cpp
+```
+
+`scripts/clang-format.bat` provides the same file/directory entry point on Windows.
+Both wrappers use Python 3 and `scripts/format_sources.py`. With no arguments,
+they format first-party C++ headers, sources and Objective-C++ in `sources` and
+`CTest`; vendored code is excluded. Pass `--check` to report formatting changes
+without writing files. The driver requires clang-format 21 or newer, prefers
+Xcode's formatter on macOS, and accepts `CLANG_FORMAT` for an explicit executable.
+
+The shared configuration puts quoted local/private headers first, then a blank
+line and one angle-bracket block ordered by SDK, external, Qt and C++ standard
+headers, without gaps between those categories. The driver also keeps the file banner, pragma,
+namespace bodies and guard clauses visually separated. It compacts `Data` structs
+with no gaps between fields or before `Data d;`. Group fields by type and keep
+the owner pointer last; review initialization and destruction dependencies
+when changing their order. Private SDK headers live
+in each component's `private/` directory; for example, renderer implementation
+files include `"private/ociogpu.h"`. These headers are absent from the installed
+public API.
 
 ## macOS
 
@@ -25,12 +53,20 @@ provide both configuration-specific variables. `--sdk-only` disables interactive
 demos and removes the DeckLink SDK requirement. SDK tests are controlled by
 CMake's `BUILD_TESTING` option (on by default).
 
+After configuration, `./test_app.sh debug|release|all` refreshes the cached
+project, builds the aggregate test target and runs CTest with matching runtime
+dependencies. `test_app.bat` provides the same entry point for Windows once the
+SDK platform port is available. Both use the shared Python 3 controller and
+produce JSON/JUnit reports under `build.test-results`. See
+[test commands and reports](../CTest/README.md#run-all-tests) for filtering,
+`--no-build`, required-fixture checks and output options.
+
 The script generates `build.debug` and `build.release` without deleting them.
 After an Xcode/dependency upgrade, add `--fresh` to discard stale CMake cache
 entries while retaining the build directory.
 It uses `CMAKE_OSX_SYSROOT=macosx`, so the active Xcode SDK is selected instead
 of a stale SDK version path. `--target=VERSION` optionally sets the minimum OS,
-not the SDK version. Like Stageviz, the default minimum is the running macOS
+not the SDK version. The default minimum is the running macOS
 major version (for example 26.0 on macOS 26.7). Direct CMake configuration uses
 the same default; an explicit CMake or environment deployment target takes
 precedence. Debug exports `DYLD_IMAGE_SUFFIX=_debug`; Release clears
@@ -69,11 +105,11 @@ and its runtime in the application is a separate integration.
 
 ## Windows
 
-`build_app.bat` adapts the Stageviz-style configure/build entry point, argument
-names and configuration-specific dependency prefixes. It warns about the
+`build_app.bat` provides the configure/build entry point, argument names and
+configuration-specific dependency prefixes. It warns about the
 pending platform port before invoking CMake. Flipman's SDK currently depends directly
 on macOS frameworks and Objective-C++; a Windows build/deployment would be
-misleading until those dependencies are ported. The Stageviz-derived
+misleading until those dependencies are ported.
 `scripts/deploywin.py` is retained for that future integration, requires
 `pefile`, and is not currently invoked or validated on Windows.
 

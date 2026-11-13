@@ -1,35 +1,40 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Mikael Sundell
+
+#include <flipmansdk/plugins/braw/brawreader.h>
+#include <flipmansdk/plugins/pluginregistry.h>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDebug>
 #include <QFile>
 #include <QTemporaryDir>
 #include <cmath>
-#include <flipmansdk/plugins/braw/brawreader.h>
-#include <flipmansdk/plugins/pluginregistry.h>
 #include <memory>
 #include <stdexcept>
 
 using namespace flipman::sdk;
+
 void
 require(bool condition, const QString& message)
 {
     if (!condition)
         throw std::runtime_error(message.toStdString());
 }
+
 qint64
 frame(const av::Time& time)
 {
     require(time.isValid(), "expected a valid frame time");
     return time.frames();
 }
+
 QByteArray
 digest(const core::ImageBuffer& image)
 {
     return QCryptographicHash::hash(QByteArrayView(reinterpret_cast<const char*>(image.data()), image.byteSize()),
                                     QCryptographicHash::Sha256);
 }
+
 int
 main(int argc, char** argv)
 {
@@ -60,6 +65,7 @@ main(int argc, char** argv)
 #endif
         if (argc < 2 || QString::fromUtf8(argv[1]) == "state")
             return 0;
+
         const QString path = argc > 2 ? QString::fromUtf8(argv[2]) : QString();
         if (!QFile::exists(path)) {
             qWarning() << "BRAW fixture missing; configure FLIPMAN_BRAW_TEST_FILE";

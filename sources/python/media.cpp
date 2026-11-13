@@ -2,22 +2,26 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "bindings.h"
-#include <QCoreApplication>
-#include <QPointer>
-#include <QThread>
+
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/profile.h>
 #include <flipmansdk/plugins/mediawriter.h>
 #include <flipmansdk/plugins/pluginregistry.h>
+#include <flipmansdk/plugins/quicktime/quicktimewriter.h>
+#include <QCoreApplication>
+#include <QPointer>
+#include <QThread>
 #ifdef __APPLE__
 #    include <pthread.h>
 #endif
 
 namespace flipman::sdk::python {
+
 class RuntimePrivate {
 public:
     struct Data {
+        // argv storage must outlive owned; preserve this dependency order.
         int argc = 1;
         char name[8] = "flipman";
         char* argv[2] = { name, nullptr };
@@ -26,6 +30,7 @@ public:
     };
     Data d;
 };
+
 Runtime::Runtime()
 {
 #if defined(Q_OS_MACOS) && defined(QT_DEBUG)
@@ -55,7 +60,9 @@ Runtime::Runtime()
     }
     check();
 }
+
 Runtime::~Runtime() = default;
+
 void
 Runtime::check() const
 {
@@ -64,6 +71,7 @@ Runtime::check() const
     if (QThread::currentThread() != p->d.application->thread())
         throw std::runtime_error("Qt-dependent SDK objects must be used on the application thread");
 }
+
 void
 Runtime::processEvents()
 {
@@ -72,6 +80,7 @@ Runtime::processEvents()
 }
 
 namespace {
+
     class Media {
     public:
         explicit Media(Runtime& runtime)
@@ -79,16 +88,20 @@ namespace {
         {
             runtime.check();
         }
+
         void check() const
         {
             runtime.check();
             if (!media.isOpen())
                 throw std::runtime_error("media is not open");
         }
+
         Runtime& runtime;
         av::Media media;
     };
+
 }  // namespace
+
 void
 bindMedia(nb::module_& module)
 {
@@ -105,6 +118,7 @@ bindMedia(nb::module_& module)
                 options.values = toVariant(values).toMap();
                 if (!self.media.open(file, options))
                     return false;
+
                 return self.media.waitForOpened(timeoutMs);
             },
             "file"_a, "timeoutMs"_a = 5000, nb::kw_only(), "options"_a = nb::dict())
@@ -201,8 +215,14 @@ bindMedia(nb::module_& module)
             const av::Time result = writer->write(image);
             if (!result.isValid() || writer->error().hasError())
                 throw std::runtime_error(writer->error().message().toStdString());
+            if (auto* movie = dynamic_cast<plugins::QuicktimeWriter*>(writer.data())) {
+                if (!movie->close())
+                    throw std::runtime_error(movie->error().message().toStdString());
+                return core::File(file.filePath());
+            }
             return core::File(file.fileName(0));
         },
         "runtime"_a, "image"_a, "file"_a);
 }
+
 }  // namespace flipman::sdk::python

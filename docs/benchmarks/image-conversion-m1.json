@@ -1,0 +1,316 @@
+{
+  "configuration": "Release",
+  "gpu": "Apple M1",
+  "iterations": 30,
+  "os": "macOS Tahoe (26.7.1)",
+  "qt": "6.10.1",
+  "results": [
+    {
+      "median_ms": 0.174083,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 0.188875,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.17416699999998286
+    },
+    {
+      "median_ms": 0.940959,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 1.032291,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 0.377209,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.3838749999999891
+    },
+    {
+      "median_ms": 2.026875,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 2.256375,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 0.427292,
+      "size": "1920x1080",
+      "thread_cpu_ms": 1.1514169999999808
+    },
+    {
+      "median_ms": 0.432125,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 0.530208,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.43254199999995535
+    },
+    {
+      "median_ms": 1.534834,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 1.867625,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 0.849375,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.856207999999981
+    },
+    {
+      "median_ms": 3.733084,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 3.833791,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 0.868875,
+      "size": "1920x1080",
+      "thread_cpu_ms": 2.2905420000000163
+    },
+    {
+      "median_ms": 0.97775,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 1.042083,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.978999999999985
+    },
+    {
+      "median_ms": 2.74325,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 2.77575,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 1.649458,
+      "size": "1920x1080",
+      "thread_cpu_ms": 1.6568750000000136
+    },
+    {
+      "median_ms": 7.781458,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 9.587834,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 1.85625,
+      "size": "1920x1080",
+      "thread_cpu_ms": 4.934208000000012
+    },
+    {
+      "median_ms": 39.766791,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 40.321125,
+      "path": "cpu_sdk_scalar",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 39.7595409999999
+    },
+    {
+      "median_ms": 0.589291,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 0.689084,
+      "path": "gpu_resident_texture",
+      "record_ms": 0.009917,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.015124999999898137
+    },
+    {
+      "median_ms": 3.45775,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 3.601417,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 2.216417,
+      "size": "1920x1080",
+      "thread_cpu_ms": 2.224666999999954
+    },
+    {
+      "median_ms": 5.461042,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 6.24975,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 2.318208,
+      "size": "1920x1080",
+      "thread_cpu_ms": 3.7233750000000327
+    },
+    {
+      "median_ms": 2.828333,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 3.002084,
+      "path": "cpu_scalar_reference",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 2.828625000000102
+    },
+    {
+      "median_ms": 0.365667,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 0.456958,
+      "path": "cpu_neon_reference",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.36587499999996
+    },
+    {
+      "median_ms": 1.272125,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 1.685917,
+      "path": "qrhi_metal_encoder_surface",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.5625420000001213
+    },
+    {
+      "median_ms": 1.748958,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 2.288125,
+      "path": "previous_coreimage_completed",
+      "record_ms": 0,
+      "size": "1920x1080",
+      "thread_cpu_ms": 0.9158340000003591
+    },
+    {
+      "median_ms": 1.108875,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 1.29425,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 1.1096659999998337
+    },
+    {
+      "median_ms": 3.044833,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 3.906875,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 1.73625,
+      "size": "3840x2160",
+      "thread_cpu_ms": 1.7468340000000353
+    },
+    {
+      "median_ms": 7.146375,
+      "operation": "rgb8_to_rgba8",
+      "p95_ms": 8.125292,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 1.743,
+      "size": "3840x2160",
+      "thread_cpu_ms": 4.609542000000147
+    },
+    {
+      "median_ms": 2.209875,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 2.455208,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 2.21100000000024
+    },
+    {
+      "median_ms": 5.230416,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 5.3575,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 3.361667,
+      "size": "3840x2160",
+      "thread_cpu_ms": 3.369250000000193
+    },
+    {
+      "median_ms": 15.78525,
+      "operation": "rgb_half_to_rgba_half",
+      "p95_ms": 17.704083,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 3.516958,
+      "size": "3840x2160",
+      "thread_cpu_ms": 10.636000000000422
+    },
+    {
+      "median_ms": 4.052917,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 4.564666,
+      "path": "cpu_sdk_neon",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 4.054250000000138
+    },
+    {
+      "median_ms": 10.337125,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 12.041208,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 6.91725,
+      "size": "3840x2160",
+      "thread_cpu_ms": 6.924875000000611
+    },
+    {
+      "median_ms": 32.073792,
+      "operation": "rgb_float_to_rgba_float",
+      "p95_ms": 36.57375,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 7.065958,
+      "size": "3840x2160",
+      "thread_cpu_ms": 20.041125000000648
+    },
+    {
+      "median_ms": 159.466792,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 160.781792,
+      "path": "cpu_sdk_scalar",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 159.32358299999942
+    },
+    {
+      "median_ms": 1.457875,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 1.503417,
+      "path": "gpu_resident_texture",
+      "record_ms": 0.011875,
+      "size": "3840x2160",
+      "thread_cpu_ms": 0.017791999998735264
+    },
+    {
+      "median_ms": 12.4245,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 13.096791,
+      "path": "gpu_upload_convert_resident_output",
+      "record_ms": 9.215375,
+      "size": "3840x2160",
+      "thread_cpu_ms": 9.230999999999767
+    },
+    {
+      "median_ms": 22.607083,
+      "operation": "rgba_float_to_rgba_half",
+      "p95_ms": 27.119208,
+      "path": "gpu_upload_convert_readback",
+      "record_ms": 9.903916,
+      "size": "3840x2160",
+      "thread_cpu_ms": 16.316999999999098
+    },
+    {
+      "median_ms": 11.016375,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 11.566208,
+      "path": "cpu_scalar_reference",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 11.016832999999679
+    },
+    {
+      "median_ms": 1.958458,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 2.198416,
+      "path": "cpu_neon_reference",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 1.9591249999994034
+    },
+    {
+      "median_ms": 4.686833,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 6.408583,
+      "path": "qrhi_metal_encoder_surface",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 2.6167919999988953
+    },
+    {
+      "median_ms": 6.298875,
+      "operation": "rgba8_to_bgra8",
+      "p95_ms": 7.918583,
+      "path": "previous_coreimage_completed",
+      "record_ms": 0,
+      "size": "3840x2160",
+      "thread_cpu_ms": 3.4524170000004233
+    }
+  ],
+  "warmup": 5
+}

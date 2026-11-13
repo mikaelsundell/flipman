@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <QMetaType>
 #include <flipmansdk/flipmansdk.h>
+#include <QMetaType>
 
 namespace flipman::sdk::render {
 

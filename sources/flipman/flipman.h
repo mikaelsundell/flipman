@@ -7,6 +7,7 @@
 #include <QScopedPointer>
 
 class FlipmanPrivate;
+
 class Flipman : public QMainWindow {
     Q_OBJECT
 public:

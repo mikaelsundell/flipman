@@ -2,12 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include "window.h"
 #include "timelinewidget.h"
+#include "window.h"
 
 #include <flipmansdk/av/timeline.h>
 #include <flipmansdk/av/timerange.h>
-
 #include <QBoxLayout>
 #include <QLabel>
 #include <QPointer>
@@ -16,6 +15,7 @@
 #include <QSlider>
 
 namespace flipman {
+
 class WindowPrivate : public QObject {
 public:
     WindowPrivate();
@@ -118,7 +118,6 @@ WindowPrivate::init()
     d.window->resize(800, 600);
 }
 
-
 QColor
 WindowPrivate::randomColor() const
 {
@@ -147,4 +146,5 @@ Window::Window(QWidget* parent)
 }
 
 Window::~Window() {}
+
 }  // namespace flipman

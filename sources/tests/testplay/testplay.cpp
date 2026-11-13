@@ -2,12 +2,12 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 
 #include "testplay.h"
+
 #include <core/file.h>
 #include <core/os.h>
 #include <plugins/mediareader.h>
 #include <plugins/pluginregistry.h>
 #include <widgets/renderwidget.h>
-
 #include <QFrame>
 #include <QFuture>
 #include <QPainter>

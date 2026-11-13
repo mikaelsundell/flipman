@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2024 - present Mikael Sundell
 
-#include <core/application.h>
-#include <core/environment.h>
-#include <core/style.h>
-#include <core/system.h>
-
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/environment.h>
+#include <flipmansdk/core/system.h>
+#include <flipmansdk/core/ui.h>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
@@ -21,7 +20,7 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-using namespace sdk;
+using namespace flipman::sdk;
 
 class TestWidgets : public QWidget {
 public:
@@ -38,11 +37,15 @@ public:
         QVBoxLayout* infoLayout = new QVBoxLayout(infoGroup);
 
         QLabel* envLabel = new QLabel(QString("<b>Path:</b> %1").arg(core::environment()->applicationPath()));
-        QLabel* styleLabel = new QLabel(
-            QString("<b>Theme:</b> %1").arg(core::style()->theme() == core::Style::Dark ? "Dark" : "Light"));
+        QLabel* uiLabel = new QLabel;
+        const auto updateThemeLabel = [uiLabel]() {
+            uiLabel->setText(
+                QString("<b>UI:</b> %1").arg(core::ui()->color(core::UI::Base).lightness() < 128 ? "Dark" : "Light"));
+        };
+        updateThemeLabel();
 
         infoLayout->addWidget(envLabel);
-        infoLayout->addWidget(styleLabel);
+        infoLayout->addWidget(uiLabel);
         mainLayout->addWidget(infoGroup);
 
         // --- Gallery Section (The Widget Tests) ---
@@ -108,8 +111,9 @@ public:
         // --- Connections ---
         connect(awakeBtn, &QPushButton::toggled, [](bool checked) { core::system()->setStayAwake(checked); });
 
-        connect(core::style(), &core::Style::themeChanged, this, [styleLabel](core::Style::Theme theme) {
-            styleLabel->setText(QString("<b>Theme:</b> %1").arg(theme == core::Style::Dark ? "Dark" : "Light"));
+        connect(core::ui(), &core::UI::colorChanged, this, [updateThemeLabel](core::UI::ColorRole role) {
+            if (role == core::UI::Base)
+                updateThemeLabel();
         });
     }
 };
@@ -122,5 +126,3 @@ main(int argc, char* argv[])
     widget.show();
     return app.exec();
 }
-
-#include "main.moc"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Adapted from Mikael Sundell's Stageviz build_app.sh.
+# Configure, build and package Flipman.
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 usage() {
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 [[ -n "$mode" ]] || { usage >&2; exit 2; }
-# Match Stageviz: default to the running OS major, independently of the SDK.
+# Default to the running OS major, independently of the SDK.
 if [[ -z "$target" ]]; then
     target=$(sw_vers -productVersion)
     target="${target%%.*}"

@@ -4,12 +4,12 @@
 
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/widgets/timeedit.h>
-
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
 
 namespace flipman::sdk::widgets {
+
 class TimeEditPrivate : public QObject {
 public:
     TimeEditPrivate();
@@ -21,9 +21,9 @@ public:
         av::Time time;
         TimeEdit::TimeCode timeCode = TimeEdit::TimeCode::Time;
         bool focused = false;
+        QPointer<TimeEdit> widget;
     };
     Data d;
-    QPointer<TimeEdit> widget;
 };
 
 TimeEditPrivate::TimeEditPrivate() {}
@@ -33,7 +33,7 @@ TimeEditPrivate::~TimeEditPrivate() {}
 void
 TimeEditPrivate::init()
 {
-    widget->installEventFilter(this);
+    d.widget->installEventFilter(this);
 }
 
 bool
@@ -43,14 +43,14 @@ TimeEditPrivate::eventFilter(QObject* object, QEvent* event)
         QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
         if (mouseEvent->button() == Qt::LeftButton) {
             d.focused = true;
-            widget->update();
-            widget->setFocus();
+            d.widget->update();
+            d.widget->setFocus();
             return true;
         }
     }
     else if (event->type() == QEvent::FocusOut) {
         d.focused = false;
-        widget->update();
+        d.widget->update();
         return true;
     }
     return QObject::eventFilter(object, event);
@@ -60,7 +60,7 @@ TimeEdit::TimeEdit(QWidget* parent)
     : QWidget(parent)
     , p(new TimeEditPrivate())
 {
-    p->widget = this;
+    p->d.widget = this;
     p->init();
 }
 
@@ -123,4 +123,5 @@ TimeEdit::paintEvent(QPaintEvent* event)
         painter.drawRect(rect().adjusted(1, 1, -1, -1));
     }
 }
+
 }  // namespace flipman::sdk::widgets

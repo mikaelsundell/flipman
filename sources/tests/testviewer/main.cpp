@@ -3,10 +3,11 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
+
+#include <flipmansdk/core/application.h>
 #include <QApplication>
 #include <QFileInfo>
 #include <cstdio>
-#include <flipmansdk/core/application.h>
 
 int
 main(int argc, char* argv[])
@@ -23,6 +24,7 @@ main(int argc, char* argv[])
     flipman::Window window;
     if (argc == 2 && !window.isValid())
         return 1;
+
     window.show();
     return app.exec();
 }

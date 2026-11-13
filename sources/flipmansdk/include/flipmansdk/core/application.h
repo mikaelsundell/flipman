@@ -4,18 +4,20 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QApplication>
 #include <QScopedPointer>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::plugins {
+
 class PluginRegistry;
+
 }
 
 namespace flipman::sdk::core {
 
 class Environment;
-class Style;
+class UI;
 class System;
 class ApplicationPrivate;
 
@@ -47,9 +49,9 @@ public:
     Environment* environment() const;
 
     /**
-     * @brief Returns the Style subsystem.
+     * @brief Returns the application-owned UI theme/resource service.
      */
-    Style* style() const;
+    UI* ui() const;
 
     /**
      * @brief Returns the System subsystem.
@@ -93,13 +95,12 @@ environment()
 }
 
 /**
- * @brief Returns the global Style subsystem.
+ * @brief Returns the global UI theme/resource service.
  */
-inline Style*
-style()
+inline UI*
+ui()
 {
-    auto* a = app();
-    return a ? a->style() : nullptr;
+    return app()->ui();
 }
 
 /**

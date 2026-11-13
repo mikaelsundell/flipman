@@ -4,10 +4,10 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QImage>
 #include <QMetaType>
 #include <QPixmap>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::core {
 

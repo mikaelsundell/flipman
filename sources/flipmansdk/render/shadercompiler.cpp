@@ -10,6 +10,7 @@ namespace flipman::sdk::render {
 class ShaderCompilerPrivate {
 public:
     QShader compile(const QString& source, QShader::Stage stage, const ShaderCompiler::Options& options);
+
     struct Data {
         core::Error error;
     };

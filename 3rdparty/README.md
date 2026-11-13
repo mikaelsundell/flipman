@@ -52,3 +52,26 @@ features. `#version` and `#extension` are supported; other `#` directives produc
 an error. Function signatures using user-defined struct types or unsized arrays
 are currently unsupported. Built-in functions/variables need no synthetic
 stand-ins because function bodies are left to the compiler.
+
+## ACES Studio OCIO config
+
+Flipman embeds the unmodified
+`studio-config-v4.0.0_aces-v2.0_ocio-v2.5.ocio` snapshot in SDK resources.
+Upstream: https://github.com/AcademySoftwareFoundation/OpenColorIO-Config-ACES.
+The BSD-3-Clause license is retained beside the config at
+[`resources/configs/LICENSE`](../sources/flipmansdk/resources/configs/LICENSE)
+and included in packaged app notices. OCIO 2.5+ implements its built-in transforms.
+
+## UI resources
+
+The UI theme, icons and timeline ruler retain their BSD-3-Clause copyright
+notices. `Application` owns the UI service, accessed through `core::ui()` by widgets
+and render code. All UI resources are registered by `resources/ui/ui.qrc`.
+Generic widget/image-editor icons are retained; USD/3D composition and shading
+icons are excluded. Application artwork lives under `sources/flipman/resources`.
+The Transform icon role maps to Move.
+
+`render::DisplayColorSpace` owns display-profile and cached ICC data, shared by
+UI defaults and independently selected viewer tags. The timeline ruler lives in
+`widgets/timelineslider.*`. Explicit gamut/curve labels describe the canonical
+OCIO identifiers used for processing.

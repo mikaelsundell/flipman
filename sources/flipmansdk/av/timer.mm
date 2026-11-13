@@ -2,70 +2,68 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <flipmansdk/av/timer.h>
 #include <flipmansdk/av/fps.h>
+#include <flipmansdk/av/timer.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-#include <QPointer>
 #include <QDebug>
+#include <QPointer>
 #include <QThread>
 #include <QtConcurrent>
 
 namespace flipman::sdk::av {
-class TimerPrivate
-{
-    public:
-        TimerPrivate();
-        quint64 nano(const av::Fps& fps);
-        quint64 nano(quint64 ticks);
-        quint64 ticks(quint64 time);
-        quint64 elapsed();
-        struct Data
-        {
-            quint64 start = 0;
-            quint64 stop = 0;
-            quint64 timer = 0;
-            quint64 next = 0;
-            QList<quint64> laps;
-            mach_timebase_info_data_t timeBase;
-        };
-        Data d;
+
+class TimerPrivate {
+public:
+    TimerPrivate();
+    quint64 nano(const av::Fps& fps);
+    quint64 nano(quint64 ticks);
+    quint64 ticks(quint64 time);
+    quint64 elapsed();
+
+    struct Data {
+        mach_timebase_info_data_t timeBase;
+        QList<quint64> laps;
+        quint64 start = 0;
+        quint64 stop = 0;
+        quint64 timer = 0;
+        quint64 next = 0;
+    };
+    Data d;
 };
 
-TimerPrivate::TimerPrivate()
-{
-    mach_timebase_info(&d.timeBase);
-}
+TimerPrivate::TimerPrivate() { mach_timebase_info(&d.timeBase); }
 
 quint64
-TimerPrivate::nano(const av::Fps& fps) {
+TimerPrivate::nano(const av::Fps& fps)
+{
     return static_cast<quint64>((1e9 * fps.denominator()) / fps.numerator());
 }
 
 quint64
-TimerPrivate::nano(quint64 ticks) {
+TimerPrivate::nano(quint64 ticks)
+{
     return (ticks * d.timeBase.numer) / d.timeBase.denom;
 }
 
 quint64
-TimerPrivate::ticks(quint64 time) {
+TimerPrivate::ticks(quint64 time)
+{
     return (time * d.timeBase.denom) / d.timeBase.numer;
 }
 
 quint64
-TimerPrivate::elapsed() {
+TimerPrivate::elapsed()
+{
     quint64 end = d.stop > 0 ? d.stop : mach_absolute_time();
     return (end - d.start) * d.timeBase.numer / d.timeBase.denom;
 }
 
 Timer::Timer()
-: p(new TimerPrivate())
-{
-}
+    : p(new TimerPrivate())
+{}
 
-Timer::~Timer()
-{
-}
+Timer::~Timer() {}
 
 bool
 Timer::isValid() const
@@ -84,7 +82,7 @@ void
 Timer::start(const av::Fps& fps)
 {
     Q_ASSERT("fps is zero" && fps.seconds() > 0);
-    
+
     p->d.timer = mach_absolute_time();
     p->d.next = p->d.timer + p->ticks(p->nano(fps));
     p->d.stop = 0;
@@ -123,11 +121,11 @@ Timer::next(const av::Fps& fps)
     return p->d.next > currenttime;
 }
 
-void 
+void
 Timer::wait()
 {
     Q_ASSERT("start time must be less than nexttime" && p->d.start < p->d.next);
-    
+
     mach_wait_until(p->d.next);
 }
 
@@ -137,7 +135,7 @@ Timer::sleep(quint64 msecs)
     quint64 sleepTime = static_cast<quint64>(msecs * 1e6);
     quint64 currentTime = mach_absolute_time();
     quint64 targetTime = currentTime + p->ticks(sleepTime);
-    
+
     Q_ASSERT("sleep time already passed" && currentTime < targetTime);
     mach_wait_until(targetTime);
 }
@@ -165,17 +163,11 @@ qreal
 Timer::convert(quint64 nano, Unit unit)
 {
     switch (unit) {
-    case Unit::Seconds:
-        return static_cast<qreal>(nano) / 1e9;
-        break;
-    case Unit::Minutes:
-        return static_cast<qreal>(nano) / (60 * 1e9);
-        break;
-    case Unit::Hours:
-        return static_cast<qreal>(nano) / (3600 * 1e9);
-        break;
-    default:
-        return static_cast<qreal>(nano);
+    case Unit::Seconds: return static_cast<qreal>(nano) / 1e9; break;
+    case Unit::Minutes: return static_cast<qreal>(nano) / (60 * 1e9); break;
+    case Unit::Hours: return static_cast<qreal>(nano) / (3600 * 1e9); break;
+    default: return static_cast<qreal>(nano);
     }
 }
-}
+
+}  // namespace flipman::sdk::av

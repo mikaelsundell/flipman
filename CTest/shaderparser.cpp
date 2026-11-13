@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Mikael Sundell
 
-#include <QCoreApplication>
-#include <QDebug>
 #include <flipmansdk/render/shadercontract.h>
 #include <flipmansdk/render/shaderparser.h>
+#include <QCoreApplication>
+#include <QDebug>
 #include <stdexcept>
 
 using namespace flipman::sdk::render;

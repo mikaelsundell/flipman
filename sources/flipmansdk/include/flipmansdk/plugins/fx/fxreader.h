@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <QScopedPointer>
 #include <flipmansdk/plugins/imageeffectreader.h>
 #include <flipmansdk/plugins/pluginhandler.h>
 #include <flipmansdk/render/imageeffect.h>
+#include <QScopedPointer>
 
 namespace flipman::sdk::plugins {
 

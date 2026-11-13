@@ -2,26 +2,28 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QEventLoop>
-#include <QFileInfo>
-#include <QPointer>
-#include <QTimer>
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/perfscope.h>
 #include <flipmansdk/core/profile.h>
 #include <flipmansdk/plugins/mediareader.h>
 #include <flipmansdk/plugins/pluginregistry.h>
+#include <QEventLoop>
+#include <QFileInfo>
+#include <QPointer>
+#include <QTimer>
 
 namespace flipman::sdk::av {
+
 class MediaPrivate : public QSharedData {
 public:
     plugins::MediaReader* reader(const QString& extension);
+
     struct Data {
-        bool open = false;
         core::File file;
         core::Error error;
         QScopedPointer<plugins::MediaReader> reader;
+        bool open = false;
     };
     Data d;
 };
@@ -89,6 +91,7 @@ Media::close()
 {
     if (!p->d.reader)
         return true;
+
     const bool closed = p->d.reader->close();
     if (closed)
         p->d.open = false;
@@ -191,6 +194,7 @@ Media::error() const
 {
     if (p->d.error.hasError())
         return p->d.error;
+
     return p->d.reader ? p->d.reader->error() : core::Error();
 }
 
@@ -228,8 +232,10 @@ Media::waitForOpened(int msecs)
     core::PerfScope phase("media.wait_open");
     if (!p->d.reader || p->d.error.hasError())
         return false;
+
     if (p->d.open)
         return true;
+
     QEventLoop loop;
     QTimer timer;
     QObject::connect(this, &Media::opened, &loop, &QEventLoop::quit);
@@ -240,6 +246,7 @@ Media::waitForOpened(int msecs)
     }
     if (p->d.open)
         return true;
+
     loop.exec();
     return p->d.open;
 }

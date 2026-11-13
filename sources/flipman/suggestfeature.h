@@ -34,6 +34,7 @@ public:
     }
 
 private slots:
+
     void submitFeatureRequest()
     {
         /*

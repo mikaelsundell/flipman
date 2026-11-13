@@ -1,25 +1,28 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 - present Mikael Sundell
 
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/core/perfscope.h>
+#include <flipmansdk/core/profile.h>
 #include <QCoreApplication>
 #include <QDebug>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/core/perfscope.h>
-#include <flipmansdk/core/profile.h>
 #include <thread>
 #include <vector>
 
 namespace {
+
 int messages = 0;
+
 void
 capture(QtMsgType, const QMessageLogContext&, const QString&)
 {
     ++messages;
 }
+
 bool
 recording(const QString& directory)
 {
@@ -33,6 +36,7 @@ recording(const QString& directory)
     }
     if (parent.calls != 0)
         return false;
+
     const auto first = profile::beginRecording("first", (directory + "/first.trace").toStdString());
     const auto second = profile::beginRecording("second", (directory + "/second.trace").toStdString());
     if (!first || !second || !profile::recordingActive(first))
@@ -55,10 +59,12 @@ recording(const QString& directory)
     if (profile::recordingActive(first) || parent.calls != 1 || child.calls != 5
         || parent.inclusiveNs < parent.exclusiveNs)
         return false;
+
     for (const auto& name : { "/first.trace", "/second.trace" }) {
         QFile input(directory + name);
         if (!input.open(QIODevice::ReadOnly))
             return false;
+
         const auto text = input.readAll();
         if (text.count("BEGIN | test::child") != 5 || text.count("END | test::child") != 5
             || text.count("COUNT | frames") != 4 || !text.contains("line one line two"))
@@ -66,10 +72,13 @@ recording(const QString& directory)
     }
     if (profile::summary().find("test::parent") == std::string::npos)
         return false;
+
     if (!profile::writeSummary((directory + "/summary.txt").toStdString()))
         return false;
+
     if (profile::beginRecording("invalid name", (directory + "/invalid.trace").toStdString()) != 0)
         return false;
+
     profile::setMode(profile::Mode::Trace);
     profile::setSlowThresholdUs(0);
     profile::setTraceCapacity(2);
@@ -78,10 +87,12 @@ recording(const QString& directory)
     }
     if (profile::summary().find("ring capacity 2") == std::string::npos)
         return false;
+
     profile::reset();
     profile::setMode(profile::Mode::Off);
     return parent.calls == 0 && child.calls == 0;
 }
+
 bool
 phaseLog(const QString& mode, const QString& directory)
 {
@@ -106,6 +117,7 @@ phaseLog(const QString& mode, const QString& directory)
     }
     if (!expected)
         return !QFile::exists(path) && !QFile::exists(directory + "/other.jsonl");
+
     std::vector<std::thread> workers;
     for (int i = 0; i < 4; ++i)
         workers.emplace_back([] { PerfScope scope("test.worker"); });
@@ -114,6 +126,7 @@ phaseLog(const QString& mode, const QString& directory)
     QFile input(path);
     if (!input.open(QIODevice::ReadOnly))
         return false;
+
     int count = 0;
     while (!input.atEnd()) {
         const auto document = QJsonDocument::fromJson(input.readLine());
@@ -125,6 +138,7 @@ phaseLog(const QString& mode, const QString& directory)
     }
     return count == 7 && !QFile::exists(directory + "/other.jsonl");
 }
+
 bool
 logging()
 {
@@ -142,7 +156,9 @@ logging()
     qInstallMessageHandler(old);
     return ok;
 }
+
 }  // namespace
+
 int
 main(int argc, char** argv)
 {
@@ -150,12 +166,16 @@ main(int argc, char** argv)
     QTemporaryDir directory;
     if (argc != 2 || !directory.isValid())
         return 2;
+
     const QString name = QString::fromLocal8Bit(argv[1]);
     if (name == "recording")
         return recording(directory.path()) ? 0 : 1;
+
     if (name == "logging")
         return logging() ? 0 : 1;
+
     if (name == "unset" || name == "empty" || name == "enabled")
         return phaseLog(name, directory.path()) ? 0 : 1;
+
     return 2;
 }

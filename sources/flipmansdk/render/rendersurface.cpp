@@ -11,7 +11,6 @@ public:
     struct Data {
         QRhiRenderTarget* renderTarget = nullptr;
     };
-
     Data d;
 };
 

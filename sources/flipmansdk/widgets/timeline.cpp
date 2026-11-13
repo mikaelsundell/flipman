@@ -4,13 +4,13 @@
 
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/widgets/timeline.h>
-
 #include <QFontMetrics>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
 
 namespace flipman::sdk::widgets {
+
 class TimelinePrivate {
 public:
     void init();
@@ -31,14 +31,16 @@ public:
                    QBrush brush = Qt::white);
     void paintTimeline(QPainter& p);
     QPixmap paint();
+
     struct Time {
         qreal top;
         qreal hours;
         qreal minutes;
         qreal seconds;
     };
-    Time t;
+
     struct Data {
+        Time t;
         av::Time time;
         av::TimeRange range;
         Timeline::TimeCode timeCode = Timeline::TimeCode::Time;
@@ -46,33 +48,33 @@ public:
         qreal marginTick = 0.5;
         int marginRange = 10;
         int disttick = 5;
+        int radius = 2;
         bool tracking = false;
         bool pressed = false;
-        int radius = 2;
+        QPointer<Timeline> widget;
     };
     Data d;
-    QPointer<Timeline> widget;
 };
 
 void
 TimelinePrivate::init()
 {
-    widget->setAttribute(Qt::WA_TranslucentBackground);
-    widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    d.widget->setAttribute(Qt::WA_TranslucentBackground);
+    d.widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
 
 int
 TimelinePrivate::mapToX(qint64 ticks) const
 {
     qreal ratio = static_cast<qreal>(ticks) / d.range.duration().ticks();
-    return qRound(d.marginRange + ratio * (widget->width() - 2 * d.marginRange));
+    return qRound(d.marginRange + ratio * (d.widget->width() - 2 * d.marginRange));
 }
 
 qint64
 TimelinePrivate::mapToTicks(int x) const
 {
-    x = qBound(d.marginRange, x, widget->width() - d.marginRange);
-    qreal ratio = static_cast<qreal>(x - d.marginRange) / (widget->width() - 2 * d.marginRange);
+    x = qBound(d.marginRange, x, d.widget->width() - d.marginRange);
+    qreal ratio = static_cast<qreal>(x - d.marginRange) / (d.widget->width() - 2 * d.marginRange);
     return static_cast<qint64>(ratio * (d.range.duration().ticks() - 1));
 }
 
@@ -196,17 +198,17 @@ TimelinePrivate::paintTimeline(QPainter& p)
     QFont font("Courier New", 8);  // fixed font size
     p.setFont(font);
     p.setPen(QPen(Qt::white, 1));
-    int y = widget->height() / 2;
+    int y = d.widget->height() / 2;
 
     qint64 start = d.range.start().ticks();
     qint64 duration = d.range.duration().ticks();
     int limit = labelSize(font, duration).width();
 
-    qint64 hoursteps = ticks(t.hours);
+    qint64 hoursteps = ticks(d.t.hours);
     if (hoursteps) {
         qint64 hoursubsteps = 0;
         if (!(mapToWidth(hoursteps) * d.marginTick > limit)) {
-            hoursubsteps = substeps(t.hours, t.top, hoursteps, limit);
+            hoursubsteps = substeps(d.t.hours, d.t.top, hoursteps, limit);
         }
         for (qint64 hour = start; hour < duration; hour += hoursteps) {
             int x = mapToX(hour);
@@ -229,11 +231,11 @@ TimelinePrivate::paintTimeline(QPainter& p)
                     paintText(p, x, y, hour, start, duration, true);
                 }
             }
-            qint64 minutessteps = ticks(t.minutes);
+            qint64 minutessteps = ticks(d.t.minutes);
             if (minutessteps) {
                 qint64 minutesubsteps = 0;
                 if (!(mapToWidth(minutessteps) * d.marginTick > limit)) {
-                    minutesubsteps = substeps(t.minutes, t.hours, minutessteps, limit);
+                    minutesubsteps = substeps(d.t.minutes, d.t.hours, minutessteps, limit);
                 }
                 for (qint64 minute = hour; minute < (hour + hoursteps) && minute < duration; minute += minutessteps) {
                     int x = mapToX(minute);
@@ -256,11 +258,11 @@ TimelinePrivate::paintTimeline(QPainter& p)
                             paintText(p, x, y, minute, start, duration);
                         }
                     }
-                    qint64 secondssteps = ticks(t.seconds);
+                    qint64 secondssteps = ticks(d.t.seconds);
                     if (secondssteps) {
                         qint64 secondssubsteps = 0;
                         if (!(mapToWidth(secondssteps) * d.marginTick > limit)) {
-                            secondssubsteps = substeps(t.seconds, t.minutes, secondssteps, limit);
+                            secondssubsteps = substeps(d.t.seconds, d.t.minutes, secondssteps, limit);
                         }
                         for (qint64 second = minute; second < (minute + minutessteps) && second < duration;
                              second += secondssteps) {
@@ -296,8 +298,8 @@ TimelinePrivate::paintTimeline(QPainter& p)
 QPixmap
 TimelinePrivate::paint()
 {
-    qreal dpr = widget->devicePixelRatio();
-    QPixmap pixmap(widget->width() * dpr, widget->height() * dpr);
+    qreal dpr = d.widget->devicePixelRatio();
+    QPixmap pixmap(d.widget->width() * dpr, d.widget->height() * dpr);
     pixmap.fill(Qt::transparent);
     pixmap.setDevicePixelRatio(dpr);
 
@@ -306,15 +308,16 @@ TimelinePrivate::paint()
     QFont font("Courier New", 11);  // fixed font size
     p.setFont(font);
 
-    int y = widget->height() / 2;
+    int y = d.widget->height() / 2;
     p.setPen(QPen(Qt::lightGray, 1));
-    p.drawLine(0, y, widget->width(), y);
-    p.drawLine(d.marginRange, y, widget->width() - d.marginRange, y);
+    p.drawLine(0, y, d.widget->width(), y);
+    p.drawLine(d.marginRange, y, d.widget->width() - d.marginRange, y);
     font.setPointSizeF(font.pointSizeF() * 0.8f);
     p.setFont(font);
 
     if (d.range.isValid()) {
         p.setPen(QPen(Qt::white, 1));
+
         // timeline
         {
             qint64 ticks = d.time.ticks();
@@ -322,7 +325,7 @@ TimelinePrivate::paint()
             qint64 duration = d.range.duration().ticks();
             if (d.timeCode == Timeline::TimeCode::Frames) {
                 qint64 frames = d.range.duration().frames();
-                t = Time {
+                d.t = Time {
                     // redistribute to frames
                     static_cast<qreal>(steps(frames) * 10),
                     static_cast<qreal>(steps(frames)),
@@ -336,7 +339,7 @@ TimelinePrivate::paint()
                 qint64 minutes = seconds / 60;
                 qint64 hours = minutes / 60;
                 if (hours > 0) {
-                    t = Time {
+                    d.t = Time {
                         60 * 60 * 24,
                         60 * 60,
                         60,
@@ -344,13 +347,13 @@ TimelinePrivate::paint()
                     };
                 }
                 else if (minutes > 0) {
-                    t = Time { // redistribute to mins
-                               60 * 60, 60, 1, 1.0 / duration.fps().frameQuanta()
+                    d.t = Time { // redistribute to mins
+                                 60 * 60, 60, 1, 1.0 / duration.fps().frameQuanta()
                     };
                 }
                 else {
-                    t = Time { // redistribute to secs
-                               60, 1, 1.0 / duration.fps().frameQuanta(), 0
+                    d.t = Time { // redistribute to secs
+                                 60, 1, 1.0 / duration.fps().frameQuanta(), 0
                     };
                 }
             }
@@ -411,7 +414,7 @@ Timeline::Timeline(QWidget* parent)
     : QWidget(parent)
     , p(new TimelinePrivate())
 {
-    p->widget = this;
+    p->d.widget = this;
     p->init();
 }
 
@@ -533,4 +536,5 @@ Timeline::mouseReleaseEvent(QMouseEvent* event)
         update();
     }
 }
+
 }  // namespace flipman::sdk::widgets

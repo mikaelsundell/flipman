@@ -3,6 +3,9 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
+
+#include <flipmansdk/core/application.h>
+#include <flipmansdk/core/ui.h>
 #include <QAction>
 #include <QApplication>
 #include <QBoxLayout>
@@ -33,12 +36,11 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QTreeWidget>
-#include <flipmansdk/core/application.h>
-#include <flipmansdk/core/style.h>
 
 namespace flipman {
 
 namespace {
+
     QString hslString(const QColor& color)
     {
         float h = 0.0f;
@@ -77,7 +79,6 @@ public:
     void createMenus();
 
     struct Data {
-        int progress = 35;
         QPointer<QProgressBar> progressBar;
         QPointer<QLabel> statusLabel;
         QPointer<QTimer> timer;
@@ -91,6 +92,7 @@ public:
         QPointer<QSpinBox> smallIconSpin;
         QPointer<QSpinBox> mediumIconSpin;
         QPointer<QSpinBox> largeIconSpin;
+        int progress = 35;
         QPointer<Window> window;
     };
     Data d;
@@ -360,7 +362,7 @@ WindowPrivate::createVideoCapture(QWidget* parent)
 QWidget*
 WindowPrivate::createStyleEditor(QWidget* parent)
 {
-    using Style = flipman::sdk::core::Style;
+    using UI = flipman::sdk::core::UI;
 
     QWidget* widget = new QWidget(parent);
     QVBoxLayout* layout = new QVBoxLayout(widget);
@@ -461,7 +463,7 @@ WindowPrivate::createStyleEditor(QWidget* parent)
 
     d.colorRoleCombo = new QComboBox(colorBox);
 
-    const QMetaEnum colorEnum = QMetaEnum::fromType<Style::ColorRole>();
+    const QMetaEnum colorEnum = QMetaEnum::fromType<UI::ColorRole>();
     for (int i = 0; i < colorEnum.keyCount(); ++i)
         d.colorRoleCombo->addItem(QString::fromLatin1(colorEnum.key(i)), colorEnum.value(i));
 
@@ -478,13 +480,13 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     hslLayout->addWidget(d.copyColorButton);
 
     auto updateColorPreview = [this]() {
-        using Style = flipman::sdk::core::Style;
+        using UI = flipman::sdk::core::UI;
 
         if (!d.colorRoleCombo || !d.colorButton || !d.copyColorButton || !d.hslLabel)
             return;
 
-        const auto role = Style::ColorRole(d.colorRoleCombo->currentData().toInt());
-        const QColor color = sdk::core::style()->color(role);
+        const auto role = UI::ColorRole(d.colorRoleCombo->currentData().toInt());
+        const QColor color = sdk::core::ui()->color(role);
 
         const QString hsl = hslString(color);
         const QString qcolor = qcolorFromHslString(color);
@@ -495,17 +497,17 @@ WindowPrivate::createStyleEditor(QWidget* parent)
         d.hslLabel->setText(hsl + "\n" + qcolor);
         d.copyColorButton->setProperty("qcolor", qcolor);
 
-        qInfo() << "Style color" << d.colorRoleCombo->currentText() << color.name(QColor::HexArgb) << hsl << qcolor;
+        qInfo() << "UI color" << d.colorRoleCombo->currentText() << color.name(QColor::HexArgb) << hsl << qcolor;
     };
 
     QObject::connect(d.colorRoleCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
                      [updateColorPreview](int) { updateColorPreview(); });
 
     QObject::connect(d.colorButton, &QPushButton::clicked, this, [this, updateColorPreview]() {
-        using Style = flipman::sdk::core::Style;
+        using UI = flipman::sdk::core::UI;
 
-        const auto role = Style::ColorRole(d.colorRoleCombo->currentData().toInt());
-        const QColor current = sdk::core::style()->color(role);
+        const auto role = UI::ColorRole(d.colorRoleCombo->currentData().toInt());
+        const QColor current = sdk::core::ui()->color(role);
 
         const QColor color = QColorDialog::getColor(current, d.window,
                                                     QString("Select %1 Color").arg(d.colorRoleCombo->currentText()),
@@ -514,8 +516,8 @@ WindowPrivate::createStyleEditor(QWidget* parent)
         if (!color.isValid())
             return;
 
-        sdk::core::style()->setColor(role, color);
-        sdk::core::style()->update();
+        sdk::core::ui()->setColor(role, color);
+        sdk::core::ui()->refresh();
 
         updateColorPreview();
     });
@@ -547,20 +549,20 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     d.mediumFontSpin = new QSpinBox(fontBox);
     d.largeFontSpin = new QSpinBox(fontBox);
 
-    addSpinSliderRow(fontLayout, "Small", d.smallFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Small));
-    addSpinSliderRow(fontLayout, "Medium", d.mediumFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Medium));
-    addSpinSliderRow(fontLayout, "Large", d.largeFontSpin, 6, 48, sdk::core::style()->fontSize(Style::Large));
+    addSpinSliderRow(fontLayout, "Small", d.smallFontSpin, 6, 48, sdk::core::ui()->fontSize(UI::Small));
+    addSpinSliderRow(fontLayout, "Medium", d.mediumFontSpin, 6, 48, sdk::core::ui()->fontSize(UI::Medium));
+    addSpinSliderRow(fontLayout, "Large", d.largeFontSpin, 6, 48, sdk::core::ui()->fontSize(UI::Large));
 
-    auto connectFontSpin = [this](QSpinBox* spin, Style::UIScale scale) {
+    auto connectFontSpin = [this](QSpinBox* spin, UI::UIScale scale) {
         QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, [scale](int value) {
-            sdk::core::style()->setFontSize(scale, value);
-            sdk::core::style()->update();
+            sdk::core::ui()->setFontSize(scale, value);
+            sdk::core::ui()->refresh();
         });
     };
 
-    connectFontSpin(d.smallFontSpin, Style::Small);
-    connectFontSpin(d.mediumFontSpin, Style::Medium);
-    connectFontSpin(d.largeFontSpin, Style::Large);
+    connectFontSpin(d.smallFontSpin, UI::Small);
+    connectFontSpin(d.mediumFontSpin, UI::Medium);
+    connectFontSpin(d.largeFontSpin, UI::Large);
 
     QGroupBox* iconBox = new QGroupBox("Icon Sizes", widget);
     QFormLayout* iconLayout = new QFormLayout(iconBox);
@@ -569,20 +571,20 @@ WindowPrivate::createStyleEditor(QWidget* parent)
     d.mediumIconSpin = new QSpinBox(iconBox);
     d.largeIconSpin = new QSpinBox(iconBox);
 
-    addSpinSliderRow(iconLayout, "Small", d.smallIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Small));
-    addSpinSliderRow(iconLayout, "Medium", d.mediumIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Medium));
-    addSpinSliderRow(iconLayout, "Large", d.largeIconSpin, 8, 128, sdk::core::style()->iconSize(Style::Large));
+    addSpinSliderRow(iconLayout, "Small", d.smallIconSpin, 8, 128, sdk::core::ui()->iconSize(UI::Small));
+    addSpinSliderRow(iconLayout, "Medium", d.mediumIconSpin, 8, 128, sdk::core::ui()->iconSize(UI::Medium));
+    addSpinSliderRow(iconLayout, "Large", d.largeIconSpin, 8, 128, sdk::core::ui()->iconSize(UI::Large));
 
-    auto connectIconSpin = [this](QSpinBox* spin, Style::UIScale scale) {
+    auto connectIconSpin = [this](QSpinBox* spin, UI::UIScale scale) {
         QObject::connect(spin, qOverload<int>(&QSpinBox::valueChanged), this, [scale](int value) {
-            sdk::core::style()->setIconSize(scale, value);
-            sdk::core::style()->update();
+            sdk::core::ui()->setIconSize(scale, value);
+            sdk::core::ui()->refresh();
         });
     };
 
-    connectIconSpin(d.smallIconSpin, Style::Small);
-    connectIconSpin(d.mediumIconSpin, Style::Medium);
-    connectIconSpin(d.largeIconSpin, Style::Large);
+    connectIconSpin(d.smallIconSpin, UI::Small);
+    connectIconSpin(d.mediumIconSpin, UI::Medium);
+    connectIconSpin(d.largeIconSpin, UI::Large);
 
     layout->addWidget(stylesheetBox);
     layout->addWidget(colorBox);

@@ -2,25 +2,30 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "bindings.h"
-#include <cmath>
+
 #include <flipmansdk/av/fps.h>
 #include <flipmansdk/av/smptetime.h>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
+#include <cmath>
 
 namespace flipman::sdk::python {
+
 namespace {
+
     void validFps(const av::Fps& value)
     {
         if (!value.isValid() || value.numerator() <= 0)
             throw nb::value_error("frame rate must have positive numerator and denominator");
     }
+
     void validTime(const av::Time& value)
     {
         if (!value.isValid())
             throw nb::value_error("time must have a positive timeScale");
         validFps(value.fps());
     }
+
     void matchingTime(const av::Time& a, const av::Time& b)
     {
         validTime(a);
@@ -28,7 +33,9 @@ namespace {
         if (a.timeScale() != b.timeScale() || a.fps() != b.fps())
             throw nb::value_error("times must use the same timeScale and fps; convert explicitly");
     }
+
 }  // namespace
+
 void
 bindAv(nb::module_& module)
 {
@@ -238,4 +245,5 @@ bindAv(nb::module_& module)
         .def("toString", &av::SmpteTime::toString)
         .def("__str__", &av::SmpteTime::toString);
 }
+
 }  // namespace flipman::sdk::python

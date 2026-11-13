@@ -2,19 +2,22 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 
 #include "timelinewidget.h"
+
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPointer>
 
 namespace flipman {
+
 class TimeLineWidgetPrivate {
 public:
     void init();
+
     struct Data {
+        QPointer<sdk::av::Timeline> timeLine;
         double zoom = 1.0;
         double currentTime = 0.0;
         bool draggingTimeIndicator = false;
-        QPointer<sdk::av::Timeline> timeLine;
         QPointer<TimeLineWidget> widget;
     };
     Data d;
@@ -195,4 +198,5 @@ TimeLineWidget::sizeHint() const
     qsizetype height = headerHeight + numTracks * trackHeight;
     return QSize(w, height);
 }
+
 }  // namespace flipman

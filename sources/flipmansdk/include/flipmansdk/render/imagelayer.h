@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <QExplicitlySharedDataPointer>
-#include <QMatrix4x4>
-#include <QMetaType>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/imageeffect.h>
+#include <QExplicitlySharedDataPointer>
+#include <QMatrix4x4>
+#include <QMetaType>
 
 namespace flipman::sdk::render {
 
@@ -54,6 +54,18 @@ public:
      * @brief Returns the decoded pixel data associated with this layer.
      */
     core::ImageBuffer image() const;
+
+    /**
+     * @brief Returns the OCIO input space override; empty means use image metadata.
+     */
+    QString inputColorSpace() const;
+
+    /**
+     * @brief Overrides source interpretation with an exact OCIO color space name.
+     *
+     * Like other layer setters, this mutates explicitly shared layer data.
+     */
+    void setInputColorSpace(const QString& name);
 
     /**
      * @brief Sets the pixel data for this layer.

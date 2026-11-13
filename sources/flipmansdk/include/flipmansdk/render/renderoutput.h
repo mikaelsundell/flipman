@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <QMetaType>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/renderspec.h>
+#include <QMetaType>
 
 namespace flipman::sdk::render {
 

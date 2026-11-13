@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <QScopedPointer>
-#include <QString>
-#include <QStringList>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/shaderdefinition.h>
+#include <QScopedPointer>
+#include <QString>
+#include <QStringList>
 
 namespace flipman::sdk::render {
 
@@ -38,8 +38,11 @@ public:
      */
     struct Injections {
         QHash<QString, QString> tokens;
+
         void set(const QString& name, const QString& code) { tokens.insert(name, code); }
+
         QString value(const QString& name) const { return tokens.value(name); }
+
         bool contains(const QString& name) const { return tokens.contains(name); }
     };
 

@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2025 - present Mikael Sundell
+// https://github.com/mikaelsundell/flipman
+
+#pragma once
+
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/displaycolorspace.h>
+#include <QColor>
+#include <QObject>
+#include <QPixmap>
+#include <QScopedPointer>
+#include <QString>
+
+namespace flipman::sdk::core {
+
+class UIPrivate;
+
+/**
+ * @class UI
+ * @brief Stores application colors, icons, UI sizes, and stylesheet settings.
+ *
+ * Widgets use semantic roles to share a consistent appearance. Rendering color
+ * space is configured here alongside the UI styling resources.
+ */
+class FLIPMANSDK_EXPORT UI : public QObject {
+    Q_OBJECT
+public:
+    /**
+     * @brief Semantic color roles.
+     */
+    enum ColorRole {
+        Accent,
+        AccentAlt,
+        AxisX,
+        AxisY,
+        AxisZ,
+        Base,
+        BaseAlt,
+        Border,
+        BorderAlt,
+        Button,
+        ButtonAlt,
+        Error,
+        Graph,
+        Grid,
+        Guide,
+        Handle,
+        Highlight,
+        HighlightAlt,
+        Item,
+        ItemAlt,
+        Progress,
+        Readonly,
+        Render,
+        RenderAlt,
+        Selection,
+        SelectionAlt,
+        Sweep,
+        Text,
+        TextAlt,
+        Warning
+    };
+    Q_ENUM(ColorRole)
+
+    /**
+     * @brief Semantic icon roles.
+     */
+    enum IconRole {
+        BranchClosed,
+        BranchOpen,
+        Checked,
+        Clear,
+        Code,
+        Collapse,
+        Down,
+        DropDown,
+        Expand,
+        Export,
+        ExportImage,
+        Follow,
+        FrameAll,
+        Hidden,
+        Layer,
+        Left,
+        List,
+        Move,
+        Nested,
+        New,
+        Open,
+        PartiallyChecked,
+        Pick,
+        Pivot,
+        Redo,
+        Right,
+        Rotate,
+        Run,
+        Scale,
+        Select,
+        Transform,
+        Undo,
+        Up,
+        Visible,
+        Lock,
+        Unlock,
+        Play,
+        Previous,
+        Next,
+        Reverse,
+        Stop
+    };
+    Q_ENUM(IconRole)
+
+    /**
+     * @brief Logical UI scale levels.
+     */
+    enum UIScale { Small, Medium, Large };
+    Q_ENUM(UIScale)
+
+    /**
+     * @brief Selects normal or disabled presentation for UI resources.
+     */
+    enum UIState { Normal, Disabled };
+    Q_ENUM(UIState)
+
+    /**
+     * @brief Constructs a UI instance.
+     */
+    UI();
+
+    /**
+     * @brief Destroys the UI instance.
+     */
+    ~UI() override;
+
+    /**
+     * @name Theme
+     */
+    /**
+     * @{
+     */
+
+    /**
+     * @brief Returns color for a role.
+     */
+    QColor color(ColorRole role, UIState state = UIState::Normal) const;
+
+    /**
+     * @brief Sets color for a role.
+     */
+    void setColor(ColorRole role, const QColor& color);
+
+    /**
+     * @brief Returns icon for a role and size.
+     */
+    QPixmap icon(IconRole role, UIScale scale = UIScale::Medium, UIState state = UIState::Normal) const;
+
+    /**
+     * @brief Returns icon resource path for a role.
+     */
+    QString iconPath(IconRole role) const;
+
+    /**
+     * @brief Sets icon resource path for a role.
+     */
+    void setIconPath(IconRole role, const QString& path);
+
+    /**
+     * @brief Returns font size for a scale.
+     */
+    int fontSize(UIScale scale) const;
+
+    /**
+     * @brief Sets the font size for a scale.
+     */
+    void setFontSize(UIScale scale, int size);
+
+    /**
+     * @brief Returns icon size for a scale.
+     */
+    int iconSize(UIScale scale) const;
+
+    /**
+     * @brief Sets the icon size for a scale.
+     */
+    void setIconSize(UIScale scale, int size);
+
+    /**
+     * @brief Returns transform gizmo size for a scale.
+     */
+    int gizmoSize(UIScale scale) const;
+
+    /**
+     * @brief Sets transform gizmo size for a scale.
+     */
+    void setGizmoSize(UIScale scale, int size);
+
+    /**
+     * @brief Returns the corner-axis image size in logical pixels for a scale.
+     */
+    int axisSize(UIScale scale) const;
+
+    /**
+     * @brief Sets the corner-axis image size in logical pixels for a scale.
+     */
+    void setAxisSize(UIScale scale, int size);
+
+    /**
+     * @brief Returns transform move snapping increment in stage units.
+     */
+    double transformMoveSnap() const;
+
+    /**
+     * @brief Sets transform move snapping increment in stage units.
+     */
+    void setTransformMoveSnap(double value);
+
+    /**
+     * @brief Returns transform rotation snapping increment in degrees.
+     */
+    double transformRotateSnap() const;
+
+    /**
+     * @brief Sets transform rotation snapping increment in degrees.
+     */
+    void setTransformRotateSnap(double value);
+
+    /**
+     * @brief Returns transform scale snapping increment.
+     */
+    double transformScaleSnap() const;
+
+    /**
+     * @brief Sets transform scale snapping increment.
+     */
+    void setTransformScaleSnap(double value);
+
+    /**
+     * @brief Rebuilds and reapplies the application stylesheet.
+     */
+    void refresh();
+
+    /**
+     * @}
+     */
+
+    /**
+     * @name Rendering
+     */
+    /**
+     * @{
+     */
+
+    /**
+     * @brief
+     * Sets the profile for subsequently created Qt surfaces on the application thread.
+     */
+    void setColorSpace(const render::DisplayColorSpace& colorSpace);
+
+    /**
+     * @brief
+     * Returns the application default display profile, independently of Viewer output tagging.
+     */
+    render::DisplayColorSpace colorSpace() const;
+
+    /**
+     * @}
+     */
+
+    /**
+     * @name Stylesheet
+     */
+    /**
+     * @{
+     */
+
+    /**
+     * @brief Sets the application stylesheet.
+     */
+    void setStyleSheet(const QString& styleSheet);
+
+    /**
+     * @brief Returns rendering stylesheet.
+     */
+    QString styleSheet() const;
+
+    /**
+     * @}
+     */
+
+Q_SIGNALS:
+
+    /**
+     * @brief Emitted when a color role changes.
+     */
+    void colorChanged(ColorRole role);
+
+    /**
+     * @brief Emitted when the corner-axis size changes for a scale.
+     */
+    void axisSizeChanged(UIScale scale);
+
+
+private:
+    Q_DISABLE_COPY_MOVE(UI)
+    QScopedPointer<UIPrivate> p;
+};
+
+}  // namespace flipman::sdk::core

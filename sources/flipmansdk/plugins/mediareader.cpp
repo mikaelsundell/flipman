@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QPointer>
 #include <flipmansdk/plugins/mediareader.h>
+#include <QPointer>
 
 namespace flipman::sdk::plugins {
+
 MediaReader::MediaReader(QObject* parent)
     : core::Plugin(parent)
 {}
@@ -35,4 +36,5 @@ MediaReader::error() const
 {
     return core::Error();
 }
+
 }  // namespace flipman::sdk::plugins

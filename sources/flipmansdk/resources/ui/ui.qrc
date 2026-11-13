@@ -1,0 +1,53 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file alias="resources/BranchClosed.png">icons/BranchClosed.png</file>
+    <file alias="resources/BranchOpen.png">icons/BranchOpen.png</file>
+    <file alias="resources/Checked.png">icons/Checked.png</file>
+    <file alias="resources/Clear.png">icons/Clear.png</file>
+    <file alias="resources/Code.png">icons/Code.png</file>
+    <file alias="resources/Collapse.png">icons/Collapse.png</file>
+    <file alias="resources/Down.png">icons/Down.png</file>
+    <file alias="resources/DropDown.png">icons/DropDown.png</file>
+    <file alias="resources/Expand.png">icons/Expand.png</file>
+    <file alias="resources/Export.png">icons/Export.png</file>
+    <file alias="resources/ExportImage.png">icons/ExportImage.png</file>
+    <file alias="resources/Follow.png">icons/Follow.png</file>
+    <file alias="resources/FrameAll.png">icons/FrameAll.png</file>
+    <file alias="resources/Hidden.png">icons/Hidden.png</file>
+    <file alias="resources/Layer.png">icons/Layer.png</file>
+    <file alias="resources/Left.png">icons/Left.png</file>
+    <file alias="resources/List.png">icons/List.png</file>
+    <file alias="resources/Lock.png">icons/Lock.png</file>
+    <file alias="resources/Move.png">icons/Move.png</file>
+    <file alias="resources/Nested.png">icons/Nested.png</file>
+    <file alias="resources/New.png">icons/New.png</file>
+    <file alias="resources/Open.png">icons/Open.png</file>
+    <file alias="resources/PartiallyChecked.png">icons/PartiallyChecked.png</file>
+    <file alias="resources/Pick.png">icons/Pick.png</file>
+    <file alias="resources/Pivot.png">icons/Pivot.png</file>
+    <file alias="resources/Redo.png">icons/Redo.png</file>
+    <file alias="resources/Right.png">icons/Right.png</file>
+    <file alias="resources/Rotate.png">icons/Rotate.png</file>
+    <file alias="resources/Run.png">icons/Run.png</file>
+    <file alias="resources/Scale.png">icons/Scale.png</file>
+    <file alias="resources/Select.png">icons/Select.png</file>
+    <file alias="resources/Undo.png">icons/Undo.png</file>
+    <file alias="resources/Unlock.png">icons/Unlock.png</file>
+    <file alias="resources/Up.png">icons/Up.png</file>
+    <file alias="resources/Visible.png">icons/Visible.png</file>
+    <file alias="checked.png">checked.png</file>
+    <file alias="down.png">down.png</file>
+    <file alias="left.png">left.png</file>
+    <file alias="next.png">next.png</file>
+    <file alias="partiallychecked.png">partiallychecked.png</file>
+    <file alias="play.png">play.png</file>
+    <file alias="previous.png">previous.png</file>
+    <file alias="reverse.png">reverse.png</file>
+    <file alias="right.png">right.png</file>
+    <file alias="stop.png">stop.png</file>
+    <file alias="up.png">Up.png</file>
+  </qresource>
+  <qresource prefix="/ui">
+    <file alias="App.qss">App.qss</file>
+  </qresource>
+</RCC>

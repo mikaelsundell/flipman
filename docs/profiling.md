@@ -1,6 +1,6 @@
 # Profiling and diagnostic logging
 
-The SDK ports Stageviz's `profile.h/.cpp` and optional `PerfScope` phase logger.
+The SDK provides `profile.h/.cpp` and the optional `PerfScope` phase logger.
 Namespaces, macros and environment variables use Flipman names. State lives in
 the shared SDK, so native clients and Python observe the same profiler. Profiling
 is off by default. Regular warning/error reporting is independent of profiling.
@@ -84,9 +84,7 @@ or nested wall times. Verify final responsiveness with profiling disabled.
 
 ## Qt diagnostics
 
-Stageviz's remaining `qDebug()` calls are primarily explicit diagnostic helpers
-and opt-in lock tracing. It does not provide a shared Qt category system to copy.
-Flipman now uses categories for its routine media/render diagnostics:
+Flipman uses Qt logging categories for its routine media/render diagnostics:
 
 ```sh
 QT_LOGGING_RULES="flipman.media.debug=true" \

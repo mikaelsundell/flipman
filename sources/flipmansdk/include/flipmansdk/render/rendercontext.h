@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <QExplicitlySharedDataPointer>
-#include <QMetaType>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/rendersurface.h>
+#include <QExplicitlySharedDataPointer>
+#include <QMetaType>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {

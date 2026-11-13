@@ -3,8 +3,9 @@
 // https://github.com/mikaelsundell/flipman
 
 #include "window.h"
-#include <QApplication>
+
 #include <flipmansdk/core/application.h>
+#include <QApplication>
 
 int
 main(int argc, char* argv[])

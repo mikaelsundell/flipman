@@ -2,15 +2,14 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QDir>
-#include <QScopedPointer>
-#include <QStandardPaths>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/log.h>
 #include <flipmansdk/plugins/mediawriter.h>
 #include <flipmansdk/plugins/pluginregistry.h>
 #include <flipmansdk/render/renderoutput.h>
-
+#include <QDir>
+#include <QScopedPointer>
+#include <QStandardPaths>
 
 namespace flipman::sdk::render {
 
@@ -21,9 +20,9 @@ public:
 
 public:
     struct Data {
-        bool enabled = false;
         RenderOutput::Format format = RenderOutput::Format::RGBA16F;
         RenderSpec spec;
+        bool enabled = false;
     };
     Data d;
 };
@@ -86,6 +85,7 @@ RenderOutput::enqueueFrame(const core::ImageBuffer& image, qint64 frame)
 {
     if (!core::renderLog().isDebugEnabled())
         return;
+
     qCDebug(flipman::sdk::core::renderLog)
         << "renderoutput: enqueueFrame"
         << "frame" << frame << "valid" << image.isValid() << "allocated" << image.isAllocated() << "dataWindow"

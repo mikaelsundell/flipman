@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2022 - present Mikael Sundell.
 
-#include <QColor>
 #include <flipmansdk/av/track.h>
+#include <QColor>
 
 namespace flipman::sdk::av {
+
 class TrackPrivate {
 public:
     TrackPrivate();
     ~TrackPrivate();
+
     struct Data {
+        TimeRange timeRange;
         QString name = "Track";
         QColor color;
-        TimeRange timeRange;
         QHash<Clip*, TimeRange> clips;
     };
     Data d;
@@ -118,4 +120,5 @@ Track::removeClip(Clip* clip)
     Q_ASSERT("clip not found on track" && containsClip(clip));
     p->d.clips.remove(clip);
 }
+
 }  // namespace flipman::sdk::av

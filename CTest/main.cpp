@@ -2,19 +2,22 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "sdk.h"
+
+#include <flipmansdk/core/application.h>
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTimer>
-#include <flipmansdk/core/application.h>
 
 namespace {
+
 struct TestCase {
     const char* name;
     bool (*run)();
     const char* resource = nullptr;
 };
+
 using namespace flipman::sdk::test;
 const TestCase cases[] = { { "file", testFile },
                            { "fps", testFps },
@@ -44,6 +47,7 @@ const TestCase cases[] = { { "file", testFile },
                            { "image_average", testImageAverage, "exr8k/8kdci long 23.976_00087172.exr" },
                            { "image_threaded", testImageThreaded, "exr8k" },
                            { "timer", testTimer } };
+
 }  // namespace
 
 int

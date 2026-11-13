@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QVector>
 #include <flipmansdk/av/fps.h>
+#include <QVector>
 
 namespace flipman::sdk::av {
+
 class FpsPrivate : public QSharedData {
 public:
     struct Data {
@@ -175,7 +176,11 @@ Fps::operator>=(const Fps& other) const
     return real() >= other.real();
 }
 
-Fps::operator double() const { return real(); }
+Fps::
+operator double() const
+{
+    return real();
+}
 
 Fps
 Fps::guess(qreal fps)
@@ -256,4 +261,5 @@ Fps::convert(quint64 value, const Fps& from, const Fps& to)
 {
     return qRound(static_cast<qreal>(value) * (to / from));
 }
+
 }  // namespace flipman::sdk::av

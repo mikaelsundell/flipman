@@ -4,13 +4,13 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/rendersurface.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMatrix4x4>
 #include <QMetaType>
 #include <QSize>
 #include <QString>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/rendersurface.h>
 
 namespace flipman::sdk::render {
 

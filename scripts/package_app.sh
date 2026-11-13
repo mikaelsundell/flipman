@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Adapted from Stageviz's build_app.sh/deploymac/deploydmg workflow.
+# Package a Flipman application bundle and optional disk image.
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 usage() { echo "usage: $0 --bundle App.app --prefix DEPENDENCIES --output DIR --config Debug|Release [--dmg] [--sign]"; }
@@ -47,6 +47,7 @@ app="$output/$name"
 mkdir -p "$app/Contents/Resources/Licenses" "$app/Contents/Frameworks"
 cp "$root/LICENSE" "$app/Contents/Resources/Licenses/Flipman.txt"
 cp "$root/3rdparty/glsl-parser/LICENSE" "$app/Contents/Resources/Licenses/glsl-parser.txt"
+cp "$root/sources/flipmansdk/resources/configs/LICENSE" "$app/Contents/Resources/Licenses/OCIO-ACES-config.txt"
 cp "$root/docs/blackmagic-runtime.md" "$app/Contents/Resources/Blackmagic-runtime.md"
 if [[ -n "$raw_framework" ]]; then
     ditto "$raw_framework" "$app/Contents/Frameworks/BlackmagicRawAPI.framework"

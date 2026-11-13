@@ -2,11 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/plugins/qt/qtwriter.h>
 #include <QDir>
 #include <QImage>
 #include <QImageWriter>
 #include <QPointer>
-#include <flipmansdk/plugins/qt/qtwriter.h>
 
 namespace flipman::sdk::plugins {
 
@@ -16,13 +16,14 @@ public:
     static PluginHandler::Info info();
     static core::Plugin* creator();
     static QList<QString> extensions();
+
     struct Data {
         core::File file;
+        core::MetaData metaData;
+        core::Error error;
         av::Fps fps;
         av::TimeRange timerange;
         av::Time timestamp;
-        core::MetaData metaData;
-        core::Error error;
     };
     Data d;
 };

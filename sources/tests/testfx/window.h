@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <QScopedPointer>
 #include <flipmansdk/widgets/window.h>
+#include <QScopedPointer>
 
 namespace flipman {
 

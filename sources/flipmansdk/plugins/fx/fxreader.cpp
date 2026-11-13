@@ -14,6 +14,7 @@ public:
     static plugins::PluginHandler::Info info();
     static core::Plugin* creator();
     static QList<QString> extensions();
+
     struct Data {
         render::ImageEffect imageEffect;
         core::Error error;

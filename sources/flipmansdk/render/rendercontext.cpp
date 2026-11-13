@@ -12,7 +12,6 @@ public:
         QRhi* rhi = nullptr;
         RenderSurface surface;
     };
-
     Data d;
 };
 

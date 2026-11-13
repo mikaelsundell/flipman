@@ -5,12 +5,13 @@
 #include <flipmansdk/av/audiofilter.h>
 
 namespace flipman::sdk::av {
+
 class AudioFilterPrivate : public QSharedData {
 public:
     struct Data {
-        QString data;
         core::MetaData metaData;
         core::Error error;
+        QString data;
     };
     Data d;
 };
@@ -81,4 +82,5 @@ AudioFilter::operator!=(const AudioFilter& other) const
 {
     return !(this->p == other.p);
 }
+
 }  // namespace flipman::sdk::av

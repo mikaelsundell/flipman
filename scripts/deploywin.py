@@ -1,7 +1,7 @@
-# Copyright 2022-present Contributors to the stageviz project.
+# Copyright 2022-present Mikael Sundell and contributors.
 # Adapted for Flipman; Copyright 2026 Flipman contributors.
 # SPDX-License-Identifier: BSD-3-Clause
-# https://github.com/mikaelsundell/stageviz
+# https://github.com/mikaelsundell/flipman
 
 import fnmatch
 import os

@@ -54,6 +54,7 @@ endforeach()
 file(GLOB sdk_render_headers "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/render/*.h")
 file(GLOB sdk_render_sources 
     "${CMAKE_CURRENT_SOURCE_DIR}/render/*.cpp" 
+    "${CMAKE_CURRENT_SOURCE_DIR}/render/*.mm"
 )
 source_group("Header Files\\render" FILES ${sdk_render_headers})
 source_group("Source Files\\render" FILES ${sdk_render_sources})
@@ -67,13 +68,24 @@ file(GLOB sdk_widgets_sources
 source_group("Header Files\\widgets" FILES ${sdk_widgets_headers})
 source_group("Source Files\\widgets" FILES ${sdk_widgets_sources})
 
+# Internal headers are visible in the IDE but never form part of the public API.
+file(GLOB_RECURSE sdk_private_headers CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/av/private/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/core/private/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/plugins/private/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*/private/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/render/private/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/widgets/private/*.h"
+)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Private Headers" FILES ${sdk_private_headers})
+
 # resources
 file(GLOB sdk_root_headers
      "${CMAKE_CURRENT_SOURCE_DIR}/include/flipmansdk/*.h")
 
 file(GLOB sdk_resources
-     "${CMAKE_CURRENT_SOURCE_DIR}/resources/style/*.qss"
-     "${CMAKE_CURRENT_SOURCE_DIR}/resources/style/*.qrc"
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/ui/*.qss"
+     "${CMAKE_CURRENT_SOURCE_DIR}/resources/ui/*.qrc"
 )
 
 file(GLOB sdk_glsl_resources
@@ -90,6 +102,7 @@ source_group("Resources\\metal" FILES ${sdk_metal_resources})
 
 # target definition
 add_library(${sdk_name} SHARED
+    ${sdk_private_headers}
     ${sdk_root_headers}
     ${sdk_av_headers}
     ${sdk_av_sources}
@@ -109,6 +122,8 @@ qt_add_resources(${sdk_name} "resources"
     FILES
         ${sdk_resources}
         ${sdk_glsl_resources}
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/configs/studio-config-v4.0.0_aces-v2.0_ocio-v2.5.ocio"
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/configs/LICENSE"
 )
 
 target_sources(${sdk_name}
@@ -175,6 +190,7 @@ target_link_libraries(${sdk_name}
         Qt6::ShaderToolsPrivate
         flipman_glsl_parser
         OpenImageIO::OpenImageIO
+        OpenColorIO::OpenColorIO
         OpenImageIO::OpenImageIO_Util
         "-framework CoreFoundation"
         "-framework AVFoundation"

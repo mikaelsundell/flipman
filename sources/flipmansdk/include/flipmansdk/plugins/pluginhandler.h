@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <flipmansdk/core/plugin.h>
+#include <flipmansdk/flipmansdk.h>
 #include <QList>
 #include <QMetaType>
 #include <QString>
-#include <flipmansdk/core/plugin.h>
-#include <flipmansdk/flipmansdk.h>
 #include <functional>
 #include <typeindex>
 #include <utility>

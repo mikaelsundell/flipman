@@ -1,6 +1,6 @@
 @echo off
 REM SPDX-License-Identifier: BSD-3-Clause
-REM Adapted from Mikael Sundell's Stageviz build_app.bat.
+REM Configure and build Flipman.
 setlocal EnableExtensions
 set "app_dir=%~dp0"
 set "mode=%~1"

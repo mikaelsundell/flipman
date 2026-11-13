@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QtGlobal>
 #include <flipmansdk/av/timerange.h>
+#include <QtGlobal>
 
 namespace flipman::sdk::av {
+
 class TimeRangePrivate : public QSharedData {
 public:
     struct Data {
@@ -145,4 +146,5 @@ TimeRange::convert(const TimeRange& timerange, qint32 timescale)
 {
     return TimeRange(Time::convert(timerange.start(), timescale), Time::convert(timerange.duration(), timescale));
 }
+
 }  // namespace flipman::sdk::av

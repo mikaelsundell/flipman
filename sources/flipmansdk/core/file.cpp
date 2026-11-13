@@ -2,12 +2,13 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QDir>
-#include <QRegularExpression>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/filerange.h>
+#include <QDir>
+#include <QRegularExpression>
 
 namespace flipman::sdk::core {
+
 class FilePrivate : public QSharedData {
 public:
     struct FilePattern {
@@ -16,10 +17,12 @@ public:
         qsizetype pos;
         qsizetype length;
     };
+
     static FilePattern pattern(const QString& filename);
+
     struct Data {
-        QFileInfo fileInfo;
         FileRange fileRange;
+        QFileInfo fileInfo;
         QChar divider = '#';
     };
     Data d;
@@ -172,7 +175,6 @@ File::fileName(qint64 frame) const
     }
 }
 
-
 QString
 File::filePath() const
 {
@@ -258,7 +260,11 @@ File::reset()
     p->d.fileInfo = QFileInfo();
 }
 
-File::operator QString() const { return filePath(); }
+File::
+operator QString() const
+{
+    return filePath();
+}
 
 void
 File::setFileRange(const FileRange& filerange)
@@ -324,4 +330,5 @@ File::listDir(const QString& filepath, const QStringList& namefilters, bool rang
     }
     return files;
 }
+
 }  // namespace flipman::sdk::core

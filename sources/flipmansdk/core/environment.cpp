@@ -2,15 +2,17 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/environment.h>
 #include <QCoreApplication>
 #include <QDir>
-#include <flipmansdk/core/environment.h>
 
 namespace flipman::sdk::core {
+
 class EnvironmentPrivate {
 public:
     EnvironmentPrivate();
     ~EnvironmentPrivate();
+
     struct Data {};
     Data d;
 };
@@ -46,4 +48,5 @@ Environment::resourcePath(const QString& resource)
 {
     return QDir(applicationPath()).filePath(resource);
 }
+
 }  // namespace flipman::sdk::core

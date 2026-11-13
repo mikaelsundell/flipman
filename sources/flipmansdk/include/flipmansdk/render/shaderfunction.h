@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QString>
 #include <QStringList>
-#include <flipmansdk/flipmansdk.h>
 #include <utility>
 
 namespace flipman::sdk::render {

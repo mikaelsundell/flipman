@@ -1,35 +1,37 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2022 - present Mikael Sundell.
 
-#include <QPointer>
-#include <QThreadPool>
-#include <QtGlobal>
 #include <flipmansdk/av/media.h>
 #include <flipmansdk/av/timeline.h>
 #include <flipmansdk/av/timer.h>
 #include <flipmansdk/av/track.h>
+#include <QPointer>
+#include <QThreadPool>
+#include <QtGlobal>
 
 namespace flipman::sdk::av {
+
 class TimelinePrivate {
 public:
     void init();
     void reset();
+
     struct Data {
         Time time = Time();
         TimeRange timeRange = TimeRange();
         TimeRange ioRange = TimeRange();
         Fps fps = Fps();
-        int width = 1920;
-        int height = 1080;
+        core::Error error;
         QList<Track*> tracks;
         QThreadPool threadPool;
         std::atomic<bool> loop = false;
         std::atomic<bool> everyFrame = false;
         std::atomic<bool> playing = false;
-        core::Error error;
+        int width = 1920;
+        int height = 1080;
+        QPointer<Timeline> object;
     };
     Data d;
-    QPointer<Timeline> object;
 };
 
 void
@@ -43,7 +45,7 @@ Timeline::Timeline(QObject* parent)
     , p(new TimelinePrivate())
 {
     p->init();
-    p->object = this;
+    p->d.object = this;
 }
 
 Timeline::~Timeline() {}
@@ -227,4 +229,5 @@ Timeline::stop()
 {
     p->d.playing = false;
 }
+
 }  // namespace flipman::sdk::av

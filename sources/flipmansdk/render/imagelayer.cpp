@@ -6,14 +6,17 @@
 #include <flipmansdk/render/imagelayer.h>
 
 namespace flipman::sdk::render {
+
 class ImageLayerPrivate : public QSharedData {
 public:
     void init();
+
     struct Data {
         core::ImageBuffer image;
-        ImageEffect imageEffect;
-        QMatrix4x4 transform;
         core::Error error;
+        ImageEffect imageEffect;
+        QString inputColorSpace;
+        QMatrix4x4 transform;
     };
     Data d;
 };
@@ -40,6 +43,18 @@ core::ImageBuffer
 ImageLayer::image() const
 {
     return p->d.image;
+}
+
+QString
+ImageLayer::inputColorSpace() const
+{
+    return p->d.inputColorSpace;
+}
+
+void
+ImageLayer::setInputColorSpace(const QString& name)
+{
+    p->d.inputColorSpace = name;
 }
 
 ImageEffect
@@ -97,7 +112,7 @@ bool
 ImageLayer::operator==(const ImageLayer& other) const
 {
     return (p->d.image == other.p->d.image && p->d.imageEffect == other.p->d.imageEffect
-            && p->d.transform == other.p->d.transform);
+            && p->d.transform == other.p->d.transform && p->d.inputColorSpace == other.p->d.inputColorSpace);
 }
 
 bool

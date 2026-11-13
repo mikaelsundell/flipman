@@ -5,10 +5,12 @@
 #include <flipmansdk/core/audiobuffer.h>
 
 namespace flipman::sdk::core {
+
 class AudioBufferPrivate : public QSharedData {
 public:
     AudioBufferPrivate();
     ~AudioBufferPrivate();
+
     struct Data {
         AudioFormat format;
     };
@@ -69,4 +71,5 @@ AudioBuffer::operator!=(const AudioBuffer& other) const
 {
     return !(*this == other);
 }
+
 }  // namespace flipman::sdk::core

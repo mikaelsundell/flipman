@@ -5,6 +5,7 @@
 #include <flipmansdk/core/error.h>
 
 namespace flipman::sdk::core {
+
 class ErrorPrivate : public QSharedData {
 public:
     struct Data {
@@ -32,8 +33,6 @@ Error::Error(const Error& other)
 {}
 
 Error::~Error() {}
-
-
 
 QString
 Error::domain() const
@@ -91,5 +90,10 @@ Error::operator=(const Error& other)
     return *this;
 }
 
-Error::operator QString() const { return QString("%1 - %2 (%3)").arg(p->d.domain).arg(p->d.message).arg(p->d.code); }
+Error::
+operator QString() const
+{
+    return QString("%1 - %2 (%3)").arg(p->d.domain).arg(p->d.message).arg(p->d.code);
+}
+
 }  // namespace flipman::sdk::core

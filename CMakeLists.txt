@@ -4,7 +4,7 @@
 
 cmake_minimum_required (VERSION 3.27)
 
-# Keep direct CMake configuration consistent with build_app.sh/Stageviz. Set
+# Keep direct CMake configuration consistent with build_app.sh. Set
 # this before project() so compiler checks and generated Xcode targets agree.
 # A newer SDK does not mean the application requires that newer OS at runtime.
 if(CMAKE_HOST_APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
@@ -47,6 +47,7 @@ set (QT_NO_PRIVATE_MODULE_WARNING ON)
 set (qt6_modules Core Concurrent Gui GuiPrivate Widgets ShaderTools ShaderToolsPrivate)
 find_package (Qt6 COMPONENTS ${qt6_modules} CONFIG REQUIRED)
 find_package (OpenImageIO CONFIG REQUIRED)
+find_package(OpenColorIO 2.5 CONFIG REQUIRED)
 
 # build settings
 set (CMAKE_AUTOMOC ON)

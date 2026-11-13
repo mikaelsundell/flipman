@@ -17,6 +17,7 @@
 #include <flipmansdk/plugins/quicktime/quicktimewriter.h>
 
 namespace flipman::sdk::plugins {
+
 class PluginRegistryPrivate {
 public:
     struct Data {
@@ -35,6 +36,7 @@ PluginRegistry::PluginRegistry(QObject* parent)
     registerPlugin(BrawReader::handler());
 #endif
     registerPlugin(QuicktimeReader::handler());
+    registerPlugin(QuicktimeWriter::handler());
     registerPlugin(OIIOReader::handler());
     registerPlugin(OIIOWriter::handler());
     registerPlugin(QtWriter::handler());

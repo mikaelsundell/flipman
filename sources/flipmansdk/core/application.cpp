@@ -2,22 +2,24 @@
 // Copyright (c) 2022 - present Mikael Sundell.
 // https://github.com/mikaelsundell/flipman
 
-#include <QPointer>
 #include <flipmansdk/core/application.h>
 #include <flipmansdk/core/environment.h>
-#include <flipmansdk/core/style.h>
 #include <flipmansdk/core/system.h>
+#include <flipmansdk/core/ui.h>
 #include <flipmansdk/plugins/pluginregistry.h>
+#include <QPointer>
 
 namespace flipman::sdk::core {
+
 class ApplicationPrivate {
 public:
     ApplicationPrivate();
     ~ApplicationPrivate();
     void init();
+
     struct Data {
         QScopedPointer<Environment> environment;
-        QScopedPointer<Style> style;
+        QScopedPointer<UI> ui;
         QScopedPointer<System> system;
         QScopedPointer<plugins::PluginRegistry> pluginRegistry;
     };
@@ -32,7 +34,7 @@ void
 ApplicationPrivate::init()
 {
     d.environment.reset(new Environment());
-    d.style.reset(new Style());
+    d.ui.reset(new UI());
     d.system.reset(new System());
     d.pluginRegistry.reset(new plugins::PluginRegistry());
 }
@@ -52,10 +54,10 @@ Application::environment() const
     return p->d.environment.data();
 }
 
-Style*
-Application::style() const
+UI*
+Application::ui() const
 {
-    return p->d.style.data();
+    return p->d.ui.data();
 }
 
 System*
@@ -81,4 +83,5 @@ Application::instance()
     }
     return app;
 }
+
 }  // namespace flipman::sdk::core

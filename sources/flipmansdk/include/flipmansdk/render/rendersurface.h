@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QExplicitlySharedDataPointer>
 #include <QMetaType>
-#include <flipmansdk/flipmansdk.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2025 - present Mikael Sundell
-// Adapted from https://github.com/mikaelsundell/stageviz
 
+#include <flipmansdk/core/profile.h>
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
@@ -10,7 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <flipmansdk/core/profile.h>
 #include <functional>
 #ifdef _WIN32
 #    include <fcntl.h>
@@ -35,19 +34,23 @@ namespace flipman::sdk::profile {
 namespace {
 
     using Clock = std::chrono::steady_clock;
+
     uint64_t nowNs() noexcept
     {
         return static_cast<uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(Clock::now().time_since_epoch()).count());
     }
+
     struct SlowEvent {
         const Site* site;
         uint64_t durationNs;
         uint64_t thread;
     };
+
     struct State {
         std::atomic<Mode> current { Mode::Off };
         std::atomic<uint64_t> slowThresholdNs { 5'000'000 };
+
         struct Recording {
             RecordingId id;
             std::string name;
@@ -56,6 +59,7 @@ namespace {
             bool syncWrites;
             std::mutex mutex;
             std::atomic<bool> active { true };
+
             Recording(RecordingId i, std::string n, int f, bool close, bool sync)
                 : id(i)
                 , name(std::move(n))
@@ -63,6 +67,7 @@ namespace {
                 , closeFd(close)
                 , syncWrites(sync)
             {}
+
             ~Recording()
             {
 #ifdef _WIN32
@@ -74,6 +79,7 @@ namespace {
 #endif
             }
         };
+
         std::mutex recordingsMutex;
         std::map<RecordingId, std::shared_ptr<Recording>> recordings;
         std::atomic<RecordingId> nextRecording { 1 };
@@ -85,17 +91,21 @@ namespace {
         size_t cursor = 0;
         size_t count = 0;
     };
+
     State& state()
     {
         static auto* s = new State;
         return *s;
     }
+
     thread_local Scope* activeScope = nullptr;
     thread_local unsigned traceDepth = 0;
+
     uint64_t threadId() noexcept
     {
         return static_cast<uint64_t>(std::hash<std::thread::id> {}(std::this_thread::get_id()));
     }
+
     void writeOutput(int fd, const char* data, size_t size, bool syncWrites) noexcept
     {
 #ifdef _WIN32
@@ -108,12 +118,14 @@ namespace {
             ::fsync(fd);
 #endif
     }
+
     void writeRecord(const char* phase, const Site* site, unsigned depth, uint64_t elapsed = 0,
                      const char* counterName = nullptr, uint64_t counterValue = 0) noexcept
     {
         auto& s = state();
         if (!s.activeRecordings.load(std::memory_order_acquire))
             return;
+
         std::lock_guard<std::mutex> guard(s.recordingsMutex);
         for (const auto& pair : s.recordings) {
             const auto& recording = pair.second;
@@ -147,17 +159,20 @@ namespace {
         auto old = target.load(std::memory_order_relaxed);
         while (old < value && !target.compare_exchange_weak(old, value, std::memory_order_relaxed)) {}
     }
+
     void recordSlow(const Site* site, uint64_t durationNs) noexcept
     {
         auto& s = state();
         std::lock_guard<std::mutex> lock(s.traceMutex);
         if (s.ring.empty())
             return;
+
         s.ring[s.cursor] = { site, durationNs,
                              static_cast<uint64_t>(std::hash<std::thread::id> {}(std::this_thread::get_id())) };
         s.cursor = (s.cursor + 1) % s.ring.size();
         s.count = std::min(s.count + 1, s.ring.size());
     }
+
 }  // namespace
 
 Site::Site(const char* categoryValue, const char* nameValue)
@@ -298,6 +313,7 @@ endRecording(RecordingId id) noexcept
     auto it = s.recordings.find(id);
     if (it == s.recordings.end())
         return;
+
     auto recording = it->second;
 
     // End marker is written before the descriptor is closed.
@@ -335,6 +351,7 @@ event(const char* category, const char* name, const std::string& details)
     auto& s = state();
     if (!s.activeRecordings.load(std::memory_order_acquire))
         return;
+
     std::lock_guard<std::mutex> guard(s.recordingsMutex);
     for (const auto& pair : s.recordings) {
         const auto& recording = pair.second;
@@ -374,6 +391,7 @@ summary()
         std::string name;
         uint64_t calls, inclusive, exclusive, max;
     };
+
     std::vector<Row> rows;
     auto& s = state();
     {
@@ -418,6 +436,7 @@ writeSummary(const std::string& filename)
     std::ofstream file(filename, std::ios::binary | std::ios::trunc);
     if (!file)
         return false;
+
     file << summary();
     return file.good();
 }

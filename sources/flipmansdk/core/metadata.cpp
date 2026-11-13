@@ -2,10 +2,10 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/metadata.h>
 #include <QMap>
 #include <QSharedData>
 #include <QVariant>
-#include <flipmansdk/core/metadata.h>
 
 namespace flipman::sdk::core {
 
@@ -33,8 +33,10 @@ MetaData::isValid() const
 {
     if (!p)
         return false;
+
     if (!p->d.common.isEmpty())
         return true;
+
     for (auto it = p->d.groups.cbegin(); it != p->d.groups.cend(); ++it) {
         if (!it.value().isEmpty())
             return true;

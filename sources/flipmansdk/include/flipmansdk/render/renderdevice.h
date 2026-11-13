@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <QImage>
-#include <QObject>
-#include <QScopedPointer>
-#include <QSize>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/rendercontext.h>
 #include <flipmansdk/render/rendersurface.h>
+#include <QImage>
+#include <QObject>
+#include <QScopedPointer>
+#include <QSize>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {

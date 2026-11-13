@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 Mikael Sundell
-#include <stdexcept>
+
 #include <util.h>
+#include <stdexcept>
 
 static void
 require(bool value)
@@ -9,6 +10,7 @@ require(bool value)
     if (!value)
         throw std::runtime_error("GLSL vector boundary regression");
 }
+
 int
 main()
 {

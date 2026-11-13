@@ -2,12 +2,12 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/core/filerange.h>
+#include <flipmansdk/plugins/oiio/oiioreader.h>
 #include <OpenImageIO/half.h>
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 #include <OpenImageIO/typedesc.h>
-#include <flipmansdk/core/filerange.h>
-#include <flipmansdk/plugins/oiio/oiioreader.h>
 
 using namespace OIIO;
 
@@ -26,25 +26,29 @@ public:
     static plugins::PluginHandler::Info info();
     static core::Plugin* creator();
     static QList<QString> extensions();
+
     struct Data {
         core::File file;
-        std::unique_ptr<OIIO::ImageInput> input;
-        QString fileName;
+        core::ImageBuffer image;
+        core::MetaData metaData;
+        core::Error error;
         av::Fps fps = av::Fps::fps24();
         av::TimeRange timeRange;
         av::Time startStamp;
         av::Time timeStamp;
-        core::ImageBuffer image;
-        core::MetaData metaData;
+        QString fileName;
+        std::unique_ptr<OIIO::ImageInput> input;
         bool open = false;
-        core::Error error;
     };
     Data d;
 };
 
 namespace {
+
     std::once_flag flag;
+
     void init() { OIIO::attribute("threads", 0); }
+
 }  // namespace
 
 OIIOReaderPrivate::OIIOReaderPrivate() { std::call_once(flag, init); }
@@ -223,28 +227,34 @@ OIIOReaderPrivate::toImageType(const OIIO::TypeDesc& type)
 
     if (type == OIIO::TypeDesc::UINT8)
         return T::UInt8;
+
     if (type == OIIO::TypeDesc::INT8)
         return T::Int8;
 
     if (type == OIIO::TypeDesc::UINT16)
         return T::UInt16;
+
     if (type == OIIO::TypeDesc::INT16)
         return T::Int16;
 
     if (type == OIIO::TypeDesc::UINT32)
         return T::UInt32;
+
     if (type == OIIO::TypeDesc::INT32)
         return T::Int32;
 
     if (type == OIIO::TypeDesc::UINT64)
         return T::UInt64;
+
     if (type == OIIO::TypeDesc::INT64)
         return T::Int64;
 
     if (type == OIIO::TypeDesc::HALF)
         return T::Half;
+
     if (type == OIIO::TypeDesc::FLOAT)
         return T::Float;
+
     if (type == OIIO::TypeDesc::DOUBLE)
         return T::Double;
 

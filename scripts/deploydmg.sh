@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Adapted from Mikael Sundell's Stageviz deployment workflow.
+# Create a Flipman disk image.
 set -euo pipefail
 usage() { echo "usage: $0 --bundle App.app --dmg output.dmg"; }
 bundle=""; dmg=""

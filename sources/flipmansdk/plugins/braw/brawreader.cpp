@@ -2,6 +2,9 @@
 // Copyright (c) 2022-present Mikael Sundell
 // Decode/callback flow adapted from github.com/mikaelsundell/brawtool/brawtool.cpp.
 
+#include <flipmansdk/core/log.h>
+#include <flipmansdk/core/profile.h>
+#include <flipmansdk/plugins/braw/brawreader.h>
 #include <QDir>
 #include <QFileInfo>
 #include <QMutex>
@@ -10,9 +13,6 @@
 #include <climits>
 #include <cmath>
 #include <cstring>
-#include <flipmansdk/core/log.h>
-#include <flipmansdk/core/profile.h>
-#include <flipmansdk/plugins/braw/brawreader.h>
 #include <limits>
 #include <mutex>
 #include <utility>
@@ -21,7 +21,9 @@
 #endif
 
 namespace flipman::sdk::plugins {
+
 namespace {
+
 #ifdef FLIPMAN_HAS_BRAW
     template<class T> void release(T*& object)
     {
@@ -29,12 +31,14 @@ namespace {
             object->Release();
         object = nullptr;
     }
+
     CFStringRef cfString(const QString& string)
     {
         const auto utf8 = string.toUtf8();
         return CFStringCreateWithBytes(kCFAllocatorDefault, reinterpret_cast<const UInt8*>(utf8.constData()),
                                        utf8.size(), kCFStringEncodingUTF8, false);
     }
+
     QString qtString(CFStringRef string)
     {
         if (!string)
@@ -45,10 +49,12 @@ namespace {
                    ? QString::fromUtf8(bytes.constData())
                    : QString();
     }
+
     void metadata(IBlackmagicRawMetadataIterator* iterator, core::MetaData& output)
     {
         if (!iterator)
             return;
+
         CFStringRef key = nullptr;
         while (iterator->GetKey(&key) == S_OK) {
             Variant value;
@@ -111,7 +117,9 @@ namespace {
         core::MetaData frameMetadata;
         QVariantMap options;  // Immutable while jobs are in flight.
         IBlackmagicRawClipProcessingAttributes* clipAttributes = nullptr;
+
         ~BrawCallback() override { release(clipAttributes); }
+
         bool completed = false;
 
         HRESULT QueryInterface(REFIID, LPVOID* output) override
@@ -120,7 +128,9 @@ namespace {
                 *output = nullptr;
             return E_NOINTERFACE;
         }
+
         ULONG AddRef() override { return ++references; }
+
         ULONG Release() override
         {
             const auto count = --references;
@@ -128,12 +138,14 @@ namespace {
                 delete this;
             return count;
         }
+
         void fail(const QString& operation, HRESULT result)
         {
             std::lock_guard<std::mutex> guard(mutex);
             if (error.isEmpty())
                 error = QString("%1 failed (0x%2)").arg(operation).arg(quint32(result), 8, 16, QLatin1Char('0'));
         }
+
         void ReadComplete(IBlackmagicRawJob* job, HRESULT result, IBlackmagicRawFrame* frame) override
         {
             IBlackmagicRawJob* decode = nullptr;
@@ -186,6 +198,7 @@ namespace {
             }
             job->Release();
         }
+
         void ProcessComplete(IBlackmagicRawJob* job, HRESULT result, IBlackmagicRawProcessedImage* processed) override
         {
             try {
@@ -239,128 +252,143 @@ namespace {
             }
             job->Release();
         }
+
         void DecodeComplete(IBlackmagicRawJob*, HRESULT) override {}
+
         void TrimProgress(IBlackmagicRawJob*, float) override {}
+
         void TrimComplete(IBlackmagicRawJob*, HRESULT) override {}
+
         void SidecarMetadataParseWarning(IBlackmagicRawClip*, CFStringRef, uint32_t line, CFStringRef info) override
         {
             qCWarning(core::mediaLog) << "BRAW sidecar line" << line << qtString(info);
         }
+
         void SidecarMetadataParseError(IBlackmagicRawClip*, CFStringRef, uint32_t line, CFStringRef info) override
         {
             qCWarning(core::mediaLog) << "BRAW sidecar ignored, line" << line << qtString(info);
         }
+
         void PreparePipelineComplete(void*, HRESULT) override {}
     };
 #endif
+
 }  // namespace
 
 class BrawReaderPrivate {
 public:
     ~BrawReaderPrivate() { close(); }
-    mutable QMutex mutex;
-    core::Error error;
-    core::ImageBuffer image;
-    core::MetaData clipMetadata, currentMetadata;
-    av::Fps fps;
-    av::TimeRange range;
-    qint64 next = 0, end = 0;
-    bool open = false;
-#ifdef FLIPMAN_HAS_BRAW
-    IBlackmagicRawFactory* factory = nullptr;
-    IBlackmagicRaw* codec = nullptr;
-    IBlackmagicRawClip* clip = nullptr;
-    BrawCallback* callback = nullptr;
-#endif
+
     bool close()
     {
 #ifdef FLIPMAN_HAS_BRAW
-        if (codec) {
-            codec->FlushJobs();
-            codec->SetCallback(nullptr);
+        if (d.codec) {
+            d.codec->FlushJobs();
+            d.codec->SetCallback(nullptr);
         }
-        release(clip);
-        release(codec);
-        release(factory);
-        release(callback);
+        release(d.clip);
+        release(d.codec);
+        release(d.factory);
+        release(d.callback);
 #endif
-        open = false;
-        next = end = 0;
-        image = {};
-        clipMetadata = {};
-        currentMetadata = {};
-        range = {};
-        fps = {};
+        d.open = false;
+        d.next = d.end = 0;
+        d.image = {};
+        d.clipMetadata = {};
+        d.currentMetadata = {};
+        d.range = {};
+        d.fps = {};
         return true;
     }
+
     av::Time read()
     {
         FM_PROFILE_SCOPE("braw", "read");
-        image = {};
-        if (!open) {
-            error = core::Error("brawreader", "reader is not open");
+        d.image = {};
+        if (!d.open) {
+            d.error = core::Error("brawreader", "reader is not open");
             return {};
         }
-        if (error.hasError() || next >= end)
+        if (d.error.hasError() || d.next >= d.end)
             return {};
 #ifdef FLIPMAN_HAS_BRAW
         {
-            std::lock_guard<std::mutex> guard(callback->mutex);
-            callback->error.clear();
-            callback->image = {};
-            callback->frameMetadata = {};
-            callback->completed = false;
+            std::lock_guard<std::mutex> guard(d.callback->mutex);
+            d.callback->error.clear();
+            d.callback->image = {};
+            d.callback->frameMetadata = {};
+            d.callback->completed = false;
         }
         IBlackmagicRawJob* job = nullptr;
-        HRESULT result = clip->CreateJobReadFrame(uint64_t(next), &job);
+        HRESULT result = d.clip->CreateJobReadFrame(uint64_t(d.next), &job);
         if (result == S_OK)
             result = job->Submit();
         if (result != S_OK)
             release(job);  // Successful jobs are released by callbacks.
-        const HRESULT flushed = codec->FlushJobs();
-        std::lock_guard<std::mutex> guard(callback->mutex);
-        if (result != S_OK || flushed != S_OK || !callback->error.isEmpty() || !callback->completed) {
-            error = core::Error("brawreader",
-                                callback->error.isEmpty() ? "frame read/flush did not complete" : callback->error);
+        const HRESULT flushed = d.codec->FlushJobs();
+        std::lock_guard<std::mutex> guard(d.callback->mutex);
+        if (result != S_OK || flushed != S_OK || !d.callback->error.isEmpty() || !d.callback->completed) {
+            d.error = core::Error("brawreader", d.callback->error.isEmpty() ? "frame read/flush did not complete"
+                                                                            : d.callback->error);
             return {};
         }
-        image = callback->image;
-        currentMetadata = clipMetadata;
-        for (const auto& key : callback->frameMetadata.keys(core::MetaData::Group::Camera))
-            currentMetadata.insert(core::MetaData::Group::Camera, key,
-                                   callback->frameMetadata.value(core::MetaData::Group::Camera, key));
+        d.image = d.callback->image;
+        d.currentMetadata = d.clipMetadata;
+        for (const auto& key : d.callback->frameMetadata.keys(core::MetaData::Group::Camera))
+            d.currentMetadata.insert(core::MetaData::Group::Camera, key,
+                                     d.callback->frameMetadata.value(core::MetaData::Group::Camera, key));
         CFStringRef timecode = nullptr;
-        if (clip->GetTimecodeForFrame(uint64_t(next), &timecode) == S_OK && timecode) {
-            currentMetadata.insert(core::MetaData::Group::Timecode, "timecode", qtString(timecode));
+        if (d.clip->GetTimecodeForFrame(uint64_t(d.next), &timecode) == S_OK && timecode) {
+            d.currentMetadata.insert(core::MetaData::Group::Timecode, "timecode", qtString(timecode));
             CFRelease(timecode);
         }
-        return av::Time::fromFrames(next++, fps);
+        return av::Time::fromFrames(d.next++, d.fps);
 #else
         return {};
 #endif
     }
+
+    struct Data {
+#ifdef FLIPMAN_HAS_BRAW
+        IBlackmagicRawFactory* factory = nullptr;
+        IBlackmagicRaw* codec = nullptr;
+        IBlackmagicRawClip* clip = nullptr;
+        BrawCallback* callback = nullptr;
+#endif
+        core::Error error;
+        core::ImageBuffer image;
+        core::MetaData clipMetadata, currentMetadata;
+        av::Fps fps;
+        av::TimeRange range;
+        mutable QMutex mutex;
+        qint64 next = 0, end = 0;
+        bool open = false;
+    };
+    Data d;
 };
 
 BrawReader::BrawReader(QObject* parent)
     : MediaReader(parent)
     , p(new BrawReaderPrivate)
 {}
+
 BrawReader::~BrawReader() = default;
+
 bool
 BrawReader::open(const core::File& file, const Options& options)
 {
     FM_PROFILE_SCOPE("braw", "open");
-    QMutexLocker lock(&p->mutex);
+    QMutexLocker lock(&p->d.mutex);
     p->close();
-    p->error = {};
+    p->d.error = {};
 #ifndef FLIPMAN_HAS_BRAW
     Q_UNUSED(file);
     Q_UNUSED(options);
-    p->error = core::Error("brawreader", "Blackmagic RAW support was disabled at build time");
+    p->d.error = core::Error("brawreader", "Blackmagic RAW support was disabled at build time");
     return false;
 #else
     if (!file.exists()) {
-        p->error = core::Error("brawreader", "file does not exist");
+        p->d.error = core::Error("brawreader", "file does not exist");
         return false;
     }
     for (auto it = options.values.cbegin(); it != options.values.cend(); ++it) {
@@ -372,11 +400,11 @@ BrawReader::open(const core::File& file, const Options& options)
             || !(it.key() == "kelvin" ? integral && value >= 2000 && value <= 50000
                  : it.key() == "tint" ? integral && value >= -150 && value <= 150
                                       : it.key() == "exposure" && value >= -20 && value <= 20)) {
-            p->error = core::Error("brawreader", "invalid reader option: " + it.key());
+            p->d.error = core::Error("brawreader", "invalid reader option: " + it.key());
             return false;
         }
     }
-    p->factory = CreateBlackmagicRawFactoryInstance();
+    p->d.factory = CreateBlackmagicRawFactoryInstance();
     QString runtime = qEnvironmentVariable("FLIPMAN_BRAW_RUNTIME_DIR");
     if (runtime.isEmpty()) {
         const QString root = qEnvironmentVariable("BLACKMAGIC_RAW_ROOT");
@@ -384,23 +412,23 @@ BrawReader::open(const core::File& file, const Options& options)
             runtime = QDir(root).filePath(QFileInfo(QDir(root).filePath("Mac/Libraries")).isDir() ? "Mac/Libraries"
                                                                                                   : "Libraries");
     }
-    if (!p->factory && !runtime.isEmpty()) {
+    if (!p->d.factory && !runtime.isEmpty()) {
         CFStringRef path = cfString(runtime);
-        p->factory = CreateBlackmagicRawFactoryInstanceFromPath(path);
+        p->d.factory = CreateBlackmagicRawFactoryInstanceFromPath(path);
         CFRelease(path);
     }
-    if (!p->factory) {
-        p->error = core::Error(
+    if (!p->d.factory) {
+        p->d.error = core::Error(
             "brawreader",
             "Blackmagic RAW runtime not found in app Frameworks; set FLIPMAN_BRAW_RUNTIME_DIR to its framework parent");
         return false;
     }
     QString operation = "create codec";
-    HRESULT result = p->factory->CreateCodec(&p->codec);
+    HRESULT result = p->d.factory->CreateCodec(&p->d.codec);
     IBlackmagicRawConfiguration* configuration = nullptr;
     if (result == S_OK) {
         operation = "query configuration";
-        result = p->codec->QueryInterface(IID_IBlackmagicRawConfiguration, reinterpret_cast<void**>(&configuration));
+        result = p->d.codec->QueryInterface(IID_IBlackmagicRawConfiguration, reinterpret_cast<void**>(&configuration));
     }
     if (result == S_OK) {
         operation = "select CPU pipeline";
@@ -408,20 +436,20 @@ BrawReader::open(const core::File& file, const Options& options)
     }
     release(configuration);
     if (result == S_OK) {
-        p->callback = new BrawCallback;
-        p->callback->options = options.values;
+        p->d.callback = new BrawCallback;
+        p->d.callback->options = options.values;
         operation = "set callback";
-        result = p->codec->SetCallback(p->callback);
+        result = p->d.codec->SetCallback(p->d.callback);
     }
     if (result == S_OK) {
         CFStringRef path = cfString(file.filePath());
         operation = "open clip";
-        result = p->codec->OpenClip(path, &p->clip);
+        result = p->d.codec->OpenClip(path, &p->d.clip);
         CFRelease(path);
     }
     if (result == S_OK) {
         operation = "clone clip processing attributes";
-        result = p->clip->CloneClipProcessingAttributes(&p->callback->clipAttributes);
+        result = p->d.clip->CloneClipProcessingAttributes(&p->d.callback->clipAttributes);
     }
     if (result == S_OK) {
         // Display/preview LUTs belong to the render pipeline, not decoded pixels.
@@ -430,8 +458,8 @@ BrawReader::open(const core::File& file, const Options& options)
         value.vt = blackmagicRawVariantTypeString;
         value.bstrVal = cfString("Disabled");
         operation = "disable post-decode LUT";
-        result = p->callback->clipAttributes->SetClipAttribute(blackmagicRawClipProcessingAttributePost3DLUTMode,
-                                                               &value);
+        result = p->d.callback->clipAttributes->SetClipAttribute(blackmagicRawClipProcessingAttributePost3DLUTMode,
+                                                                 &value);
         VariantClear(&value);
     }
     uint32_t width = 0, height = 0;
@@ -439,179 +467,204 @@ BrawReader::open(const core::File& file, const Options& options)
     float rate = 0;
     if (result == S_OK) {
         operation = "read clip dimensions";
-        result = p->clip->GetWidth(&width);
+        result = p->d.clip->GetWidth(&width);
     }
     if (result == S_OK)
-        result = p->clip->GetHeight(&height);
+        result = p->d.clip->GetHeight(&height);
     if (result == S_OK) {
         operation = "read frame rate";
-        result = p->clip->GetFrameRate(&rate);
+        result = p->d.clip->GetFrameRate(&rate);
     }
     if (result == S_OK) {
         operation = "read frame count";
-        result = p->clip->GetFrameCount(&count);
+        result = p->d.clip->GetFrameCount(&count);
     }
     if (result != S_OK || !width || !height || !std::isfinite(rate) || rate <= 0 || !count
         || count > uint64_t(std::numeric_limits<qint64>::max() / 24000)) {
-        p->error = core::Error("brawreader", QString("%1 failed or invalid clip properties (0x%2)")
-                                                 .arg(operation)
-                                                 .arg(quint32(result), 8, 16, QLatin1Char('0')));
+        p->d.error = core::Error("brawreader", QString("%1 failed or invalid clip properties (0x%2)")
+                                                   .arg(operation)
+                                                   .arg(quint32(result), 8, 16, QLatin1Char('0')));
         p->close();
         return false;
     }
-    p->fps = av::Fps::guess(rate);
-    if (!p->fps.isValid()) {
-        p->error = core::Error("brawreader", "unsupported frame rate");
+    p->d.fps = av::Fps::guess(rate);
+    if (!p->d.fps.isValid()) {
+        p->d.error = core::Error("brawreader", "unsupported frame rate");
         p->close();
         return false;
     }
-    p->end = qint64(count);
-    p->range = av::TimeRange(av::Time::zero(p->fps), av::Time::fromFrames(p->end, p->fps));
+    p->d.end = qint64(count);
+    p->d.range = av::TimeRange(av::Time::zero(p->d.fps), av::Time::fromFrames(p->d.end, p->d.fps));
     IBlackmagicRawMetadataIterator* iterator = nullptr;
-    if (p->clip->GetMetadataIterator(&iterator) == S_OK) {
-        metadata(iterator, p->clipMetadata);
+    if (p->d.clip->GetMetadataIterator(&iterator) == S_OK) {
+        metadata(iterator, p->d.clipMetadata);
         release(iterator);
     }
-    p->clipMetadata.insert(core::MetaData::Group::Video, "width", width);
-    p->clipMetadata.insert(core::MetaData::Group::Video, "height", height);
-    p->clipMetadata.insert(core::MetaData::Group::Video, "frameCount", qulonglong(count));
+    p->d.clipMetadata.insert(core::MetaData::Group::Video, "width", width);
+    p->d.clipMetadata.insert(core::MetaData::Group::Video, "height", height);
+    p->d.clipMetadata.insert(core::MetaData::Group::Video, "frameCount", qulonglong(count));
     for (const auto& entry : { std::pair<BlackmagicRawClipProcessingAttribute, QString> {
                                    blackmagicRawClipProcessingAttributeGamma, "decodeGamma" },
                                { blackmagicRawClipProcessingAttributeGamut, "decodeGamut" } }) {
         Variant value;
         VariantInit(&value);
-        if (p->callback->clipAttributes->GetClipAttribute(entry.first, &value) == S_OK
+        if (p->d.callback->clipAttributes->GetClipAttribute(entry.first, &value) == S_OK
             && value.vt == blackmagicRawVariantTypeString)
-            p->clipMetadata.insert(core::MetaData::Group::Video, entry.second, qtString(value.bstrVal));
+            p->d.clipMetadata.insert(core::MetaData::Group::Video, entry.second, qtString(value.bstrVal));
         VariantClear(&value);
     }
-    p->currentMetadata = p->clipMetadata;
-    p->open = true;
+    Variant generation;
+    VariantInit(&generation);
+    if (p->d.callback->clipAttributes->GetClipAttribute(blackmagicRawClipProcessingAttributeColorScienceGen, &generation)
+            == S_OK
+        && generation.vt == blackmagicRawVariantTypeU16)
+        p->d.clipMetadata.insert(core::MetaData::Group::Video, "decodeColorScienceGen", generation.uiVal);
+    VariantClear(&generation);
+    p->d.currentMetadata = p->d.clipMetadata;
+    p->d.open = true;
     qCDebug(core::mediaLog) << "BRAW opened" << file.filePath() << width << height << rate << count;
     return true;  // Media's synchronous-open path emits its readiness signal.
 #endif
 }
+
 bool
 BrawReader::close()
 {
-    QMutexLocker lock(&p->mutex);
+    QMutexLocker lock(&p->d.mutex);
     p->close();
-    p->error = {};
+    p->d.error = {};
     return true;
 }
+
 bool
 BrawReader::isOpen() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->open;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.open;
 }
+
 bool
 BrawReader::supportsImage() const
 {
     return true;
 }
+
 bool
 BrawReader::supportsAudio() const
 {
     return false;
 }
+
 bool
 BrawReader::supportsConcurrent() const
 {
     return true;
 }
+
 QList<QString>
 BrawReader::extensions() const
 {
     return { "braw" };
 }
+
 av::Time
 BrawReader::read()
 {
-    QMutexLocker lock(&p->mutex);
+    QMutexLocker lock(&p->d.mutex);
     return p->read();
 }
+
 av::Time
 BrawReader::skip()
 {
-    QMutexLocker lock(&p->mutex);
-    p->image = {};
-    if (!p->open) {
-        p->error = core::Error("brawreader", "reader is not open");
+    QMutexLocker lock(&p->d.mutex);
+    p->d.image = {};
+    if (!p->d.open) {
+        p->d.error = core::Error("brawreader", "reader is not open");
         return {};
     }
-    if (p->error.hasError() || p->next >= p->end)
+    if (p->d.error.hasError() || p->d.next >= p->d.end)
         return {};
-    return av::Time::fromFrames(p->next++, p->fps);
+    return av::Time::fromFrames(p->d.next++, p->d.fps);
 }
+
 av::Time
 BrawReader::seek(const av::TimeRange& range)
 {
-    QMutexLocker lock(&p->mutex);
-    if (!p->open || !range.isValid()) {
-        p->error = core::Error("brawreader", "invalid seek or reader is not open");
+    QMutexLocker lock(&p->d.mutex);
+    if (!p->d.open || !range.isValid()) {
+        p->d.error = core::Error("brawreader", "invalid seek or reader is not open");
         return {};
     }
-    const auto start = av::Time::convert(range.start(), p->fps).frames();
-    const auto end = av::Time::convert(range.end(), p->fps).frames();
-    if (start < 0 || start >= p->range.duration().frames() || end <= start || end > p->range.duration().frames()) {
-        p->error = core::Error("brawreader", "seek range is outside the clip");
+    const auto start = av::Time::convert(range.start(), p->d.fps).frames();
+    const auto end = av::Time::convert(range.end(), p->d.fps).frames();
+    if (start < 0 || start >= p->d.range.duration().frames() || end <= start || end > p->d.range.duration().frames()) {
+        p->d.error = core::Error("brawreader", "seek range is outside the clip");
         return {};
     }
-    p->next = start;
-    p->end = end;
-    p->image = {};
-    p->currentMetadata = p->clipMetadata;
-    p->error = {};
-    return av::Time::fromFrames(start, p->fps);
+    p->d.next = start;
+    p->d.end = end;
+    p->d.image = {};
+    p->d.currentMetadata = p->d.clipMetadata;
+    p->d.error = {};
+    return av::Time::fromFrames(start, p->d.fps);
 }
+
 av::Time
 BrawReader::start() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->open ? p->range.start() : av::Time();
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.open ? p->d.range.start() : av::Time();
 }
+
 av::Time
 BrawReader::time() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->open ? av::Time::fromFrames(p->next, p->fps) : av::Time();
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.open ? av::Time::fromFrames(p->d.next, p->d.fps) : av::Time();
 }
+
 av::Fps
 BrawReader::fps() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->fps;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.fps;
 }
+
 av::TimeRange
 BrawReader::timeRange() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->range;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.range;
 }
+
 core::AudioBuffer
 BrawReader::audio() const
 {
     return {};
 }
+
 core::ImageBuffer
 BrawReader::image() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->image;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.image;
 }
+
 core::MetaData
 BrawReader::metaData() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->currentMetadata;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.currentMetadata;
 }
+
 core::Error
 BrawReader::error() const
 {
-    QMutexLocker lock(&p->mutex);
-    return p->error;
+    QMutexLocker lock(&p->d.mutex);
+    return p->d.error;
 }
+
 plugins::PluginHandler
 BrawReader::handler()
 {
@@ -620,4 +673,5 @@ BrawReader::handler()
         []() -> core::Plugin* { return new BrawReader; });
     return handler;
 }
+
 }  // namespace flipman::sdk::plugins

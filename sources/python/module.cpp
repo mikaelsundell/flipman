@@ -2,6 +2,7 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "bindings.h"
+
 #include <flipmansdk/core/profile.h>
 
 NB_MODULE(flipman, module)

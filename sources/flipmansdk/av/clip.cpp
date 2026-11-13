@@ -2,20 +2,22 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/av/clip.h>
 #include <QColor>
 #include <QString>
-#include <flipmansdk/av/clip.h>
 
 namespace flipman::sdk::av {
+
 class ClipPrivate {
 public:
     void init();
+
     struct Data {
-        QString name;
-        QColor color;
         Media media;
         AudioFilter audioFilter;
         render::ImageEffect imageEffect;
+        QString name;
+        QColor color;
         QMatrix4x4 transform;
     };
     Data d;

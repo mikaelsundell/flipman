@@ -5,13 +5,15 @@
 #include <flipmansdk/core/imageformat.h>
 
 namespace flipman::sdk::core {
+
 class ImageFormatPrivate : public QSharedData {
 public:
     ImageFormatPrivate();
     ~ImageFormatPrivate();
+
     struct Data {
-        int typesize[ImageFormat::Double + 1];
         ImageFormat::Type type;
+        int typesize[ImageFormat::Double + 1];
         Data()
             : typesize {
                 0,
@@ -110,4 +112,5 @@ ImageFormat::operator>(const ImageFormat& other) const
 {
     return (p->d.type > other.p->d.type);
 }
+
 }  // namespace flipman::sdk::core

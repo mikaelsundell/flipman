@@ -3,10 +3,10 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/plugins/imageeffectreader.h>
-
 #include <QPointer>
 
 namespace flipman::sdk::plugins {
+
 ImageEffectReader::ImageEffectReader(QObject* parent)
     : core::Plugin(parent)
 {}
@@ -24,4 +24,5 @@ ImageEffectReader::error() const
 {
     return core::Error();
 }
+
 }  // namespace flipman::sdk::plugins

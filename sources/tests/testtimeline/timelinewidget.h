@@ -4,12 +4,13 @@
 #pragma once
 
 #include <flipmansdk/av/timeline.h>
-
 #include <QScopedPointer>
 #include <QWidget>
 
 namespace flipman {
+
 class TimeLineWidgetPrivate;
+
 class TimeLineWidget : public QWidget {
     Q_OBJECT
 public:
@@ -32,4 +33,5 @@ protected:
 private:
     QScopedPointer<TimeLineWidgetPrivate> p;
 };
+
 }  // namespace flipman

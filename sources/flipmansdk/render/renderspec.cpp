@@ -9,6 +9,7 @@ namespace flipman::sdk::render {
 class RenderSpecPrivate : public QSharedData {
 public:
     void init();
+
     struct Data {
         QMatrix4x4 view;
         QSize size;

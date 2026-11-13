@@ -9,7 +9,6 @@
 #include <flipmansdk/core/platform.h>
 #include <flipmansdk/widgets/renderwidget.h>
 #include <flipmansdk/widgets/timeline.h>
-
 #include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
@@ -24,11 +23,11 @@
 #include <QPushButton>
 #include <QShortcut>
 #include <QSlider>
-
 #include <QtConcurrent>
 #include <QtGlobal>
 
 // generated files
+
 #include "ui_flipman.h"
 
 class FlipmanPrivate : public QObject {
@@ -85,6 +84,7 @@ public:
             }
              */
     }
+
     void run_seek(av::Time time)
     {
         if (!d.future.isRunning()) {
@@ -93,6 +93,7 @@ public:
         }
         d.seek = time;
     }
+
     void run_play()
     {
         if (!d.future.isRunning()) {
@@ -102,6 +103,7 @@ public:
             qWarning() << "could not run play, thread already running";
         }
     }
+
     void run_stop()
     {
         d.timeline->stop();
@@ -115,17 +117,17 @@ public:
 
 public:
     struct Data {
-        bool loop;
-        bool everyframe;
-        bool play;
-        bool fullscreen;
-        bool ready = false;
         av::Time seek;
         QFuture<void> future;
         QFutureWatcher<void> watcher;
         QSharedPointer<av::Media> media;
         QScopedPointer<av::Timeline> timeline;
         QScopedPointer<core::Platform> platform;
+        bool loop;
+        bool everyframe;
+        bool play;
+        bool fullscreen;
+        bool ready = false;
     };
     Data d;
     QStringList arguments;
@@ -139,13 +141,16 @@ void
 FlipmanPrivate::init()
 {
     d.platform.reset(new core::Platform());
+
     // ui
     ui.reset(new Ui_Flipman());
     ui->setupUi(window.data());
     window->setFocus();
     window->installEventFilter(this);
+
     // timeline
     d.timeline.reset(new av::Timeline());
+
     // connect
     connect(ui->menu_open, &QAction::triggered, this, &FlipmanPrivate::open);
     connect(ui->menu_start, &QAction::triggered, this, &FlipmanPrivate::seek_start);
@@ -179,15 +184,20 @@ FlipmanPrivate::init()
         }
     }
     connect(ui->utils_showinfinder, &QAction::triggered, this, &FlipmanPrivate::showinfinder);
+
     // timeline
     connect(ui->timeline, &widgets::Timeline::slider_pressed, this, &FlipmanPrivate::stop);
     connect(ui->timeline, &widgets::Timeline::slider_moved, this, &FlipmanPrivate::seek_time);
+
     // status
     connect(ui->stayawake, &QCheckBox::clicked, this, &FlipmanPrivate::stayawake);
+
     // debug
     connect(ui->debug, &QCheckBox::clicked, this, &FlipmanPrivate::debug);
+
     // watchers
     connect(&d.watcher, &QFutureWatcher<void>::finished, this, &FlipmanPrivate::seek_finished);
+
     // timeline
     //connect(timeline.data(), &A::opened, this, &FlipmanPrivate::set_opened); // todo: fix from media instead?
     //connect(timeline.data(), &AVTimeline::video_changed, this, &FlipmanPrivate::set_video); // todo: fix?
@@ -200,6 +210,7 @@ FlipmanPrivate::init()
     connect(d.timeline.data(), &av::Timeline::loop_changed, ui->menu_loop, &QAction::setChecked);
     connect(d.timeline.data(), &av::Timeline::loop_changed, ui->tool_loop, &QPushButton::setChecked);
     connect(d.timeline.data(), &av::Timeline::time_changed, ui->timeline, &widgets::Timeline::set_time);
+
     // platform
     connect(d.platform.data(), &core::Platform::power_changed, this, &FlipmanPrivate::power);
 }

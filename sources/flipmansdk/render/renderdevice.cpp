@@ -15,18 +15,19 @@ public:
     RenderSurface surface() const;
     QImage readback() const;
     QRhi::Implementation toBackend(RenderDevice::Backend backend);
+
     struct Data {
+        QRhiCommandBuffer* currentCb = nullptr;
+        QRhiReadbackResult readResult;
+        RenderDevice::Backend backend = RenderDevice::Null;
+        RenderDevice::TargetFormat targetFormat = RenderDevice::TargetFormat::Rgba16F;
+        core::Error error;
+        QSize size;
+        QColor clearColor = Qt::black;
         std::unique_ptr<QRhi> rhi;
         std::unique_ptr<QRhiTexture> colorTexture;
         std::unique_ptr<QRhiTextureRenderTarget> renderTarget;
         std::unique_ptr<QRhiRenderPassDescriptor> renderPassDesc;
-        QRhiCommandBuffer* currentCb = nullptr;
-        QRhiReadbackResult readResult;
-        QSize size;
-        QColor clearColor = Qt::black;
-        RenderDevice::Backend backend = RenderDevice::Null;
-        RenderDevice::TargetFormat targetFormat = RenderDevice::TargetFormat::Rgba16F;
-        core::Error error;
         bool initialized = false;
     };
     Data d;

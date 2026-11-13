@@ -4,15 +4,16 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
+#include <flipmansdk/render/colorpipeline.h>
+#include <flipmansdk/render/imagelayer.h>
+#include <flipmansdk/render/rendercontext.h>
+#include <flipmansdk/render/renderoutput.h>
 #include <QColor>
 #include <QList>
 #include <QObject>
 #include <QScopedPointer>
 #include <QSize>
-#include <flipmansdk/flipmansdk.h>
-#include <flipmansdk/render/imagelayer.h>
-#include <flipmansdk/render/rendercontext.h>
-#include <flipmansdk/render/renderoutput.h>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {
@@ -82,6 +83,19 @@ public:
      * @brief Returns the current rendering resolution.
      */
     QSize resolution() const;
+
+    /**
+     * @brief Returns the GPU color settings. Default settings disable color management.
+     */
+    ColorSettings colorSettings() const;
+
+    /**
+     * @brief Configures GPU input/working/output transforms between frames.
+     *
+     * Validates settings before replacing them. Failure leaves settings unchanged.
+     * Metal surface tagging is controlled independently by Viewer.
+     */
+    bool setColorSettings(const ColorSettings& settings);
 
     /**
      * @brief Sets the target rendering resolution.

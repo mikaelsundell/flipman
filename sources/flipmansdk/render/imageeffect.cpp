@@ -2,9 +2,9 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#include <flipmansdk/render/imageeffect.h>
 #include <QRegularExpression>
 #include <QStringList>
-#include <flipmansdk/render/imageeffect.h>
 
 namespace flipman::sdk::render {
 
@@ -12,11 +12,12 @@ class ImageEffectPrivate : public QSharedData {
 public:
     ImageEffectPrivate();
     ~ImageEffectPrivate();
+
     struct Data {
-        QString name;
-        QString group;
         ShaderDefinition shaderDefinition;
         core::Error error;
+        QString name;
+        QString group;
     };
     Data d;
 };

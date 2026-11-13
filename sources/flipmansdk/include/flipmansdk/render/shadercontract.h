@@ -4,12 +4,12 @@
 
 #pragma once
 
-#include <QScopedPointer>
-#include <QString>
-#include <QVector>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/flipmansdk.h>
 #include <flipmansdk/render/shaderfunction.h>
+#include <QScopedPointer>
+#include <QString>
+#include <QVector>
 
 namespace flipman::sdk::render {
 

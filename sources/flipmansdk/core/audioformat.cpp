@@ -5,10 +5,12 @@
 #include <flipmansdk/core/audioformat.h>
 
 namespace flipman::sdk::core {
+
 class AudioFormatPrivate : public QSharedData {
 public:
     AudioFormatPrivate();
     ~AudioFormatPrivate();
+
     struct Data {
         int type;
     };

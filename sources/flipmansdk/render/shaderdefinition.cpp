@@ -15,11 +15,11 @@ public:
 
 public:
     struct Data {
+        ShaderDescriptor descriptor;
+        core::Error error;
         QString shaderCode;
         QStringList includes;
-        ShaderDescriptor descriptor;
         QVector<ShaderFunction> functions;
-        core::Error error;
     };
     Data d;
 };

@@ -2,20 +2,23 @@
 // Copyright (c) 2026 - present Mikael Sundell
 
 #include "bindings.h"
-#include <QDateTime>
-#include <QRect>
-#include <QSize>
-#include <QVariant>
-#include <cstring>
+
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/core/file.h>
 #include <flipmansdk/core/filerange.h>
 #include <flipmansdk/core/imagebuffer.h>
 #include <flipmansdk/core/imageformat.h>
 #include <flipmansdk/core/metadata.h>
+#include <QDateTime>
+#include <QRect>
+#include <QSize>
+#include <QVariant>
+#include <cstring>
 
 namespace flipman::sdk::python {
+
 namespace {
+
     nb::object fromVariant(const QVariant& value)
     {
         switch (value.typeId()) {
@@ -46,7 +49,9 @@ namespace {
         default: throw nb::type_error("unsupported native metadata value type");
         }
     }
+
 }  // namespace
+
 QVariant
 toVariant(nb::handle value, unsigned depth)
 {
@@ -56,12 +61,16 @@ toVariant(nb::handle value, unsigned depth)
         return {};
     if (nb::isinstance<nb::bool_>(value))
         return nb::cast<bool>(value);
+
     if (nb::isinstance<nb::int_>(value))
         return QVariant::fromValue(nb::cast<qint64>(value));
+
     if (nb::isinstance<nb::float_>(value))
         return nb::cast<double>(value);
+
     if (nb::isinstance<nb::str>(value))
         return nb::cast<QString>(value);
+
     if (nb::isinstance<nb::list>(value) || nb::isinstance<nb::tuple>(value)) {
         QVariantList result;
         for (auto item : nb::borrow<nb::iterable>(value))
@@ -76,7 +85,9 @@ toVariant(nb::handle value, unsigned depth)
     }
     throw nb::type_error("metadata requires None, bool, int64, float, str, list, tuple or string-keyed dict");
 }
+
 namespace {
+
     void validPlane(const core::ImageBuffer& image, int plane)
     {
         if (!image.isAllocated())
@@ -84,7 +95,9 @@ namespace {
         if (plane < 0 || plane >= image.planeCount())
             throw nb::index_error("plane index out of range");
     }
+
 }  // namespace
+
 void
 bindCore(nb::module_& module)
 {
@@ -346,4 +359,5 @@ bindCore(nb::module_& module)
     image.def("transferFunction", &core::ImageBuffer::transferFunction);
     image.def("setTransferFunction", &core::ImageBuffer::setTransferFunction, "value"_a);
 }
+
 }  // namespace flipman::sdk::python

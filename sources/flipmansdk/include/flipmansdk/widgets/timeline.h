@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <QScopedPointer>
-#include <QWidget>
 #include <flipmansdk/av/time.h>
 #include <flipmansdk/av/timerange.h>
 #include <flipmansdk/flipmansdk.h>
+#include <QScopedPointer>
+#include <QWidget>
 
 namespace flipman::sdk::widgets {
 

@@ -7,6 +7,79 @@ return status 2. Every invocation uses a unique `QTemporaryDir` for output and
 removes it afterward. Files/sequences and shader/FX fixtures are generated for
 ordinary correctness tests; external media is never modified.
 
+## Run all tests
+
+After configuring a checkout with `build_app.sh` or `build_app.bat`, run:
+
+```sh
+./test_app.sh debug
+./test_app.sh release
+./test_app.sh all
+```
+
+On Windows, use `test_app.bat Debug`, `test_app.bat Release`, or
+`test_app.bat All`. Both wrappers use the same Python 3 controller,
+`CTest/run_all.py`; Debug is the default when no configuration is given.
+The controller refreshes the existing CMake project with `BUILD_TESTING=ON`,
+incrementally builds `flipman_tests`, then runs every registered CTest serially.
+Build jobs default to at most six; `--jobs N` changes build parallelism only.
+It uses the build cache's dependency prefix and feature/fixture settings, so
+Python and BRAW tests run when those features were configured. Their enabled
+state is printed and recorded; the controller does not silently enable optional
+SDKs or download missing media.
+
+The aggregate target includes the SDK tests, standalone header checks, enabled
+Python extension and viewer-drop regression when demos are enabled. All Python
+behavior tests already run through CTest. No application executable, embedded
+interpreter, MCP server or DeckLink hardware is needed by the controller.
+Native GPU and codec cases still require working host graphics/codec access.
+Manual performance benchmarks remain separate from the correctness suite.
+
+On macOS the controller sets `DYLD_IMAGE_SUFFIX=_debug` for Debug and clears it
+for Release, including configure/build steps. Windows test processes prepend
+the configuration-matched directories in CMake's generated
+`test-runtime-CONFIG.txt` to `PATH`. The batch wrapper and runtime wiring are
+provided for the pending Windows SDK port; Windows execution is not yet
+validated, and the SDK still depends on macOS frameworks/Objective-C++.
+
+Useful options, also accepted by the batch wrapper:
+
+```sh
+./test_app.sh all --list
+./test_app.sh debug --no-build
+./test_app.sh release --label cpu
+./test_app.sh debug --test '^flipman[.]sdk[.]image_'
+./test_app.sh all --exclude-label data
+./test_app.sh all --fail-on-skip
+./test_app.sh debug --output /absolute/path/new-results
+./test_app.sh debug --build-dir /absolute/path/custom-build --cmake /path/to/cmake
+```
+
+`--list` lists registered tests and labels without building or running them.
+`--label`, `--exclude-label` and `--test` pass regex filters to CTest. Empty
+selections and selections containing only disabled tests fail a run.
+`--build-dir` requires a single configuration. Use `--no-build` only with current
+binaries and an enabled test configuration. Configure/build failures stop that
+configuration before stale binaries can run; `all` still attempts the other
+configuration and returns failure if either fails.
+
+Results default to the ignored `build.test-results/<run>/` directory. The root
+`summary.json` records overall status and configuration results; each
+configuration has configure/build logs (unless `--no-build`), `tests.json`,
+`ctest.log` and JUnit `ctest.xml`. Per-case status distinguishes passes,
+failures, enabled skips, disabled tests and tests that did not run. Existing
+output directories are refused rather than overwritten. Enabled skips are
+reported as `passed_with_skips` when no tests fail; `--fail-on-skip` instead
+returns failure. The intentionally disabled timer case does not count as an
+enabled skip. For media validation, also consider `FLIPMAN_REQUIRE_TEST_DATA`
+below. Generated reports are local build outputs, separate from curated
+benchmark reports in `docs/benchmarks`.
+
+`flipman.test_app_runner` checks the controller's configuration/runtime handling,
+path quoting, build-failure propagation, test filters, skip reporting and
+subprocess exit status using disposable fixtures. It requires Python 3.9+ and
+does not build or launch the application recursively.
+
 ## Build and run
 
 ```sh
@@ -29,7 +102,7 @@ See [Python API](../docs/python-sdk.md) for lifetime and environment requirement
 `FLIPMAN_BUILD_PYTHON=ON`. Demos and DeckLink hardware remain outside CTest.
 `flipman_tests` builds the native runner, header checks, profiler tests and, when
 enabled, the Python extension. It does not run them. Native header checks compile
-66 headers independently, including the generated export header.
+each public header independently, including the generated export header.
 
 ## Suites and labels
 
@@ -40,6 +113,8 @@ enabled, the Python extension. It does not run them. Native header checks compil
 | `gpu` | Native offscreen rendering and UYVY round trips, plus synthetic Python offscreen rendering |
 | `python;sdk` | Time/range validation, Unicode files/metadata, image bytes/layout/lifetimes, shader data, image write/read, runtime ownership/thread checks, rendering/profiling |
 | `profile` | Nested/cross-thread recordings, counters/events, aggregate/reset/slow ring, logging categories, unset/empty/enabled/cached JSONL destinations |
+| `display` | SDR display mappings, ICC import/export, profile value semantics and surface-format preservation |
+| `writer` | Generated MOV/MP4 encoding/decoding, ProRes/H.264/HEVC, channel order, fractional FPS, title metadata, native NV12 storage, cursor/range and failure handling |
 | `timing` | Legacy randomized wall-clock timer benchmark; disabled by default |
 
 CPU checks take no dependency on AVFoundation fixtures or GPU devices. CPU SDK
@@ -90,3 +165,17 @@ UInt8, Half and Float textures, alpha, and cached layout transitions.
 `flipman.sdk.quicktime_channels` additionally compares a decoded BGRA movie frame
 against an explicitly reordered RGBA reference. It uses the external fixture
 `quicktime/iphone17pro film.mov` under `FLIPMAN_TEST_DATA_DIR`.
+
+`flipman.sdk.image_converter` checks native Metal conversion against CPU
+references for RGB/RGBA/BGRA UInt8/Half/Float, odd widths, alpha, HDR values,
+GPU texture input and CoreVideo IOSurface output.
+`flipman.sdk.quicktime_writer` exercises generated video round trips and writer
+lifecycle errors. Neither uses performance thresholds.
+
+Build `flipman_imageconverter_benchmark` explicitly in Release for completed
+CPU/NEON versus Metal timings. See [conversion benchmarks](../docs/image-conversion.md).
+
+`flipman.sdk.cpu_image_converter` verifies CPU-only conversion through the facade
+and existing ImageBuffer wrappers, including all scalar formats, geometry/tags,
+odd widths and identity ownership. The renderer channel test also compares
+fused packed sampling with expanded RGBA textures and video-format transitions.

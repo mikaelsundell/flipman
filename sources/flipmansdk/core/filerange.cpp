@@ -3,10 +3,10 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/core/filerange.h>
-
 #include <QMap>
 
 namespace flipman::sdk::core {
+
 class FileRangePrivate : public QSharedData {
 public:
     struct Data {
@@ -108,4 +108,5 @@ FileRange::operator>(const FileRange& filerange) const
 {
     return size() > filerange.size();
 }
+
 }  // namespace flipman::sdk::core

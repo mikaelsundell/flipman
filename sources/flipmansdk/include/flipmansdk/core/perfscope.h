@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (c) 2026 - present Mikael Sundell
-// Adapted from https://github.com/mikaelsundell/stageviz
 
 #pragma once
 
-#include <QString>
 #include <flipmansdk/flipmansdk.h>
+#include <QString>
 
 namespace flipman::sdk::core {
 
@@ -37,6 +36,7 @@ public:
 private:
     static const QString& path();
     static double now();
+
     struct Data {
         const char* name;
         double start;

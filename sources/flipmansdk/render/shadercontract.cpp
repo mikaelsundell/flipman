@@ -132,7 +132,6 @@ ShaderContract::validate(Type type, const QVector<ShaderFunction>& functions)
     return false;
 }
 
-
 core::Error
 ShaderContract::error() const
 {

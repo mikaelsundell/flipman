@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <QObject>
-#include <QScopedPointer>
 #include <flipmansdk/core/error.h>
 #include <flipmansdk/flipmansdk.h>
+#include <QObject>
+#include <QScopedPointer>
 #include <rhi/qrhi.h>
 
 namespace flipman::sdk::render {

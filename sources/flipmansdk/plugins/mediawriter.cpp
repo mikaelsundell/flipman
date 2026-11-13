@@ -2,10 +2,11 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
-#include <QPointer>
 #include <flipmansdk/plugins/mediawriter.h>
+#include <QPointer>
 
 namespace flipman::sdk::plugins {
+
 MediaWriter::MediaWriter(QObject* parent)
     : core::Plugin(parent)
 {}
@@ -65,4 +66,5 @@ MediaWriter::error() const
 {
     return core::Error();
 }
+
 }  // namespace flipman::sdk::plugins

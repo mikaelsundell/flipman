@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include <flipmansdk/flipmansdk.h>
 #include <QList>
 #include <QString>
 #include <QVariant>
 #include <QVector>
-#include <flipmansdk/flipmansdk.h>
 
 namespace flipman::sdk::render {
 
