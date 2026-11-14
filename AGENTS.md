@@ -154,6 +154,32 @@ Follow nearby code when it establishes a more specific pattern.
 
 ## Application work
 
+- Use `flipman::Application` for the real app. It derives from the SDK application
+  and owns Session, PythonInterpreter, Settings, Console and McpServer. Keep SDK
+  bindings independent of these app-only services. Views use `session()` and
+  Session signals; do not give each window or panel its own session or decoder.
+- For clean app automation, use `--clean-run`, `--settings-dir` or
+  `FLIPMAN_TEST_SETTINGS_DIR`. Each process gets isolated INI preferences under
+  a PID directory with fallbacks disabled. Do not drive a user's live session
+  or normal settings in tests. Keep the MCP endpoint opt-in and loopback-only.
+- Always set `DYLD_IMAGE_SUFFIX=_debug` before starting macOS Debug programs,
+  including clean runs and MCP-controlled processes. Generated Debug executable
+  schemes set it automatically; preserve it in shell and subprocess launches.
+- Keep the main window in `sources/flipman/app` and separate panels in `views`,
+  with Designer layouts. The application `Session` owns its SDK timeline,
+  renderer and command stack; views borrow the session rather than open readers.
+- Keep reader operations serialized on the session's decoder worker. Publish
+  native image handles and snapshot values to the GUI; retire queued work before
+  destroying its owner. Release RenderEngine GPU resources before a borrowed
+  viewport/device is destroyed, while preserving session layers and settings.
+  Cancel and drain asynchronous native open callbacks
+  before resetting reader state. Do not add waits to ordinary frame submission.
+- Route user time, FPS, color and display-profile changes through session
+  commands. Record one already-applied command per scrub gesture and exclude
+  playback ticks from undo history. Clear history when replacing the document.
+- The embedded console imports the existing SDK extension. Keep session access
+  on the GUI thread, guard borrowed references, and release the Python GIL
+  between scripts. Finalize the interpreter before destroying its SDK services.
 - Keep substantial Qt interfaces in `.ui` files and let `uic` generate wrappers.
   Store widget tooltips in the designer file.
 - Set icons through `core::ui()` and `core::UI::IconRole`. Keep resource paths

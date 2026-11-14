@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2026 Mikael Sundell
+
+#pragma once
+
+/**
+ * @brief
+ * Configure-time Python home; only used when app embedding is enabled.
+ */
+#define FLIPMAN_PYTHON_HOME "@flipman_python_home@"
+/**
+ * @brief
+ * Python executable matching the linked embedding library and SDK extension.
+ */
+#define FLIPMAN_PYTHON_EXECUTABLE "@Python_EXECUTABLE@"
+/**
+ * @brief
+ * Embedded bootstrap for live application facades and captured script execution.
+ */
+#define FLIPMAN_PYTHON_BOOTSTRAP R"FM_PY(@flipman_python_bootstrap@)FM_PY"

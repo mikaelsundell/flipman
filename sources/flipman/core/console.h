@@ -1,0 +1,111 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2025 - present Mikael Sundell
+// https://github.com/mikaelsundell/flipman
+
+#pragma once
+
+#include <QObject>
+#include <QScopedPointer>
+#include <QStringList>
+
+namespace flipman {
+
+class ConsolePrivate;
+
+/**
+ * @class Console
+ * @brief
+ * Read-only console backend that captures stdout/stderr.
+ *
+ * The console redirects the current process standard output streams
+ * and emits text as it arrives. It retains the most recent rows for display
+ * through text() and lines().
+ */
+class Console : public QObject {
+    Q_OBJECT
+public:
+    /**
+     * @brief
+     * Maximum retained history rows; native capture is inactive until start().
+     */
+    static constexpr int rowLimit = 100000;
+
+    /**
+     * @brief
+     * Creates the console backend; call start() to begin capture.
+     */
+    explicit Console(QObject* parent = nullptr);
+
+    /**
+     * @brief
+     * Stops capture and releases console resources.
+     */
+    ~Console() override;
+
+    /**
+     * @brief
+     * Starts capturing stdout/stderr.
+     *
+     * Returns true on success.
+     */
+    bool start();
+
+    /**
+     * @brief
+     * Stops capturing stdout/stderr and restores the originals.
+     */
+    void stop();
+
+    /**
+     * @brief
+     * Returns whether capture is active.
+     */
+    bool isRunning() const;
+
+    /**
+     * @brief
+     * Returns the retained console history, up to Console::rowLimit rows.
+     */
+    QString text() const;
+
+    /**
+     * @brief
+     * Returns the retained console history as lines.
+     */
+    QStringList lines() const;
+
+    /**
+     * @brief
+     * Writes future captured stdout/stderr to a file while retaining console display.
+     *
+     * Starts console capture if needed. Pending output is drained before
+     * switching files or stopping logging.
+     * An empty filename stops logging. A failed open keeps the existing file.
+     *
+     * @param filename Destination file, or empty to stop.
+     * @param append Appends when true, truncates when false.
+     * @param error Receives an open or capture failure.
+     *
+     * @return True when the output destination was updated.
+     */
+    bool setOutputFile(const QString& filename, bool append, QString& error);
+
+    /**
+     * @brief
+     * Returns the active output filename, or empty when file logging is disabled.
+     */
+    QString outputFile() const;
+
+Q_SIGNALS:
+    /**
+     * @brief
+     * Emitted when new text is captured.
+     */
+    void textAppended(const QString& text);
+
+private:
+    Q_DISABLE_COPY_MOVE(Console)
+    QScopedPointer<ConsolePrivate> p;
+};
+
+}  // namespace flipman

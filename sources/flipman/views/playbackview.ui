@@ -1,0 +1,223 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>PlaybackView</class>
+ <widget class="QWidget" name="PlaybackView">
+  <property name="DockWidget" stdset="0">
+   <bool>true</bool>
+  </property>
+  <layout class="QHBoxLayout" name="playbackLayout">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>6</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>6</number>
+   </property>
+   <property name="bottomMargin">
+    <number>6</number>
+   </property>
+   <item>
+    <widget class="QPushButton" name="openButton">
+     <property name="text">
+      <string>Open</string>
+     </property>
+     <property name="toolTip">
+      <string>Open media</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="startButton">
+     <property name="text">
+      <string>Start</string>
+     </property>
+     <property name="toolTip">
+      <string>Start playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="previousButton">
+     <property name="text">
+      <string>Previous</string>
+     </property>
+     <property name="toolTip">
+      <string>Previous playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="nextButton">
+     <property name="text">
+      <string>Next</string>
+     </property>
+     <property name="toolTip">
+      <string>Next playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="playButton">
+     <property name="text">
+      <string>Play</string>
+     </property>
+     <property name="toolTip">
+      <string>Play playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="endButton">
+     <property name="text">
+      <string>End</string>
+     </property>
+     <property name="toolTip">
+      <string>End playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="loopButton">
+     <property name="text">
+      <string>Loop</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="toolTip">
+      <string>Loop playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="inButton">
+     <property name="text">
+      <string>In</string>
+     </property>
+     <property name="toolTip">
+      <string>In playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="outButton">
+     <property name="text">
+      <string>Out</string>
+     </property>
+     <property name="toolTip">
+      <string>Out playback control</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="timecodeLabel">
+     <property name="text">
+      <string>00:00:00:00</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="frameLabel">
+     <property name="text">
+      <string>Frame</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QSpinBox" name="frameField">
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>2147483646</number>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>72</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Current timeline frame (one-based).</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="fpsLabel">
+     <property name="text">
+      <string>FPS</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="fps">
+     <property name="minimumSize">
+      <size>
+       <width>82</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Timeline playback rate; preserves frame indices.</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="dropFrame">
+     <property name="text">
+      <string>DF</string>
+     </property>
+     <property name="toolTip">
+      <string>Drop-frame timecode notation; does not drop image frames.</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="everyFrame">
+     <property name="text">
+      <string>Every frame</string>
+     </property>
+     <property name="toolTip">
+      <string>Present each decoded frame, slowing playback if necessary.</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="playbackSpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QPushButton" name="fullscreenButton">
+     <property name="text">
+      <string>Fullscreen</string>
+     </property>
+     <property name="toolTip">
+      <string>Fullscreen</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>56</height>
+   </size>
+  </property>
+ </widget>
+ <resources />
+ <connections />
+</ui>

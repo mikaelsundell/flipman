@@ -8,12 +8,12 @@ usage() {
 usage: build_app.sh debug|release|all [options]
   --configure-only       Generate the Xcode project without building
   --fresh                Discard cached CMake configuration before generating
-  --sdk-only             Disable interactive demos (including DeckLink)
+  --sdk-only             Build only the SDK, bindings and tests
   --python               Build SDK Python bindings
   --braw                 Build the Blackmagic RAW reader (SDK root required)
   --target=VERSION       Minimum macOS version (not the SDK version)
   --deploy, --github     Package a bundle into deploy.CONFIG (ZIP)
-  --bundle=PATH          App bundle to package (required until app is enabled)
+  --bundle=PATH          App bundle to package (explicit development bundle)
   --dmg                  Also create a DMG (implies --deploy)
   --sign                 Sign with DEVELOPERID_IDENTITY (otherwise ad-hoc)
 Environment:
@@ -24,14 +24,15 @@ Environment:
   BLACKMAGIC_RAW_LICENSE Accompanying RAW runtime license/notice to include
 HELP
 }
-mode=""; fresh=0; configure_only=0; demos=ON; python=OFF; braw=OFF; deploy=0; dmg=0; sign=0; bundle=""; target="${MACOSX_DEPLOYMENT_TARGET:-}"
+mode=""; fresh=0; configure_only=0; application=ON
+demos=ON; python=OFF; braw=OFF; deploy=0; dmg=0; sign=0; bundle=""; target="${MACOSX_DEPLOYMENT_TARGET:-}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage; exit 0 ;;
         debug|release|all) [[ -z "$mode" ]] || { usage >&2; exit 2; }; mode="$1" ;;
         --configure-only) configure_only=1 ;;
         --fresh) fresh=1 ;;
-        --sdk-only) demos=OFF ;;
+        --sdk-only) demos=OFF; application=OFF ;;
         --python) python=ON ;;
         --braw) braw=ON ;;
         --target=*) target="${1#*=}" ;;
@@ -53,7 +54,7 @@ if ! command -v cmake >/dev/null 2>&1; then export PATH="/Applications/CMake.app
 command -v cmake >/dev/null || { echo "CMake 3.27+ is required" >&2; exit 1; }
 if [[ "$deploy" == 1 ]]; then
     [[ "$configure_only" == 0 && "$mode" != all && -d "$bundle/Contents" ]] || {
-        echo "Deployment requires a single configuration and --bundle=/path/to/App.app; Flipman's app target is not enabled yet." >&2; exit 2;
+        echo "Deployment requires a single configuration and --bundle=/path/to/App.app; Standalone Python runtime packaging is not yet integrated." >&2; exit 2;
     }
 fi
 if [[ "$sign" == 1 && -z "${DEVELOPERID_IDENTITY:-}" ]]; then
@@ -76,7 +77,7 @@ build_one() (
     [[ -d "$prefix" && -n "$prefix" ]] || { echo "Set the matching THIRDPARTY_DEBUG_DIR / THIRDPARTY_RELEASE_DIR or THIRDPARTY_DIR" >&2; exit 2; }
     local args=(-S "$root" -B "$root/build.$config" -G Xcode
         -DCMAKE_OSX_SYSROOT=macosx -DCMAKE_CONFIGURATION_TYPES="$configuration" -DCMAKE_PREFIX_PATH="$prefix"
-        -DFLIPMAN_BUILD_DEMOS="$demos" -DFLIPMAN_BUILD_PYTHON="$python" -DFLIPMAN_BUILD_BRAW="$braw")
+        -DFLIPMAN_BUILD_APP="$application" -DFLIPMAN_BUILD_DEMOS="$demos" -DFLIPMAN_BUILD_PYTHON="$python" -DFLIPMAN_BUILD_BRAW="$braw")
     if [[ -n "${BLACKMAGIC_RAW_ROOT:-}" ]]; then args+=(-DBlackmagicRaw_ROOT="$BLACKMAGIC_RAW_ROOT"); fi
     export MACOSX_DEPLOYMENT_TARGET="$target"
     args+=(-DCMAKE_OSX_DEPLOYMENT_TARGET="$target")

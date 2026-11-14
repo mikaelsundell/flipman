@@ -62,6 +62,12 @@ public:
     QList<QString> keys(Group group) const;
 
     /**
+     * @brief
+     * Returns keys in the root metadata namespace.
+     */
+    QList<QString> keys() const;
+
+    /**
      * @brief Returns value for root key.
      */
     QVariant value(const QString& key) const;

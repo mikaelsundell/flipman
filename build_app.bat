@@ -7,6 +7,7 @@ set "mode=%~1"
 set "configure_only=0"
 set "fresh="
 set "demos=ON"
+set "application=ON"
 set "python=OFF"
 set "braw=OFF"
 set "cmake_generator=Visual Studio 17 2022"
@@ -16,7 +17,7 @@ shift
 :parse
 if "%~1"=="" goto run
 set "arg=%~1"
-if /I "%arg%"=="--fresh" (set "fresh=--fresh") else if /I "%arg%"=="--configure-only" (set "configure_only=1") else if /I "%arg%"=="--sdk-only" (set "demos=OFF") else if /I "%arg%"=="--braw" (set "braw=ON") else if /I "%arg%"=="--python" (set "python=ON") else if /I "%arg:~0,18%"=="--cmake_generator=" (set "cmake_generator=%arg:~18%") else (
+if /I "%arg%"=="--fresh" (set "fresh=--fresh") else if /I "%arg%"=="--configure-only" (set "configure_only=1") else if /I "%arg%"=="--sdk-only" (set "demos=OFF" & set "application=OFF") else if /I "%arg%"=="--braw" (set "braw=ON") else if /I "%arg%"=="--python" (set "python=ON") else if /I "%arg:~0,18%"=="--cmake_generator=" (set "cmake_generator=%arg:~18%") else (
     echo Unsupported argument: %arg%
     exit /b 2
 )
@@ -59,7 +60,7 @@ if not exist "%prefix%\" (
     echo Missing dependency prefix: %prefix%
     exit /b 2
 )
-cmake %fresh% -S "%app_dir%." -B "%build_dir%" -G "%cmake_generator%" -DCMAKE_PREFIX_PATH="%prefix%" -DCMAKE_CONFIGURATION_TYPES=%~2 -DFLIPMAN_BUILD_DEMOS=%demos% -DFLIPMAN_BUILD_PYTHON=%python% -DFLIPMAN_BUILD_BRAW=%braw% -DBlackmagicRaw_ROOT="%BLACKMAGIC_RAW_ROOT%" -DDeckLinkSDK_ROOT="%DeckLinkSDK_ROOT%"
+cmake %fresh% -S "%app_dir%." -B "%build_dir%" -G "%cmake_generator%" -DCMAKE_PREFIX_PATH="%prefix%" -DCMAKE_CONFIGURATION_TYPES=%~2 -DFLIPMAN_BUILD_APP=%application% -DFLIPMAN_BUILD_DEMOS=%demos% -DFLIPMAN_BUILD_PYTHON=%python% -DFLIPMAN_BUILD_BRAW=%braw% -DBlackmagicRaw_ROOT="%BLACKMAGIC_RAW_ROOT%" -DDeckLinkSDK_ROOT="%DeckLinkSDK_ROOT%"
 if errorlevel 1 exit /b 1
 if "%configure_only%"=="1" exit /b 0
 cmake --build "%build_dir%" --config %~2 --parallel

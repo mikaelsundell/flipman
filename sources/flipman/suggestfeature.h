@@ -2,16 +2,26 @@
 // Copyright (c) 2024 - present Mikael Sundell
 // https://github.com/mikaelsundell/flipman
 
+#pragma once
+
 #include <QDialog>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
+/**
+ * @brief
+ * Legacy, unbuilt feature-request form with no active submission backend.
+ */
 class FeatureRequestDialog : public QDialog {
     Q_OBJECT
 
 public:
+    /**
+     * @brief
+     * Builds the legacy feature form; this unused dialog is not part of the main application target.
+     */
     explicit FeatureRequestDialog(QWidget* parent = nullptr)
         : QDialog(parent)
     {
@@ -19,13 +29,13 @@ public:
 
         QVBoxLayout* layout = new QVBoxLayout(this);
 
-        titleEdit = new QLineEdit(this);
-        titleEdit->setPlaceholderText("Enter feature title...");
-        layout->addWidget(titleEdit);
+        d.titleEdit = new QLineEdit(this);
+        d.titleEdit->setPlaceholderText("Enter feature title...");
+        layout->addWidget(d.titleEdit);
 
-        descriptionEdit = new QTextEdit(this);
-        descriptionEdit->setPlaceholderText("Describe the feature...");
-        layout->addWidget(descriptionEdit);
+        d.descriptionEdit = new QTextEdit(this);
+        d.descriptionEdit->setPlaceholderText("Describe the feature...");
+        layout->addWidget(d.descriptionEdit);
 
         QPushButton* submitButton = new QPushButton("Submit", this);
         layout->addWidget(submitButton);
@@ -33,13 +43,17 @@ public:
         connect(submitButton, &QPushButton::clicked, this, &FeatureRequestDialog::submitFeatureRequest);
     }
 
-private slots:
+    /**
+     * @brief
+     * Placeholder action; does not submit a network request or modify a project.
+     */
+private Q_SLOTS:
 
     void submitFeatureRequest()
     {
         /*
-        QString title = titleEdit->text();
-        QString description = descriptionEdit->toPlainText();
+        QString title = d.titleEdit->text();
+        QString description = d.descriptionEdit->toPlainText();
 
         if (title.isEmpty() || description.isEmpty()) {
             return;
@@ -73,6 +87,9 @@ private slots:
     }
 
 private:
-    QLineEdit* titleEdit;
-    QTextEdit* descriptionEdit;
+    struct Data {
+        QLineEdit* titleEdit = nullptr;
+        QTextEdit* descriptionEdit = nullptr;
+    };
+    Data d;
 };

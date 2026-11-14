@@ -2753,6 +2753,12 @@ RenderEngine::isValid() const
 }
 
 void
+RenderEngine::releaseResources()
+{
+    p->reset();
+}
+
+void
 RenderEngine::reset()
 {
     p->reset();

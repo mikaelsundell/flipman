@@ -1,0 +1,86 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>TimelineView</class>
+ <widget class="QWidget" name="TimelineView">
+  <property name="DockWidget" stdset="0">
+   <bool>true</bool>
+  </property>
+  <layout class="QHBoxLayout" name="timelineLayout">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>6</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>6</number>
+   </property>
+   <property name="bottomMargin">
+    <number>6</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="inLabel">
+     <property name="text">
+      <string>IN</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="inValue">
+     <property name="text">
+      <string>00:00:00:00</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="flipman::sdk::widgets::ScrubLine" name="scrubLine">
+     <property name="minimumSize">
+      <size>
+       <width>300</width>
+       <height>56</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="outLabel">
+     <property name="text">
+      <string>OUT</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="outValue">
+     <property name="text">
+      <string>00:00:00:00</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="totalFrames">
+     <property name="text">
+      <string>0 frames</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>80</height>
+   </size>
+  </property>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>flipman::sdk::widgets::ScrubLine</class>
+   <extends>QWidget</extends>
+   <header>flipmansdk/widgets/scrubline.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources />
+ <connections />
+</ui>

@@ -20,7 +20,8 @@ public:
         Time time = Time();
         TimeRange timeRange = TimeRange();
         TimeRange ioRange = TimeRange();
-        Fps fps = Fps();
+        Fps fps = Fps::fps24();
+        Time sourceStart = Time::zero(Fps::fps24());
         core::Error error;
         QList<Track*> tracks;
         QThreadPool threadPool;
@@ -55,12 +56,14 @@ Timeline::reset()
 {
     p.reset(new TimelinePrivate());
     p->init();
+    p->d.object = this;
+    Q_EMIT playChanged(false);
 }
 
 bool
 Timeline::isPlaying() const
 {
-    return true;
+    return p->d.playing;
 }
 
 TimeRange
@@ -84,13 +87,13 @@ Timeline::time() const
 Time
 Timeline::startTime() const
 {
-    return Time();
+    return p->d.sourceStart;
 }
 
 SmpteTime
 Timeline::timeCode() const
 {
-    return SmpteTime();
+    return SmpteTime(Time::fromFrames(p->d.sourceStart.frames() + p->d.time.frames(), p->d.fps));
 }
 
 Fps
@@ -132,7 +135,7 @@ Timeline::tracks() const
 int
 Timeline::threadCount() const
 {
-    p->d.threadPool.maxThreadCount();
+    return p->d.threadPool.maxThreadCount();
 }
 
 core::Error
@@ -144,14 +147,17 @@ Timeline::error() const
 void
 Timeline::insertTrack(Track* track)
 {
+    if (!track || hasTrack(track))
+        return;
+
     p->d.tracks.append(track);
+    connect(track, &QObject::destroyed, this, [this, track]() { p->d.tracks.removeAll(track); });
 }
 
 void
 Timeline::removeTrack(Track* track)
 {
-    Q_ASSERT("does not contain track" && hasTrack(track));
-    p->d.tracks.remove(p->d.tracks.indexOf(track));
+    p->d.tracks.removeAll(track);
 }
 
 void
@@ -168,6 +174,10 @@ Timeline::setTimeRange(const TimeRange& timeRange)
 {
     if (p->d.timeRange != timeRange) {
         p->d.timeRange = timeRange;
+        if (timeRange.isValid()) {
+            p->d.fps = timeRange.duration().fps();
+            p->d.time = timeRange.start();
+        }
         Q_EMIT timerangeChanged(timeRange);
     }
 }
@@ -218,16 +228,64 @@ Timeline::setThreadCount(int threadCount)
 
 void
 Timeline::seek(const Time& time)
-{}
+{
+    if (!time.isValid() || !p->d.timeRange.isValid())
+        return;
+
+    const auto next = p->d.timeRange.bound(Time::fromFrames(time.frames(), p->d.fps), false);
+    if (next != p->d.time) {
+        p->d.time = next;
+        Q_EMIT timeChanged(next);
+        Q_EMIT timeCodeChanged(Time::fromFrames(p->d.sourceStart.frames() + next.frames(), p->d.fps));
+    }
+}
 
 void
 Timeline::play()
-{}
+{
+    if (!p->d.playing && p->d.timeRange.isValid()) {
+        p->d.playing = true;
+        Q_EMIT playChanged(true);
+    }
+}
 
 void
 Timeline::stop()
 {
-    p->d.playing = false;
+    if (p->d.playing) {
+        p->d.playing = false;
+        Q_EMIT playChanged(false);
+    }
+}
+
+void
+Timeline::setStartTime(const Time& time)
+{
+    if (time.isValid())
+        p->d.sourceStart = Time::fromSeconds(time.seconds(), p->d.fps);
+}
+
+void
+Timeline::setFps(const Fps& fps)
+{
+    if (!fps.isValid() || fps == p->d.fps)
+        return;
+
+    const auto frame = p->d.time.frames();
+    const auto sourceSeconds = p->d.sourceStart.seconds();
+    if (p->d.timeRange.isValid())
+        p->d.timeRange = TimeRange(Time::fromFrames(p->d.timeRange.start().frames(), fps),
+                                   Time::fromFrames(p->d.timeRange.duration().frames(), fps));
+    if (p->d.ioRange.isValid())
+        p->d.ioRange = TimeRange(Time::fromFrames(p->d.ioRange.start().frames(), fps),
+                                 Time::fromFrames(p->d.ioRange.duration().frames(), fps));
+    p->d.fps = fps;
+    p->d.sourceStart = Time::fromSeconds(sourceSeconds, fps);
+    p->d.time = Time::fromFrames(frame, fps);
+    Q_EMIT fpsChanged(fps);
+    Q_EMIT timerangeChanged(p->d.timeRange);
+    Q_EMIT ioRangeChanged(p->d.ioRange);
+    Q_EMIT timeChanged(p->d.time);
 }
 
 }  // namespace flipman::sdk::av

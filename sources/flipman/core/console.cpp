@@ -1,0 +1,537 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (c) 2025 - present Mikael Sundell
+// https://github.com/mikaelsundell/flipman
+
+#include "console.h"
+
+#include <QByteArray>
+#include <QFile>
+#include <QFileInfo>
+#include <QMetaObject>
+#include <QPointer>
+#include <atomic>
+#include <cerrno>
+#include <cstdio>
+#include <deque>
+#include <memory>
+#include <mutex>
+#include <thread>
+#include <utility>
+
+#ifdef Q_OS_WIN
+#    include <fcntl.h>
+#    include <io.h>
+#    include <windows.h>
+#else
+#    include <poll.h>
+#    include <unistd.h>
+#endif
+
+namespace flipman {
+
+namespace {
+
+    enum class WaitResult { Readable, Timeout, Closed };
+
+#ifdef Q_OS_WIN
+    using fd_t = int;
+
+    int fd_pipe(int fds[2]) { return ::_pipe(fds, 8192, _O_BINARY); }
+
+    int fd_dup(int fd) { return ::_dup(fd); }
+
+    int fd_dup2(int from, int to) { return ::_dup2(from, to); }
+
+    int fd_close(int fd) { return ::_close(fd); }
+
+    int fd_read(int fd, void* buffer, unsigned int count) { return ::_read(fd, buffer, count); }
+
+    void set_unbuffered_stdout_stderr()
+    {
+        ::setvbuf(stdout, nullptr, _IONBF, 0);
+        ::setvbuf(stderr, nullptr, _IONBF, 0);
+    }
+
+    bool ensure_crt_stream(FILE* stream, const char* name, const char* mode)
+    {
+        const int fd = ::_fileno(stream);
+        if (fd >= 0)
+            return true;
+
+        return ::freopen(name, mode, stream) != nullptr;
+    }
+
+    bool ensure_stdout_stderr()
+    {
+        if (!ensure_crt_stream(stdout, "NUL", "w"))
+            return false;
+
+        if (!ensure_crt_stream(stderr, "NUL", "w"))
+            return false;
+
+        return true;
+    }
+
+    WaitResult fd_wait_readable(fd_t fd, int timeoutMs)
+    {
+        const intptr_t nativeHandle = ::_get_osfhandle(fd);
+        if (nativeHandle == -1)
+            return WaitResult::Closed;
+
+        int waitedMs = 0;
+        for (;;) {
+            DWORD available = 0;
+            if (!::PeekNamedPipe(reinterpret_cast<HANDLE>(nativeHandle), nullptr, 0, nullptr, &available, nullptr))
+                return WaitResult::Closed;
+
+            if (available > 0)
+                return WaitResult::Readable;
+
+            if (timeoutMs <= waitedMs)
+                return WaitResult::Timeout;
+
+            const int sleepMs = qMin(10, timeoutMs - waitedMs);
+            ::Sleep(DWORD(sleepMs));
+            waitedMs += sleepMs;
+        }
+    }
+#else
+    using fd_t = int;
+
+    int fd_pipe(int fds[2]) { return ::pipe(fds); }
+
+    int fd_dup(int fd) { return ::dup(fd); }
+
+    int fd_dup2(int from, int to) { return ::dup2(from, to); }
+
+    int fd_close(int fd) { return ::close(fd); }
+
+    ssize_t fd_read(int fd, void* buffer, size_t count) { return ::read(fd, buffer, count); }
+
+    void set_unbuffered_stdout_stderr()
+    {
+        ::setvbuf(stdout, nullptr, _IONBF, 0);
+        ::setvbuf(stderr, nullptr, _IONBF, 0);
+    }
+
+    WaitResult fd_wait_readable(fd_t fd, int timeoutMs)
+    {
+        pollfd descriptor = { fd, POLLIN, 0 };
+        int result = 0;
+        do {
+            result = ::poll(&descriptor, 1, timeoutMs);
+        } while (result < 0 && errno == EINTR);
+
+        if (result == 0)
+            return WaitResult::Timeout;
+
+        if (result < 0)
+            return WaitResult::Closed;
+
+        if (descriptor.revents & POLLIN)
+            return WaitResult::Readable;
+
+        return WaitResult::Closed;
+    }
+#endif
+
+    void appendHistoryRows(std::deque<QString>& rows, QString& partialRow, const QString& text)
+    {
+        // Forward the complete text to the live widget; only the replay history
+        // is limited, matching the widget's maximum block count.
+        qsizetype start = 0;
+        while (start < text.size()) {
+            const qsizetype newline = text.indexOf(QLatin1Char('\n'), start);
+            if (newline < 0) {
+                partialRow.append(text.mid(start));
+                break;
+            }
+
+            partialRow.append(text.mid(start, newline - start + 1));
+            rows.push_back(std::move(partialRow));
+            partialRow.clear();
+            if (rows.size() > static_cast<size_t>(Console::rowLimit))
+                rows.pop_front();
+            start = newline + 1;
+        }
+    }
+
+    QString fdState(const char* name, fd_t fd)
+    {
+        return QStringLiteral("%1=%2").arg(QString::fromLatin1(name)).arg(fd);
+    }
+
+}  // namespace
+
+class ConsolePrivate : public QObject {
+    Q_OBJECT
+public:
+    ConsolePrivate();
+
+    ~ConsolePrivate();
+
+    void init();
+
+    bool start();
+
+    void stop();
+
+    bool isRunning() const;
+
+    QString text() const;
+
+    QStringList lines() const;
+
+    bool setOutputFile(const QString& filename, bool append, QString& error);
+
+    QString outputFile() const;
+
+    void drainPipe();
+
+    void readerLoop();
+
+    void queueText(const QString& text);
+
+    void drainPending();
+
+    struct Data {
+        fd_t readFd = -1;
+        fd_t writeFd = -1;
+        fd_t oldStdout = -1;
+        fd_t oldStderr = -1;
+        QString partialHistoryRow;
+        QString pending;
+        QString outputFilename;
+        std::atomic_bool running = false;
+        std::deque<QString> historyRows;
+        std::mutex pendingMutex;
+        std::thread readerThread;
+        mutable std::mutex readMutex;
+        std::unique_ptr<QFile> outputFile;
+        bool drainScheduled = false;
+        QPointer<Console> console;
+    };
+    Data d;
+};
+
+ConsolePrivate::ConsolePrivate() {}
+
+ConsolePrivate::~ConsolePrivate() { stop(); }
+
+void
+ConsolePrivate::init()
+{}
+
+bool
+ConsolePrivate::start()
+{
+    if (d.running) {
+        return true;
+    }
+    int pipeFds[2] = { -1, -1 };
+    if (fd_pipe(pipeFds) != 0) {
+        return false;
+    }
+    d.readFd = pipeFds[0];
+    d.writeFd = pipeFds[1];
+
+#ifdef Q_OS_WIN
+    if (!ensure_stdout_stderr()) {
+        stop();
+        return false;
+    }
+
+    const int stdoutFd = ::_fileno(stdout);
+    const int stderrFd = ::_fileno(stderr);
+    d.oldStdout = fd_dup(stdoutFd);
+    d.oldStderr = fd_dup(stderrFd);
+#else
+    d.oldStdout = fd_dup(STDOUT_FILENO);
+    d.oldStderr = fd_dup(STDERR_FILENO);
+#endif
+
+    if (d.oldStdout < 0 || d.oldStderr < 0) {
+        stop();
+        return false;
+    }
+
+    std::fflush(stdout);
+    std::fflush(stderr);
+
+#ifdef Q_OS_WIN
+    if (fd_dup2(d.writeFd, ::_fileno(stdout)) < 0) {
+        stop();
+        return false;
+    }
+
+    if (fd_dup2(d.writeFd, ::_fileno(stderr)) < 0) {
+        stop();
+        return false;
+    }
+#else
+    if (fd_dup2(d.writeFd, STDOUT_FILENO) < 0) {
+        stop();
+        return false;
+    }
+
+    if (fd_dup2(d.writeFd, STDERR_FILENO) < 0) {
+        stop();
+        return false;
+    }
+#endif
+
+    set_unbuffered_stdout_stderr();
+    d.running = true;
+    d.readerThread = std::thread([this]() { readerLoop(); });
+    return true;
+}
+
+void
+ConsolePrivate::stop()
+{
+    if (!d.running && d.readFd < 0 && d.writeFd < 0 && d.oldStdout < 0 && d.oldStderr < 0) {
+        return;
+    }
+
+    std::fflush(stdout);
+    std::fflush(stderr);
+
+#ifdef Q_OS_WIN
+    if (d.oldStdout >= 0) {
+        fd_dup2(d.oldStdout, ::_fileno(stdout));
+        fd_close(d.oldStdout);
+        d.oldStdout = -1;
+    }
+    if (d.oldStderr >= 0) {
+        fd_dup2(d.oldStderr, ::_fileno(stderr));
+        fd_close(d.oldStderr);
+        d.oldStderr = -1;
+    }
+#else
+    if (d.oldStdout >= 0) {
+        fd_dup2(d.oldStdout, STDOUT_FILENO);
+        fd_close(d.oldStdout);
+        d.oldStdout = -1;
+    }
+    if (d.oldStderr >= 0) {
+        fd_dup2(d.oldStderr, STDERR_FILENO);
+        fd_close(d.oldStderr);
+        d.oldStderr = -1;
+    }
+#endif
+
+    if (d.writeFd >= 0) {
+        fd_close(d.writeFd);
+        d.writeFd = -1;
+    }
+
+    // The reader uses a bounded wait, so it can stop even when a library has
+    // retained a duplicate of stdout or stderr and the pipe never reaches EOF.
+    d.running = false;
+
+    if (d.readerThread.joinable()) {
+        d.readerThread.join();
+    }
+
+    if (d.readFd >= 0) {
+        fd_close(d.readFd);
+        d.readFd = -1;
+    }
+    std::lock_guard<std::mutex> guard(d.readMutex);
+    d.outputFile.reset();
+    d.outputFilename.clear();
+}
+
+bool
+ConsolePrivate::isRunning() const
+{
+    return d.running;
+}
+
+QString
+ConsolePrivate::text() const
+{
+    QString result;
+    for (const QString& row : d.historyRows)
+        result.append(row);
+    result.append(d.partialHistoryRow);
+    return result;
+}
+
+QStringList
+ConsolePrivate::lines() const
+{
+    return text().split('\n', Qt::KeepEmptyParts);
+}
+
+bool
+ConsolePrivate::setOutputFile(const QString& filename, bool append, QString& error)
+{
+    if (!filename.isEmpty() && !d.running && !start()) {
+        error = QStringLiteral("Failed to start console capture");
+        return false;
+    }
+    std::fflush(stdout);
+    std::fflush(stderr);
+    std::lock_guard<std::mutex> guard(d.readMutex);
+    if (d.readFd >= 0)
+        drainPipe();
+    std::unique_ptr<QFile> output;
+    if (!filename.isEmpty()) {
+        output = std::make_unique<QFile>(filename);
+        if (!output->open(QIODevice::WriteOnly | (append ? QIODevice::Append : QIODevice::Truncate))) {
+            error = output->errorString();
+            return false;
+        }
+    }
+    d.outputFile = std::move(output);
+    d.outputFilename = filename.isEmpty() ? QString() : QFileInfo(filename).absoluteFilePath();
+    return true;
+}
+
+QString
+ConsolePrivate::outputFile() const
+{
+    std::lock_guard<std::mutex> guard(d.readMutex);
+    return d.outputFilename;
+}
+
+void
+ConsolePrivate::drainPipe()
+{
+    // The reader and destination changes serialize pipe reads. Write raw
+    // bytes here so diagnostics still reach disk while Qt's thread is busy.
+    char chunk[4096];
+    while (fd_wait_readable(d.readFd, 0) == WaitResult::Readable) {
+#ifdef Q_OS_WIN
+        const int count = fd_read(d.readFd, chunk, unsigned(sizeof(chunk)));
+#else
+        const ssize_t count = fd_read(d.readFd, chunk, sizeof(chunk));
+#endif
+        if (count <= 0)
+            break;
+        if (d.outputFile && (d.outputFile->write(chunk, count) != count || !d.outputFile->flush())) {
+            const QString error = d.outputFile->errorString();
+            d.outputFile.reset();
+            d.outputFilename.clear();
+            queueText(QStringLiteral("[Console] File logging stopped: %1\n").arg(error));
+        }
+        queueText(QString::fromLocal8Bit(chunk, int(count)));
+    }
+}
+
+void
+ConsolePrivate::readerLoop()
+{
+    while (d.running) {
+        const WaitResult result = fd_wait_readable(d.readFd, 100);
+        if (result == WaitResult::Closed)
+            break;
+        if (result == WaitResult::Readable) {
+            std::lock_guard<std::mutex> guard(d.readMutex);
+            drainPipe();
+        }
+    }
+
+    // Preserve buffered output without waiting for duplicated writers to close.
+    std::lock_guard<std::mutex> guard(d.readMutex);
+    drainPipe();
+}
+
+void
+ConsolePrivate::queueText(const QString& text)
+{
+    bool scheduleDrain = false;
+    {
+        std::lock_guard<std::mutex> guard(d.pendingMutex);
+        d.pending += text;
+
+        if (!d.drainScheduled) {
+            d.drainScheduled = true;
+            scheduleDrain = true;
+        }
+    }
+
+    if (!scheduleDrain)
+        return;
+
+    const bool invoked = QMetaObject::invokeMethod(this, [this]() { drainPending(); }, Qt::QueuedConnection);
+    if (!invoked) {
+        std::lock_guard<std::mutex> guard(d.pendingMutex);
+        d.drainScheduled = false;
+    }
+}
+
+void
+ConsolePrivate::drainPending()
+{
+    QString text;
+    {
+        std::lock_guard<std::mutex> guard(d.pendingMutex);
+        text.swap(d.pending);
+        d.drainScheduled = false;
+    }
+
+    if (text.isEmpty())
+        return;
+
+    appendHistoryRows(d.historyRows, d.partialHistoryRow, text);
+    if (d.console)
+        Q_EMIT d.console->textAppended(text);
+}
+
+Console::Console(QObject* parent)
+    : QObject(parent)
+    , p(new ConsolePrivate)
+{
+    p->init();
+    p->d.console = this;
+}
+
+Console::~Console() {}
+
+bool
+Console::start()
+{
+    return p->start();
+}
+
+void
+Console::stop()
+{
+    p->stop();
+}
+
+bool
+Console::isRunning() const
+{
+    return p->isRunning();
+}
+
+QString
+Console::text() const
+{
+    return p->text();
+}
+
+QStringList
+Console::lines() const
+{
+    return p->lines();
+}
+
+bool
+Console::setOutputFile(const QString& filename, bool append, QString& error)
+{
+    return p->setOutputFile(filename, append, error);
+}
+
+QString
+Console::outputFile() const
+{
+    return p->outputFile();
+}
+
+}  // namespace flipman
+
+#include "console.moc"

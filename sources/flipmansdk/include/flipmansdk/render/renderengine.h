@@ -75,6 +75,16 @@ public:
     void render(const RenderContext& context, const RenderSpec& spec, QRhiCommandBuffer* commandBuffer);
 
     /**
+     * @brief
+     * Releases device resources while preserving layers, outputs and color settings.
+     *
+     * Call on the rendering thread between frames, before destroying the borrowed
+     * QRhi device or detaching its viewer. A later initialize() rebuilds resources
+     * for a new device. This does not process pixels or wait for normal playback.
+     */
+    void releaseResources();
+
+    /**
      * @name Configuration
      * @{
      */

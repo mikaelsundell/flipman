@@ -301,7 +301,14 @@ Viewer::Viewer(QWidget* parent)
     p->init();
 }
 
-Viewer::~Viewer() {}
+Viewer::~Viewer() { releaseResources(); }
+
+void
+Viewer::releaseResources()
+{
+    if (p->d.renderEngine)
+        p->d.renderEngine->releaseResources();
+}
 
 void
 Viewer::initialize(QRhiCommandBuffer*)
@@ -327,6 +334,7 @@ Viewer::setRenderEngine(render::RenderEngine* renderEngine)
     if (p->d.renderEngine == renderEngine)
         return;
 
+    releaseResources();
     p->d.renderEngine = renderEngine;
     p->updateView();
     update();

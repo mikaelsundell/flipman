@@ -179,3 +179,27 @@ CPU/NEON versus Metal timings. See [conversion benchmarks](../docs/image-convers
 and existing ImageBuffer wrappers, including all scalar formats, geometry/tags,
 odd widths and identity ownership. The renderer channel test also compares
 fused packed sampling with expanded RGBA textures and video-format transitions.
+
+## Application regressions
+
+With `FLIPMAN_BUILD_APP=ON`, `flipman_tests` also builds the main application and
+`flipman_application_tests`. The `flipman.app.*` cases exercise temporary movie
+and image sessions, failed and superseded opens, commands, native UI panels and
+the embedded Python console (when enabled). Preferences use a temporary directory.
+Use `--test "^flipman.app."` with the shared test runner to select them.
+
+The application root owns shared services. `flipman.app.services` covers the
+settings facade and opt-in console capture; `flipman.app.mcp` verifies HTTP
+initialization, tools, argument validation, local-origin checks and updates to
+the same Session/UI/undo history. `flipman.app.clean_run` launches the real app
+with clean preferences, a private MCP port and Python service access. It verifies
+per-process isolation and Python finalization while services are still alive.
+Mac Debug child processes always receive `DYLD_IMAGE_SUFFIX=_debug`.
+
+The shared runner also supplies `FLIPMAN_TEST_SETTINGS_DIR` under each report
+directory and `FLIPMAN_TEST_MCP_PORT=0` to CTest children, so future application
+cases inherit clean preferences and cannot take over a normal MCP listener.
+
+`flipman.app.view_lifetime` verifies GPU resource release and recreation while
+the application session remains loaded, including the absence of QRhi resource
+leak warnings during viewport teardown.

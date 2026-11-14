@@ -14,9 +14,16 @@ frame-based navigation and SMPTE timecode.
 Application
 ------------
 
-`testviewer` is the current interactive front end for the SDK. It provides a
-Metal-backed viewport for inspecting movies and images, with controls for image
-scale, project resolution and color processing.
+`flipman` is the main application, with a Metal viewport, playback controls,
+an adaptive scrub line, a collapsible file browser and metadata inspector.
+Each opened file creates a session-owned timeline with one track and clip.
+An embedded Python console and undoable time, FPS and color commands provide a
+foundation for extending the application. `testviewer` remains an SDK harness.
+See [application architecture and Python console](docs/application.md), including
+the optional local MCP endpoint and isolated clean runs.
+
+For macOS Debug launches, always set `DYLD_IMAGE_SUFFIX=_debug` before startup.
+Generated Debug Xcode schemes include it; shell commands need the same prefix.
 
 ### Functionality
 
@@ -34,8 +41,8 @@ Build and deployment
 [Build and packaging scripts](docs/build-deploy.md) generate
 `build.debug` and `build.release`, with ZIP/DMG packaging under `deploy.CONFIG`.
 See [Blackmagic runtime handling](docs/blackmagic-runtime.md) for the DeckLink
-driver requirement and optional Blackmagic RAW framework staging. The main
-application target still needs migration before a Flipman app can be packaged.
+driver requirement and optional Blackmagic RAW framework staging. The application
+builds by default; standalone Python runtime packaging remains development work.
 
 SDK development
 ---------------
@@ -73,7 +80,7 @@ set `THIRDPARTY_DIR` to your dependency prefix and run from the repository root:
 ```sh
 DYLD_IMAGE_SUFFIX=_debug cmake -S . -B build.sdk.debug -G "Unix Makefiles" \
     -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="$THIRDPARTY_DIR" \
-    -DFLIPMAN_BUILD_DEMOS=OFF
+    -DFLIPMAN_BUILD_APP=OFF -DFLIPMAN_BUILD_DEMOS=OFF
 DYLD_IMAGE_SUFFIX=_debug cmake --build build.sdk.debug --target flipmansdk --parallel
 DYLD_IMAGE_SUFFIX=_debug cmake --build build.sdk.debug --target flipmansdk_headers --parallel
 ```
@@ -87,7 +94,7 @@ the build directory. This checks header independence; it does not run behavior
 tests. The SDK tests now live under [CTest](CTest/README.md); configure with
 `BUILD_TESTING=ON` and build `flipman_tests` to compile the regression targets.
 The optional [Python SDK bindings](docs/python-sdk.md) are enabled with
-`FLIPMAN_BUILD_PYTHON=ON`. See [profiling and logging](docs/profiling.md) for the
+`FLIPMAN_BUILD_PYTHON=ON` (also enabled by the default application interpreter). See [profiling and logging](docs/profiling.md) for the
 SDK profiler and opt-in diagnostics. Optional
 [Blackmagic RAW decoding](docs/blackmagic-runtime.md#braw-reader) is enabled with
 `FLIPMAN_BUILD_BRAW=ON` and a supplied RAW SDK; reader options expose Kelvin, tint

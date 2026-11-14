@@ -49,8 +49,8 @@ export DeckLinkSDK_ROOT="/path/to/Blackmagic DeckLink SDK"
 ```
 
 `THIRDPARTY_DIR` is also accepted for a single matching configuration. For `all`,
-provide both configuration-specific variables. `--sdk-only` disables interactive
-demos and removes the DeckLink SDK requirement. SDK tests are controlled by
+provide both configuration-specific variables. `--sdk-only` disables the main
+application and interactive demos, removing the DeckLink SDK requirement. SDK tests are controlled by
 CMake's `BUILD_TESTING` option (on by default).
 
 After configuration, `./test_app.sh debug|release|all` refreshes the cached
@@ -62,6 +62,10 @@ produce JSON/JUnit reports under `build.test-results`. See
 `--no-build`, required-fixture checks and output options.
 
 The script generates `build.debug` and `build.release` without deleting them.
+Xcode and Visual Studio targets are organized into Application, SDK, Python,
+Tests, Demos, Benchmarks, Third-party and Build groups. Qt-generated helpers
+live under Generated/Qt. This affects IDE organization only; target names and
+build dependencies are unchanged. Reload the project after regenerating it.
 After an Xcode/dependency upgrade, add `--fresh` to discard stale CMake cache
 entries while retaining the build directory.
 It uses `CMAKE_OSX_SYSROOT=macosx`, so the active Xcode SDK is selected instead
@@ -70,11 +74,17 @@ not the SDK version. The default minimum is the running macOS
 major version (for example 26.0 on macOS 26.7). Direct CMake configuration uses
 the same default; an explicit CMake or environment deployment target takes
 precedence. Debug exports `DYLD_IMAGE_SUFFIX=_debug`; Release clears
-it. These same runtime settings are needed when launching from Xcode.
+it. Generated macOS Debug executable schemes set `DYLD_IMAGE_SUFFIX=_debug`
+automatically. Always include it when launching Debug programs from a shell.
+For an existing custom Xcode scheme, set it under Run → Arguments → Environment
+Variables. See [clean application runs and MCP](application.md#clean-runs-and-local-mcp-control).
 
-The main Flipman app target is still disabled and needs a separate application
-migration. Current default builds compile the SDK, tests and interactive demos.
-Do not mistake a generated Xcode project for a distributable Flipman app.
+The main `flipman` application now builds by default alongside the SDK and demos.
+Its embedded interpreter enables the SDK Python extension and requires CPython
+embedding development files. See [application architecture](application.md).
+The build-tree application is runnable; a standalone Python runtime/stdlib has
+not yet been added to the deployment workflow. Packaging checks may reject its
+external Python dependency, so do not treat it as a verified distributable.
 
 ## Packaging an app bundle
 

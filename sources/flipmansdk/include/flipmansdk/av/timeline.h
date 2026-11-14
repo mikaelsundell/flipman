@@ -20,7 +20,11 @@ class TimelinePrivate;
 
 /**
  * @class Timeline
- * @brief Multi-track playback and composition controller.
+ * @brief
+ * Timeline composition and playback state.
+ *
+ * Tracks remain caller-owned. The application session schedules decoding and
+ * presentation; play() and stop() notify that controller of playback intent.
  */
 class FLIPMANSDK_EXPORT Timeline : public QObject {
     Q_OBJECT
@@ -172,6 +176,18 @@ public Q_SLOTS:
     void setTimeRange(const TimeRange& timeRange);
 
     /**
+     * @brief
+     * Changes the playback rate while preserving frame indices.
+     */
+    void setFps(const Fps& fps);
+
+    /**
+     * @brief
+     * Sets the source timestamp used to display SMPTE timecode.
+     */
+    void setStartTime(const Time& time);
+
+    /**
      * @brief Sets the I/O range.
      */
     void setIoRange(const TimeRange& ioRange);
@@ -235,6 +251,7 @@ Q_SIGNALS:
      * @{
      */
     void timerangeChanged(const TimeRange& timeRange);
+    void fpsChanged(const Fps& fps);
     void ioRangeChanged(const TimeRange& io);
     void timeChanged(const Time& time);
     void timeCodeChanged(const Time& time);

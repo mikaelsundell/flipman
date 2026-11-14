@@ -100,18 +100,13 @@ Track::setColor(const QColor& color)
 void
 Track::insertClip(Clip* clip, const TimeRange& range)
 {
-    /*
-    for (const auto& existingClip : p->d.clips.keys()) {
-        AVTimeRange existingRange = p->d.clips.value(existingClip);
-        if (range.intersects(existingRange)) {
-            qint64 ticks = existingRange.end().ticks() + 1;
-            AVTimeRange adjusted(AVTime(range.start, ticks), range.duration());
-            p->d.clips[clip] = adjusted;
-            return;
-        }
-    }
-    p->d.clips[clip] = range;
-    */
+    if (!clip || !range.isValid())
+        return;
+
+    const bool inserted = !p->d.clips.contains(clip);
+    p->d.clips.insert(clip, range);
+    if (inserted)
+        connect(clip, &QObject::destroyed, this, [this, clip]() { p->d.clips.remove(clip); });
 }
 
 void

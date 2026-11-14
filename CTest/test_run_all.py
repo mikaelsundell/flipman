@@ -36,6 +36,7 @@ class RunnerTests(unittest.TestCase):
         self.args = SimpleNamespace(build_dir=None, cmake=None, jobs=2, no_build=False,
                                     label=None, exclude_label=None, test=None, fail_on_skip=False)
         self.commands = []
+        self.environments = []
         self.fail_step = None
         self.manifest = {'tests': [{'name': 'flipman.example', 'properties': []}]}
         self.junit = '<testsuite><testcase name="flipman.example" status="run" time="0.01"/></testsuite>'
@@ -47,6 +48,7 @@ class RunnerTests(unittest.TestCase):
     def fake_step(self, command, log, environment, echo=True):
         command = [str(part) for part in command]
         self.commands.append(command)
+        self.environments.append(dict(environment))
         phase = 'configure' if '-S' in command else 'build' if '--build' in command else 'ctest'
         if '--show-only=json-v1' in command:
             log.write_text(json.dumps(self.manifest), encoding='utf-8')
@@ -108,6 +110,9 @@ class RunnerTests(unittest.TestCase):
         build = next(command for command in self.commands if '--build' in command)
         self.assertIn('flipman_tests', build)
         ctest = self.commands[-1]
+        self.assertEqual(Path(self.environments[-1]['FLIPMAN_TEST_SETTINGS_DIR']),
+                         Path(result['steps'][-1]['log']).parent / 'settings')
+        self.assertEqual(self.environments[-1]['FLIPMAN_TEST_MCP_PORT'], '0')
         self.assertIn('--no-tests=error', ctest)
         self.assertEqual(ctest[ctest.index('--parallel') + 1], '1')
         for option, value in (('-L', 'cpu'), ('-LE', 'data'), ('-R', '^flipman[.]')):

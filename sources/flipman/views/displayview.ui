@@ -1,0 +1,315 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>DisplayView</class>
+ <widget class="QWidget" name="DisplayView">
+  <property name="DockWidget" stdset="0">
+   <bool>true</bool>
+  </property>
+  <layout class="QHBoxLayout" name="displayLayout">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>6</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>6</number>
+   </property>
+   <property name="bottomMargin">
+    <number>6</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="inputGroup">
+     <layout class="QGridLayout" name="inputLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="inputLabel">
+        <property name="text">
+         <string>Input</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignTop</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="input">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Source color primaries. Auto uses decoded metadata.</string>
+        </property>
+        <property name="ColorSelector" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="inputTransfer">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Source encoding / gamma.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="workingGroup">
+     <layout class="QGridLayout" name="workingLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="workingLabel">
+        <property name="text">
+         <string>Working</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignTop</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="working">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Effect processing color primaries.</string>
+        </property>
+        <property name="ColorSelector" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="workingTransfer">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Effect processing encoding / gamma.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="outputGroup">
+     <layout class="QGridLayout" name="outputLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="outputLabel">
+        <property name="text">
+         <string>Output</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignTop</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="QPushButton" name="output">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Output color primaries.</string>
+        </property>
+        <property name="ColorSelector" stdset="0">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="QComboBox" name="outputTransfer">
+        <property name="minimumSize">
+         <size>
+          <width>165</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>165</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Output encoding / gamma.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="viewLabel">
+     <property name="text">
+      <string>View</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="view">
+     <property name="minimumSize">
+      <size>
+       <width>140</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>ACES viewing transform; Direct encodes output without tone mapping.</string>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>220</width>
+       <height>16777215</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="displaySpacer">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="sizeHint">
+      <size>
+       <width>40</width>
+       <height>20</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QLabel" name="displayLabel">
+     <property name="text">
+      <string>Display</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="display">
+     <property name="minimumSize">
+      <size>
+       <width>180</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="toolTip">
+      <string>Tag the Metal surface for macOS ColorSync. This does not transform pixels.</string>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>210</width>
+       <height>16777215</height>
+      </size>
+     </property>
+    </widget>
+   </item>
+  </layout>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>86</height>
+   </size>
+  </property>
+ </widget>
+ <resources />
+ <connections />
+</ui>

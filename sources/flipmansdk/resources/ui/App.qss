@@ -831,3 +831,8 @@ QWidget[DockWidget="true"]
 QWidget[MainWidget="true"] {
     background-color: $color.basealt;
 }
+
+QPushButton[ColorSelector="true"]
+{
+    text-align: left;
+}

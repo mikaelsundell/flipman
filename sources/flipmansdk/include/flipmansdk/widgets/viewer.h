@@ -171,6 +171,12 @@ protected:
     void render(QRhiCommandBuffer* cb) override;
 
     /**
+     * @brief
+     * Releases the borrowed engine's GPU state before the widget device is retired.
+     */
+    void releaseResources() override;
+
+    /**
      * @}
      */
 

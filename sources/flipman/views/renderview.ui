@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>RenderView</class>
+ <widget class="QWidget" name="RenderView">
+  <property name="DockWidget" stdset="0">
+   <bool>true</bool>
+  </property>
+  <layout class="QVBoxLayout" name="renderLayout" stretch="1,0">
+   <property name="spacing">
+    <number>4</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QWidget" name="viewportContainer">
+     <layout class="QVBoxLayout" name="viewportLayout">
+      <property name="spacing">
+       <number>0</number>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QWidget" name="zoomBar">
+     <layout class="QHBoxLayout" name="zoomLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>6</number>
+      </property>
+      <property name="topMargin">
+       <number>6</number>
+      </property>
+      <property name="rightMargin">
+       <number>6</number>
+      </property>
+      <property name="bottomMargin">
+       <number>6</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="fitButton">
+        <property name="text">
+         <string>Fit</string>
+        </property>
+        <property name="toolTip">
+         <string>Fit</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="z25">
+        <property name="text">
+         <string>25%</string>
+        </property>
+        <property name="toolTip">
+         <string>25%</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="z50">
+        <property name="text">
+         <string>50%</string>
+        </property>
+        <property name="toolTip">
+         <string>50%</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="z75">
+        <property name="text">
+         <string>75%</string>
+        </property>
+        <property name="toolTip">
+         <string>75%</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="z100">
+        <property name="text">
+         <string>100%</string>
+        </property>
+        <property name="toolTip">
+         <string>100%</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="zoomSeparator">
+        <property name="frameShape">
+         <enum>QFrame::VLine</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QFrame" name="zoomReadout">
+        <property name="frameShape">
+         <enum>QFrame::StyledPanel</enum>
+        </property>
+        <layout class="QHBoxLayout" name="zoomReadoutLayout">
+         <item>
+          <widget class="QLabel" name="zoomValue">
+           <property name="text">
+            <string>100%</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <spacer name="zoomSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="projectLabel">
+        <property name="text">
+         <string>Project resolution</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="projectResolution">
+        <property name="minimumSize">
+         <size>
+          <width>150</width>
+          <height>0</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Timeline canvas resolution. Auto follows the source display window.</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources />
+ <connections />
+</ui>

@@ -3,7 +3,7 @@
 // https://github.com/mikaelsundell/flipman
 
 #include <flipmansdk/av/smptetime.h>
-#include <flipmansdk/widgets/timeline.h>
+#include <flipmansdk/widgets/scrubline.h>
 #include <QFontMetrics>
 #include <QMouseEvent>
 #include <QPainter>
@@ -11,7 +11,7 @@
 
 namespace flipman::sdk::widgets {
 
-class TimelinePrivate {
+class ScrubLinePrivate {
 public:
     void init();
     int mapToX(qint64 ticks) const;
@@ -29,7 +29,7 @@ public:
     void paintTick(QPainter& p, int x, int y, int height, qreal width = 1, QBrush brush = Qt::white);
     void paintText(QPainter& p, int x, int y, qint64 value, qint64 start, qint64 duration, bool bold = false,
                    QBrush brush = Qt::white);
-    void paintTimeline(QPainter& p);
+    void paintScrubLine(QPainter& p);
     QPixmap paint();
 
     struct Time {
@@ -43,7 +43,7 @@ public:
         Time t;
         av::Time time;
         av::TimeRange range;
-        Timeline::TimeCode timeCode = Timeline::TimeCode::Time;
+        ScrubLine::TimeCode timeCode = ScrubLine::TimeCode::Time;
         qint64 lastTick = -1;
         qreal marginTick = 0.5;
         int marginRange = 10;
@@ -51,27 +51,27 @@ public:
         int radius = 2;
         bool tracking = false;
         bool pressed = false;
-        QPointer<Timeline> widget;
+        QPointer<ScrubLine> widget;
     };
     Data d;
 };
 
 void
-TimelinePrivate::init()
+ScrubLinePrivate::init()
 {
     d.widget->setAttribute(Qt::WA_TranslucentBackground);
     d.widget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
 
 int
-TimelinePrivate::mapToX(qint64 ticks) const
+ScrubLinePrivate::mapToX(qint64 ticks) const
 {
     qreal ratio = static_cast<qreal>(ticks) / d.range.duration().ticks();
     return qRound(d.marginRange + ratio * (d.widget->width() - 2 * d.marginRange));
 }
 
 qint64
-TimelinePrivate::mapToTicks(int x) const
+ScrubLinePrivate::mapToTicks(int x) const
 {
     x = qBound(d.marginRange, x, d.widget->width() - d.marginRange);
     qreal ratio = static_cast<qreal>(x - d.marginRange) / (d.widget->width() - 2 * d.marginRange);
@@ -79,20 +79,20 @@ TimelinePrivate::mapToTicks(int x) const
 }
 
 int
-TimelinePrivate::mapToWidth(qint64 ticks) const
+ScrubLinePrivate::mapToWidth(qint64 ticks) const
 {
     return mapToX(ticks) - mapToX(0);
 }
 
 QSize
-TimelinePrivate::mapToSize(const QFont& font, const QString& text) const
+ScrubLinePrivate::mapToSize(const QFont& font, const QString& text) const
 {
     QFontMetrics metrics = QFontMetrics(font);
     return QSize(metrics.horizontalAdvance(text), metrics.height());
 }
 
 int
-TimelinePrivate::mapToText(qint64 start, qint64 duration, int x, int width) const
+ScrubLinePrivate::mapToText(qint64 start, qint64 duration, int x, int width) const
 {
     int min = mapToX(start);
     int max = mapToX(duration) - width;
@@ -100,52 +100,52 @@ TimelinePrivate::mapToText(qint64 start, qint64 duration, int x, int width) cons
 }
 
 QString
-TimelinePrivate::labelTick(qint64 value) const
+ScrubLinePrivate::labelTick(qint64 value) const
 {
-    if (d.timeCode == Timeline::TimeCode::Frames) {
+    if (d.timeCode == ScrubLine::TimeCode::Frames) {
         return QString::number(d.time.frame(value));
     }
-    else if (d.timeCode == Timeline::TimeCode::Time) {
+    else if (d.timeCode == ScrubLine::TimeCode::Time) {
         return d.range.duration().toString(value);
     }
-    else if (d.timeCode == Timeline::TimeCode::SMPTE) {
+    else if (d.timeCode == ScrubLine::TimeCode::SMPTE) {
         return av::SmpteTime(av::Time(d.range.duration(), value)).toString();
     }
 }
 
 QSize
-TimelinePrivate::labelSize(const QFont& font, qint64 value) const
+ScrubLinePrivate::labelSize(const QFont& font, qint64 value) const
 {
-    if (d.timeCode == Timeline::TimeCode::Frames) {
+    if (d.timeCode == ScrubLine::TimeCode::Frames) {
         return mapToSize(font, QString::number(d.range.duration().frames()));
     }
-    else if (d.timeCode == Timeline::TimeCode::Time) {
+    else if (d.timeCode == ScrubLine::TimeCode::Time) {
         return mapToSize(font, d.range.duration().toString(value));
     }
-    else if (d.timeCode == Timeline::TimeCode::SMPTE) {
+    else if (d.timeCode == ScrubLine::TimeCode::SMPTE) {
         return mapToSize(font, av::SmpteTime(av::Time(d.range.duration(), value)).toString());
     }
 }
 
 qint64
-TimelinePrivate::ticks(qreal value) const
+ScrubLinePrivate::ticks(qreal value) const
 {
-    if (d.timeCode == Timeline::TimeCode::Frames) {
+    if (d.timeCode == ScrubLine::TimeCode::Frames) {
         return d.range.duration().ticks(static_cast<qint64>(value));
     }
-    else if (d.timeCode == Timeline::TimeCode::Time || d.timeCode == Timeline::TimeCode::SMPTE) {
+    else if (d.timeCode == ScrubLine::TimeCode::Time || d.timeCode == ScrubLine::TimeCode::SMPTE) {
         return d.range.duration().timeScale() * value;
     }
 }
 
 qint64
-TimelinePrivate::steps(qint64 value)
+ScrubLinePrivate::steps(qint64 value)
 {
     return pow(10, qint64(log10(value)));
 }
 
 qint64
-TimelinePrivate::substeps(qint64 value, qint64 top, qint64 steps, int limit) const
+ScrubLinePrivate::substeps(qint64 value, qint64 top, qint64 steps, int limit) const
 {
     qint64 max = top * ticks(1);
     for (qint64 tick = steps; tick < max; tick += steps) {
@@ -160,7 +160,7 @@ TimelinePrivate::substeps(qint64 value, qint64 top, qint64 steps, int limit) con
 }
 
 void
-TimelinePrivate::paintTick(QPainter& p, int x, int y, int height, qreal width, QBrush brush)
+ScrubLinePrivate::paintTick(QPainter& p, int x, int y, int height, qreal width, QBrush brush)
 {
     p.save();
     p.setPen(QPen(brush, width));
@@ -169,8 +169,8 @@ TimelinePrivate::paintTick(QPainter& p, int x, int y, int height, qreal width, Q
 }
 
 void
-TimelinePrivate::paintText(QPainter& p, int x, int y, qint64 value, qint64 start, qint64 duration, bool bold,
-                           QBrush brush)
+ScrubLinePrivate::paintText(QPainter& p, int x, int y, qint64 value, qint64 start, qint64 duration, bool bold,
+                            QBrush brush)
 {
     p.save();
     p.setPen(QPen(brush, 1));
@@ -192,7 +192,7 @@ TimelinePrivate::paintText(QPainter& p, int x, int y, qint64 value, qint64 start
 }
 
 void
-TimelinePrivate::paintTimeline(QPainter& p)
+ScrubLinePrivate::paintScrubLine(QPainter& p)
 {
     p.save();
     QFont font("Courier New", 8);  // fixed font size
@@ -296,7 +296,7 @@ TimelinePrivate::paintTimeline(QPainter& p)
 }
 
 QPixmap
-TimelinePrivate::paint()
+ScrubLinePrivate::paint()
 {
     qreal dpr = d.widget->devicePixelRatio();
     QPixmap pixmap(d.widget->width() * dpr, d.widget->height() * dpr);
@@ -323,7 +323,7 @@ TimelinePrivate::paint()
             qint64 ticks = d.time.ticks();
             qint64 start = d.range.start().ticks();
             qint64 duration = d.range.duration().ticks();
-            if (d.timeCode == Timeline::TimeCode::Frames) {
+            if (d.timeCode == ScrubLine::TimeCode::Frames) {
                 qint64 frames = d.range.duration().frames();
                 d.t = Time {
                     // redistribute to frames
@@ -333,7 +333,7 @@ TimelinePrivate::paint()
                     static_cast<qreal>(steps(frames) / 10 / 10),
                 };
             }
-            else if (d.timeCode == Timeline::TimeCode::Time || d.timeCode == Timeline::TimeCode::SMPTE) {
+            else if (d.timeCode == ScrubLine::TimeCode::Time || d.timeCode == ScrubLine::TimeCode::SMPTE) {
                 av::Time duration = d.range.duration();
                 qint64 seconds = duration.seconds();
                 qint64 minutes = seconds / 60;
@@ -357,7 +357,7 @@ TimelinePrivate::paint()
                     };
                 }
             }
-            paintTimeline(p);
+            paintScrubLine(p);
             {
                 int pos = mapToX(start);
                 QPen thickPen(Qt::white, 4);
@@ -410,48 +410,48 @@ TimelinePrivate::paint()
     return pixmap;
 }
 
-Timeline::Timeline(QWidget* parent)
+ScrubLine::ScrubLine(QWidget* parent)
     : QWidget(parent)
-    , p(new TimelinePrivate())
+    , p(new ScrubLinePrivate())
 {
     p->d.widget = this;
     p->init();
 }
 
-Timeline::~Timeline() {}
+ScrubLine::~ScrubLine() {}
 
 QSize
-Timeline::sizeHint() const
+ScrubLine::sizeHint() const
 {
     return QSize(200, 35);
 }
 
 av::TimeRange
-Timeline::range() const
+ScrubLine::range() const
 {
     return p->d.range;
 }
 
 av::Time
-Timeline::time() const
+ScrubLine::time() const
 {
     return p->d.time;
 }
 
 bool
-Timeline::tracking() const
+ScrubLine::tracking() const
 {
     return p->d.tracking;
 }
 
-Timeline::TimeCode
-Timeline::timeCode() const
+ScrubLine::TimeCode
+ScrubLine::timeCode() const
 {
     return p->d.timeCode;
 }
 
 void
-Timeline::setRange(const av::TimeRange& range)
+ScrubLine::setRange(const av::TimeRange& range)
 {
     if (p->d.range != range) {
         p->d.range = range;
@@ -460,7 +460,7 @@ Timeline::setRange(const av::TimeRange& range)
 }
 
 void
-Timeline::setTime(const av::Time& time)
+ScrubLine::setTime(const av::Time& time)
 {
     if (p->d.time != time && !p->d.pressed) {
         p->d.time = time;
@@ -470,7 +470,7 @@ Timeline::setTime(const av::Time& time)
 }
 
 void
-Timeline::setTracking(bool tracking)
+ScrubLine::setTracking(bool tracking)
 {
     if (p->d.tracking != tracking) {
         p->d.tracking = tracking;
@@ -479,7 +479,7 @@ Timeline::setTracking(bool tracking)
 }
 
 void
-Timeline::setTimeCode(Timeline::TimeCode timeCode)
+ScrubLine::setTimeCode(ScrubLine::TimeCode timeCode)
 {
     if (p->d.timeCode != timeCode) {
         p->d.timeCode = timeCode;
@@ -488,7 +488,7 @@ Timeline::setTimeCode(Timeline::TimeCode timeCode)
 }
 
 void
-Timeline::paintEvent(QPaintEvent* event)
+ScrubLine::paintEvent(QPaintEvent* event)
 {
     QPainter painter(this);
     painter.drawPixmap(0, 0, p->paint());
@@ -497,7 +497,7 @@ Timeline::paintEvent(QPaintEvent* event)
 }
 
 void
-Timeline::mousePressEvent(QMouseEvent* event)
+ScrubLine::mousePressEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton) {
         setCursor(Qt::SizeHorCursor);
@@ -510,7 +510,7 @@ Timeline::mousePressEvent(QMouseEvent* event)
 }
 
 void
-Timeline::mouseMoveEvent(QMouseEvent* event)
+ScrubLine::mouseMoveEvent(QMouseEvent* event)
 {
     if (p->d.pressed) {
         qint64 tick = p->d.time.align(p->mapToTicks(event->pos().x()));
@@ -527,7 +527,7 @@ Timeline::mouseMoveEvent(QMouseEvent* event)
 }
 
 void
-Timeline::mouseReleaseEvent(QMouseEvent* event)
+ScrubLine::mouseReleaseEvent(QMouseEvent* event)
 {
     if (p->d.pressed && event->button() == Qt::LeftButton) {
         setCursor(Qt::ArrowCursor);

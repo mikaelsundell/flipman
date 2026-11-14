@@ -13,6 +13,7 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QPointer>
+#include <QScopeGuard>
 #include <algorithm>
 #include <atomic>
 
@@ -36,7 +37,7 @@ public:
     ~QuicktimeReaderPrivate();
 
     void init();
-    void loadAsset();
+    void loadAsset(quint64 generation);
 
     bool open(const core::File& file, const MediaReader::Options& options);
     bool close();
@@ -56,6 +57,7 @@ public:
     static QList<QString> extensions();
 
     struct Data {
+        dispatch_group_t loading = dispatch_group_create();
         AVAsset* asset = nil;
         AVAssetReader* reader = nil;
         AVAssetReaderTrackOutput* videoOutput = nil;
@@ -72,6 +74,8 @@ public:
         av::Fps fps;
         QString fileName;
         QString title;
+        std::atomic<quint64> generation = 0;
+        std::atomic<bool> open = false;
         qint32 timeScale = 0;
         QPointer<QuicktimeReader> object;
     };
@@ -332,12 +336,13 @@ copyPixelBufferToImageBuffer(CVPixelBufferRef pixelBuffer, core::ImageBuffer& im
 }
 
 void
-QuicktimeReaderPrivate::loadAsset()
+QuicktimeReaderPrivate::loadAsset(quint64 generation)
 {
     FM_PROFILE_SCOPE("quicktime", "load_asset");
     core::PerfScope phase("quicktime.load_asset");
     dispatch_group_t group = dispatch_group_create();
 
+    NSMutableArray<AVMetadataItem*>* metadata = [NSMutableArray array];
     __block AVAssetTrack* videoTrack = nil;
     __block AVAssetTrack* timeCodeTrack = nil;
 
@@ -364,13 +369,9 @@ QuicktimeReaderPrivate::loadAsset()
 
         [d.asset loadMetadataForFormat:format
                      completionHandler:^(NSArray<AVMetadataItem*>* items, NSError* error) {
-                         if (!error) {
-                             for (AVMetadataItem* item in items) {
-                                 if (!item.commonKey || !item.value)
-                                     continue;
-
-                                 d.metaData.insert(QString::fromNSString(item.commonKey),
-                                                   QString::fromNSString(item.value.description));
+                         if (!error && items) {
+                             @synchronized(metadata) {
+                                 [metadata addObjectsFromArray:items];
                              }
                          }
 
@@ -379,6 +380,13 @@ QuicktimeReaderPrivate::loadAsset()
     }
 
     dispatch_group_notify(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+        const auto finished = qScopeGuard([this]() { dispatch_group_leave(d.loading); });
+
+        // Publish metadata once, after all format callbacks have completed.
+        for (AVMetadataItem* item in metadata) {
+            if (item.commonKey && item.value)
+                d.metaData.insert(QString::fromNSString(item.commonKey), QString::fromNSString(item.value.description));
+        }
         NSError* error = nil;
 
         d.reader = [[AVAssetReader alloc] initWithAsset:d.asset error:&error];
@@ -527,7 +535,14 @@ QuicktimeReaderPrivate::loadAsset()
             return;
         }
 
-        QMetaObject::invokeMethod(d.object, &QuicktimeReader::opened, Qt::QueuedConnection);
+        d.open = true;
+        QMetaObject::invokeMethod(
+            d.object,
+            [this, generation]() {
+                if (d.generation == generation && d.open && d.object)
+                    Q_EMIT d.object->opened();
+            },
+            Qt::QueuedConnection);
     });
 }
 
@@ -551,6 +566,8 @@ QuicktimeReaderPrivate::open(const core::File& file, const MediaReader::Options&
 
     NSArray* keys = @[ @"tracks", @"duration", @"commonMetadata", @"availableMetadataFormats" ];
 
+    const auto generation = d.generation.load();
+    dispatch_group_enter(d.loading);
     [d.asset
         loadValuesAsynchronouslyForKeys:keys
                       completionHandler:^{
@@ -559,11 +576,12 @@ QuicktimeReaderPrivate::open(const core::File& file, const MediaReader::Options&
                           for (NSString* key in keys) {
                               if ([d.asset statusOfValueForKey:key error:&error] != AVKeyValueStatusLoaded) {
                                   d.error = core::Error(info().name, QString::fromNSString(error.localizedDescription));
+                                  dispatch_group_leave(d.loading);
                                   return;
                               }
                           }
 
-                          this->loadAsset();
+                          this->loadAsset(generation);
                       }];
 
     return true;
@@ -572,6 +590,14 @@ QuicktimeReaderPrivate::open(const core::File& file, const MediaReader::Options&
 bool
 QuicktimeReaderPrivate::close()
 {
+    ++d.generation;
+
+    // AVFoundation callbacks borrow this private object. Cancel outstanding
+    // loading and drain callbacks before resetting or destroying their state.
+    // Normal frame reads do not wait on this group.
+    [d.asset cancelLoading];
+    dispatch_group_wait(d.loading, DISPATCH_TIME_FOREVER);
+    d.open = false;
     if (d.reader) {
         [d.reader cancelReading];
         d.reader = nil;
@@ -598,7 +624,7 @@ QuicktimeReaderPrivate::close()
 bool
 QuicktimeReaderPrivate::isOpen()
 {
-    return d.reader != nullptr && d.videoOutput != nil;
+    return d.open;
 }
 
 av::Time
@@ -816,7 +842,7 @@ QuicktimeReader::QuicktimeReader(QObject* parent)
     p->init();
 }
 
-QuicktimeReader::~QuicktimeReader() {}
+QuicktimeReader::~QuicktimeReader() { p->close(); }
 
 bool
 QuicktimeReader::open(const core::File& file, const Options& options)
@@ -923,6 +949,9 @@ QuicktimeReader::metaData() const
 core::Error
 QuicktimeReader::error() const
 {
+    if (dispatch_group_wait(p->d.loading, DISPATCH_TIME_NOW) != 0)
+        return {};
+
     return p->d.error;
 }
 

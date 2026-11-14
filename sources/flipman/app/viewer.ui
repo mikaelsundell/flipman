@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>ViewerWindow</class>
+ <widget class="QMainWindow" name="ViewerWindow">
+  <property name="windowTitle">
+   <string>Flipman</string>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>960</width>
+    <height>600</height>
+   </size>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <property name="MainWidget" stdset="0">
+    <bool>true</bool>
+   </property>
+   <layout class="QVBoxLayout" name="mainLayout">
+    <property name="spacing">
+     <number>6</number>
+    </property>
+    <property name="leftMargin">
+     <number>6</number>
+    </property>
+    <property name="topMargin">
+     <number>6</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
+    <property name="bottomMargin">
+     <number>6</number>
+    </property>
+    <item>
+     <widget class="flipman::PlaybackView" name="playbackView" />
+    </item>
+    <item>
+     <widget class="flipman::TimelineView" name="timelineView" />
+    </item>
+    <item>
+     <widget class="flipman::DisplayView" name="displayView" />
+    </item>
+    <item>
+     <widget class="QSplitter" name="viewsSplitter">
+      <property name="orientation">
+       <enum>Qt::Horizontal</enum>
+      </property>
+      <property name="childrenCollapsible">
+       <bool>true</bool>
+      </property>
+      <property name="handleWidth">
+       <number>6</number>
+      </property>
+      <widget class="flipman::FileSystemView" name="filesystemView">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="flipman::RenderView" name="renderView">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+      <widget class="flipman::MetadataView" name="metadataView">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menuBar" />
+  <widget class="QStatusBar" name="statusBar" />
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>flipman::PlaybackView</class>
+   <extends>QWidget</extends>
+   <header>views/playbackview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>flipman::TimelineView</class>
+   <extends>QWidget</extends>
+   <header>views/timelineview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>flipman::DisplayView</class>
+   <extends>QWidget</extends>
+   <header>views/displayview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>flipman::FileSystemView</class>
+   <extends>QWidget</extends>
+   <header>views/filesystemview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>flipman::RenderView</class>
+   <extends>QWidget</extends>
+   <header>views/renderview.h</header>
+  </customwidget>
+  <customwidget>
+   <class>flipman::MetadataView</class>
+   <extends>QWidget</extends>
+   <header>views/metadataview.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources />
+ <connections />
+</ui>

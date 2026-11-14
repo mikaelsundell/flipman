@@ -12,15 +12,17 @@
 
 namespace flipman::sdk::widgets {
 
-class TimelinePrivate;
+class ScrubLinePrivate;
 
 /**
- * @class Timeline
- * @brief Widget for navigating temporal media.
+ * @class ScrubLine
+ * @brief
+ * Interactive time ruler for scrubbing temporal media.
  *
- * Provides frame-accurate scrubbing and range visualization.
+ * Displays adaptive tick marks for the active range with frame, elapsed-time
+ * or SMPTE labels. This widget is separate from the av::Timeline media model.
  */
-class FLIPMANSDK_EXPORT Timeline : public QWidget {
+class FLIPMANSDK_EXPORT ScrubLine : public QWidget {
     Q_OBJECT
     Q_PROPERTY(av::Time time READ time WRITE setTime NOTIFY timeChanged)
     Q_PROPERTY(TimeCode timeCode READ timeCode WRITE setTimeCode)
@@ -50,16 +52,16 @@ public:
 
 public:
     /**
-     * @brief Constructs a Timeline.
+     * @brief Constructs a ScrubLine.
      *
      * @param parent Optional parent widget.
      */
-    explicit Timeline(QWidget* parent = nullptr);
+    explicit ScrubLine(QWidget* parent = nullptr);
 
     /**
-     * @brief Destroys the Timeline.
+     * @brief Destroys the ScrubLine.
      */
-    ~Timeline() override;
+    ~ScrubLine() override;
 
     /**
      * @name Attributes
@@ -120,7 +122,7 @@ public Q_SLOTS:
     /**
      * @brief Sets the display format.
      */
-    void setTimeCode(Timeline::TimeCode timeCode);
+    void setTimeCode(ScrubLine::TimeCode timeCode);
 
     /**
      * @}
@@ -188,11 +190,11 @@ protected:
      */
 
 private:
-    Q_DISABLE_COPY_MOVE(Timeline)
+    Q_DISABLE_COPY_MOVE(ScrubLine)
     /**
      * @brief Private implementation.
      */
-    QScopedPointer<TimelinePrivate> p;
+    QScopedPointer<ScrubLinePrivate> p;
 };
 
 }  // namespace flipman::sdk::widgets
@@ -200,4 +202,4 @@ private:
 /**
  * @note Registering the type for use in signals/slots and QVariant.
  */
-Q_DECLARE_METATYPE(flipman::sdk::widgets::Timeline*)
+Q_DECLARE_METATYPE(flipman::sdk::widgets::ScrubLine*)

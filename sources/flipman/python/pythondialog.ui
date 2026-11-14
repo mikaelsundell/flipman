@@ -1,0 +1,80 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ui version="4.0">
+ <class>PythonDialog</class>
+ <widget class="QDialog" name="PythonDialog">
+  <property name="windowTitle">
+   <string>Flipman Python</string>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>640</width>
+    <height>420</height>
+   </size>
+  </property>
+  <layout class="QVBoxLayout" name="pythonLayout">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>6</number>
+   </property>
+   <property name="topMargin">
+    <number>6</number>
+   </property>
+   <property name="rightMargin">
+    <number>6</number>
+   </property>
+   <property name="bottomMargin">
+    <number>6</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="helpLabel">
+     <property name="text">
+      <string>SDK: import flipman as sdk     Application: session.timeline(), session.setFrame(0), session.commands()</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QSplitter" name="editorSplitter">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <widget class="QPlainTextEdit" name="editor">
+      <property name="plainText">
+       <string>import flipman as sdk
+print(session.filename())
+print(session.timeline().fps().real())
+</string>
+      </property>
+      <property name="toolTip">
+       <string>Python source; Ctrl+Return runs the script in the persistent interpreter</string>
+      </property>
+     </widget>
+     <widget class="QPlainTextEdit" name="output">
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="runButton">
+     <property name="text">
+      <string>Run (Ctrl+Return)</string>
+     </property>
+     <property name="shortcut">
+      <string>Ctrl+Return</string>
+     </property>
+     <property name="toolTip">
+      <string>Run (Ctrl+Return)</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources />
+ <connections />
+</ui>

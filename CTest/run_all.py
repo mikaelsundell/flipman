@@ -209,9 +209,12 @@ def run_configuration(args, configuration, output):
         if cache_value(directory, 'BUILD_TESTING') in ('OFF', 'FALSE', '0'):
             raise RuntimeError('BUILD_TESTING is disabled; rerun without --no-build.')
         row['features'] = {key: cache_value(directory, key) for key in
-                           ('FLIPMAN_BUILD_PYTHON', 'FLIPMAN_BUILD_BRAW', 'FLIPMAN_REQUIRE_TEST_DATA')}
+                           ('FLIPMAN_BUILD_APP', 'FLIPMAN_APP_PYTHON', 'FLIPMAN_BUILD_PYTHON',
+                            'FLIPMAN_BUILD_BRAW', 'FLIPMAN_REQUIRE_TEST_DATA')}
         print('FEATURES', row['features'], flush=True)
         environment = runtime_environment(directory, configuration)
+        environment['FLIPMAN_TEST_SETTINGS_DIR'] = str(output / 'settings')
+        environment['FLIPMAN_TEST_MCP_PORT'] = '0'
         command = ctest_command(ctest, directory, configuration, args)
         manifest = output / 'tests.json'
         step = run_logged(command + ['--show-only=json-v1'], manifest, environment, echo=False)

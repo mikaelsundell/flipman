@@ -74,6 +74,7 @@ class CoreTests(unittest.TestCase):
         value = {"标题": [None, True, 42, 0.25, "café"]}
         meta.insert(key="custom", value=value)
         self.assertEqual(meta.value("custom"), value)
+        self.assertIn("custom", meta.keys())
         copy = sdk.MetaData(meta)
         copy.insert("custom", "changed")
         self.assertEqual(meta.value("custom"), value)

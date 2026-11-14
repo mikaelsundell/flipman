@@ -103,7 +103,7 @@ span = sdk.TimeRange(start, sdk.Time.fromFrames(48, fps))
   Static `File.listDir(path)` returns sequence-grouped `File` objects.
 - `FileRange()`; `size()`, `isValid()`, `hasFrame(frame)`, `frame(frame)`,
   `start()`, `end()` (inclusive file index), `insertFrame(frame, file)`.
-- `MetaData()`, `MetaData(other)`; `isValid()`, `reset()`, `groups()`, `keys(group)`,
+- `MetaData()`, `MetaData(other)`; `isValid()`, `reset()`, `groups()`, `keys()` (root keys), `keys(group)`,
   `value(key)` / `value(group, key)`, `insert(key, value)` /
   `insert(group, key, value)`, `remove(key)` / `remove(group, key)`.
 - `MetaData.Group`: Container, Video, Audio, Camera, Timecode, Production, Custom.
@@ -286,3 +286,11 @@ camera original after a decoder's processing. Use `Un-tone-mapped` for already
 rendered video when another tone-mapping treatment is unwanted. `renderImage`
 returns an offscreen buffer and performs its existing readback; interactive
 playback does not read pixels back. See [GPU color management](color-pipeline.md).
+
+## Application console
+
+The main Flipman application now embeds this native module. Its live session
+facade, application services (settings, console and MCP), command history and
+interpreter lifetime are documented in
+[application Python console](application.md#python-interpreter). Standalone SDK
+imports remain independent of the application UI.

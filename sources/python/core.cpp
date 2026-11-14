@@ -170,6 +170,7 @@ bindCore(nb::module_& module)
               .def("isValid", &core::MetaData::isValid)
               .def("reset", &core::MetaData::reset)
               .def("groups", [](const core::MetaData& self) { return list(self.groups()); })
+              .def("keys", [](const core::MetaData& self) { return list(self.keys()); })
               .def(
                   "keys",
                   [](const core::MetaData& self, core::MetaData::Group group) { return list(self.keys(group)); },

@@ -66,6 +66,12 @@ MetaData::keys(Group group) const
     return p->d.groups.value(group).keys();
 }
 
+QList<QString>
+MetaData::keys() const
+{
+    return p ? p->d.common.keys() : QList<QString>();
+}
+
 QVariant
 MetaData::value(const QString& key) const
 {
